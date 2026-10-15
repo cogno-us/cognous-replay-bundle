@@ -156,19 +156,27 @@ def validate_run(cp, proposal, *, runtime_authority=False):
         if runtime_authority:
             require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
             checks={}
+            def normalize(values):
+                return [{k:v for k,v in x.items() if k!='previous_observed_at'} for x in values]
             for raw in cp['check_events']:
                 event=JournalEvent.model_validate(raw);_aware_time(event.recorded_at)
                 require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
                 if event.phase=='opened':
                     require(event.check_id not in checks,'duplicate journal opening')
-                    checks[event.check_id]=[event,False]
+                    checks[event.check_id]=[event,False,[]]
                 else:
                     require(event.check_id in checks and not checks[event.check_id][1],'journal missing opening or already closed')
                     opening=checks[event.check_id][0]
                     require(all(getattr(event,k)==getattr(opening,k) for k in ['owner','stage','proposal_commitment','decision_id','effect_id','action_class']),'journal binding changed')
                     if event.phase=='input':
                         require(event.input is not None,'journal input missing');inputs([event.input])
-                    else:checks[event.check_id][1]=True
+                        checks[event.check_id][2].append(raw['input'])
+                    else:
+                        checks[event.check_id][1]=True
+                        if event.phase=='completed':
+                            require(any(x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
+                                        and set(event.reasons)<=set(x['reasons']) for x in cp['resolution_checks']),
+                                    'completed journal differs from actual resolution check')
                 if event.decision_id is not None:
                     require(event.decision_id in decisions and decisions[event.decision_id]['effect_id']==event.effect_id,'journal decision/effect lineage mismatch')
             for d in cp['decisions']:
@@ -177,6 +185,8 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 if binding:
                     authority=binding.get('runtime_authority')
                     require(isinstance(authority,dict) and authority.get('profile')=='runtime-authority/0.1','runtime authority binding missing')
+                    require(set(authority)=={'profile','approval_commitment','required_inputs_digest','catalogue_digest',
+                        'expected_effective_grant_digest','effective_grant_derivation_version'},'runtime authority fields unsupported')
                     for field in ['approval_commitment','required_inputs_digest','catalogue_digest']:
                         require(isinstance(authority.get(field),str) and re.fullmatch(r'sha256:[a-f0-9]{64}',authority[field]),'runtime authority commitment invalid')
             require(isinstance(cp.get('vocabulary_changes',[]),list),'vocabulary changes malformed')
