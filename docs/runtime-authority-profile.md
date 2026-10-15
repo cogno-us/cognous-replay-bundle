@@ -1,7 +1,7 @@
 # Runtime authority candidate mapping
 
 The explicit nonselected mapping pairs Control Plane
-`7aa98ac452de4619161bef177cdd9c07fc606f03` with runtime
+`2a17b2ba147462a592d9b1882aad09d8a3eb7904` with runtime
 `a9a4f75a9a880ba0ae2c3b5a01fcee0ae904e127`, retaining executor producer 2.0.0
 and Reconstruction Bundle 0.2.0. Historical pairings remain unchanged.
 
