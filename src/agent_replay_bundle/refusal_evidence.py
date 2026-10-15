@@ -11,7 +11,7 @@ class Evidence(BaseModel):
 
 
 class Horizon(Evidence):
-    source: str
+    source: Literal['runtime_proposal']
     proposal_commitment: str
     not_before: str | None
     expires_at: str | None
@@ -80,6 +80,15 @@ def validate_run(cp, proposal):
             require(x.record_commitment is None or re.fullmatch(r'sha256:[0-9a-f]{64}',x.record_commitment), 'invalid input commitment')
             require(not x.missing or x.record_commitment is None, 'missing input claims a record commitment')
             if x.previous_observed_at is not None: _aware_time(x.previous_observed_at)
+    def horizon(value, binding=None):
+        if value is None: return None
+        x=Horizon.model_validate(value)
+        require(re.fullmatch(r'sha256:[0-9a-f]{64}', x.proposal_commitment), 'invalid horizon commitment')
+        for stamp in (x.not_before, x.expires_at):
+            if stamp is not None: _aware_time(stamp)
+        if isinstance(binding, dict):
+            require(x.proposal_commitment==binding.get('proposal_commitment'), 'original horizon commitment differs from original binding')
+        return x
     try:
         require(set(EXTENDED) <= cp.keys(), 'required evidence collection missing')
         require(isinstance(cp['input_time_floors'],dict), 'time floors must be an object')
@@ -88,10 +97,11 @@ def validate_run(cp, proposal):
         decisions={d['decision_id']:d for d in cp['decisions']}
         for d in cp['decisions']:
             inputs([Input.model_validate(x) for x in d['resolution_inputs']])
-            if d['operation_horizon'] is not None: Horizon.model_validate(d['operation_horizon'])
+            horizon(d['operation_horizon'], d.get('binding'))
         seen=set()
         for raw in cp['refusals']:
             x=Refusal.model_validate(raw);require(bool(x.refusal_id) and x.refusal_id not in seen,'duplicate/empty refusal id');seen.add(x.refusal_id)
+            horizon(raw['original_operation_horizon']);horizon(raw['operation_horizon'])
             d=decisions.get(x.decision_id)
             require(d is not None and d['effect_id']==x.effect_id,'dangling/substituted refusal binding')
             require(d['result']=='authorized' and d['binding'] is not None,'refusal requires original authorized decision')

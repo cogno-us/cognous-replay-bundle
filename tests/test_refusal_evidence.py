@@ -59,7 +59,7 @@ def test_all_typed_source_fields_survive_reconstruction(actual,change):
     if change=='lost-ack':assert cp['closeouts']
 
 
-@pytest.mark.parametrize('mutation',['missing','unknown','decision','effect','input','floors','executor-drop','executor-substitute','closeout'])
+@pytest.mark.parametrize('mutation',['missing','unknown','decision','effect','input','floors','executor-drop','executor-substitute','closeout','horizon-source','horizon-commitment'])
 def test_evidence_substitution_or_loss_is_rejected(actual,mutation):
     cp,p,exported,replay,_=bundle(actual)
     if mutation=='missing':del cp['refusals'][0]['resolution_inputs']
@@ -72,6 +72,10 @@ def test_evidence_substitution_or_loss_is_rejected(actual,mutation):
         exported['control_plane_evidence'].pop('refusal');exported['execution_result']['control_plane_evidence']=deepcopy(exported['control_plane_evidence'])
     elif mutation=='executor-substitute':
         exported['control_plane_evidence']['refusal']['reasons']=['made-up'];exported['execution_result']['control_plane_evidence']=deepcopy(exported['control_plane_evidence'])
+    elif mutation=='horizon-source':cp['refusals'][0]['operation_horizon']['source']='unrecognized'
+    elif mutation=='horizon-commitment':
+        cp['decisions'][0]['operation_horizon']['proposal_commitment']='sha256:'+'0'*64
+        cp['refusals'][0]['original_operation_horizon']['proposal_commitment']='sha256:'+'0'*64
     else:cp['closeouts']=[dict(attempt_id='other',effect_id=cp['decisions'][0]['effect_id'],original_status='unknown',observed_state='applied',observed_at=cp['decisions'][0]['decided_at'],reconciled_at=cp['decisions'][0]['decided_at'])]
     with pytest.raises(ImportContractError):
         import_bounded_workflow(cp,proposal=p,moltbot_export=exported,control_plane_revision=CONTROL_PLANE_REFUSAL_REVISION)

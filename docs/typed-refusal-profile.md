@@ -18,13 +18,13 @@ unsupported fields inside this typed profile fail closed. No default refusal or
 invented authorization reason is supplied. Downstream consumers must reconstruct
 all four fields before invoking the unchanged full Replay comparisons.
 
-`typed-refusal.yml` checks exact producer/manifest checkout SHAs and runs sixteen
+`typed-refusal.yml` checks exact producer/manifest checkout SHAs and runs eighteen
 actual-component cases on Python 3.11/3.12. Six positive scenarios exercise grant,
 approval, policy and evidence refusals, successful execution and lost-ack closeout.
-Nine negatives reject missing/unknown fields, substituted decision/effect/read
+Eleven negatives reject missing/unknown fields, substituted decision/effect/read
 identity, malformed time floors, executor evidence loss/substitution and dangling
-closeout. One verifies that unknown top-level data remains explicit loss.
-Local sixteen-case run passes with no failures, errors, skips or subtests. Local
+closeout, unsupported horizon source and a substituted original horizon commitment. One verifies that unknown top-level data remains explicit loss.
+Local eighteen-case run passes with no failures, errors, skips or subtests. Local
 legacy run without its pinned integration environment is 184 passes/77 skips;
 that is not full historical integration qualification. Existing hosted historical
 and merged-producer workflows remain required and retain their original pins.
