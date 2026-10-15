@@ -46,7 +46,11 @@ CONTROL_PLANE_REFUSAL_REVISION = "c7f122ba3a6e39f9268a7163c99be3ee514cd97e"
 MOLTBOT_REFUSAL_REVISION = "309e194c1b0a3de23e11e20133e6eaf88875e48a"
 BOUNDED_REFUSAL_PROFILE = "control-plane-bounded-refusal@c7f122ba"
 MOLTBOT_REFUSAL_PROFILE = "moltbot-safe-executor-producer-2.0.0@309e194c"
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION)
+CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION = "7aa98ac452de4619161bef177cdd9c07fc606f03"
+MOLTBOT_RUNTIME_AUTHORITY_REVISION = "12a54405efc627c9025542c5d45be80526a8adee"
+BOUNDED_RUNTIME_AUTHORITY_PROFILE = "control-plane-runtime-authority@7aa98ac4"
+MOLTBOT_RUNTIME_AUTHORITY_PROFILE = "moltbot-safe-executor-producer-2.0.0@12a54405"
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
@@ -311,6 +315,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_REFUSAL_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_REFUSAL_REVISION, CONTROL_PLANE_REFUSAL_REVISION, MOLTBOT_REFUSAL_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_REFUSAL_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_RUNTIME_AUTHORITY_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, MOLTBOT_RUNTIME_AUTHORITY_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -359,6 +366,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_V2_PERSISTENCE_REVISION: BOUNDED_V2_PERSISTENCE_PROFILE,
         CONTROL_PLANE_MERGED_REVISION: BOUNDED_MERGED_PROFILE,
         CONTROL_PLANE_REFUSAL_REVISION: BOUNDED_REFUSAL_PROFILE,
+        CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION: BOUNDED_RUNTIME_AUTHORITY_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -391,10 +399,15 @@ def import_bounded_workflow(
             "reconciliations": "records[reconciliation]",
         },
     )
-    extended = control_plane_revision == CONTROL_PLANE_REFUSAL_REVISION
+    authority = control_plane_revision == CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION
+    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION}
     if extended:
-        from .refusal_evidence import EXTENDED, validate_run
-        validate_run(cp, proposal)
+        from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
+        EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
+        if authority:
+            cp = dict(cp)
+            cp.setdefault("vocabulary_changes", [])
+        validate_run(cp, proposal, runtime_authority=authority)
         report.field_mappings.update({field: "records["+kind+"]" for field,kind in EXTENDED.items()})
     for field in sorted(set(cp) - required - (set(EXTENDED) if extended else set())):
         report.complete = False
@@ -1156,7 +1169,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     # Do not weaken operation binding for accepted upstream observations.
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
-    if any(r.producer_profile_id == BOUNDED_REFUSAL_PROFILE for r in cp_records):
+    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE} for r in cp_records):
         if set(evidence) - {'attempt','reconciliation','refusal'}:
             raise ImportContractError('unsupported typed refusal executor evidence field')
         refusal = evidence.get('refusal')
