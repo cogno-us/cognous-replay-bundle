@@ -2,9 +2,8 @@
 
 This additive, nonselected compatibility mapping accepts CP
 `c7f122ba3a6e39f9268a7163c99be3ee514cd97e` only with executor producer 2.0.0
-at `63bd4d8d33130de9cc1d3ab3031bd585f2b4e09e` (runtime PR #86; awaiting merge).
-This draft pin must be replaced by the actual runtime merge commit before this
-PR can be integrated. Historical revision pairings and producer profiles remain
+at `309e194c1b0a3de23e11e20133e6eaf88875e48a` (runtime PR #86, actual merge commit).
+The exact-source gate runs against that merged producer. Historical revision pairings and producer profiles remain
 unchanged; arbitrary cross-products are rejected.
 
 Replay preserves refusals, resolution checks, input time floors and attempt
