@@ -1,0 +1,22 @@
+# Cross component test ownership
+
+Cross-component tests and harnesses are maintained in [cognous-stack-qualification](https://github.com/cogno-us/cognous-stack-qualification/tree/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle). Component-local regression tests remain here. The source snapshot for this relocation was `83fbaf2a0f6f071aca1ea0af859eb8fc6385c26a`.
+
+The workflows in this repository call immutable reusable qualification workflows, passing the exact source commit. The canonical suite assembles only the listed test/harness files into a disposable CI checkout so relative imports and pinned historical interfaces retain their original meaning. Both the owning source commit and suite commit/file hashes are retained as artifacts. Selected component locks, grants and production permissions are unchanged.
+
+Historical reports remain attached to their original commits and do not qualify this relocation. Existing failing candidate gates remain failing until their owning repairs are accepted and requalified.
+
+| Original path | Canonical path |
+|---|---|
+| `.github/workflows/merged-producer.yml` | [suites/cognous-replay-bundle/.github/workflows/merged-producer.yml](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/.github/workflows/merged-producer.yml) |
+| `.github/workflows/recovery-inspection.yml` | [suites/cognous-replay-bundle/.github/workflows/recovery-inspection.yml](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/.github/workflows/recovery-inspection.yml) |
+| `.github/workflows/tests.yml` | [suites/cognous-replay-bundle/.github/workflows/tests.yml](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/.github/workflows/tests.yml) |
+| `.github/workflows/typed-refusal.yml` | [suites/cognous-replay-bundle/.github/workflows/typed-refusal.yml](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/.github/workflows/typed-refusal.yml) |
+| `qualification/test_merged_producer.py` | [suites/cognous-replay-bundle/qualification/test_merged_producer.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/qualification/test_merged_producer.py) |
+| `scripts/generate_producer_v2_examples.py` | [suites/cognous-replay-bundle/scripts/generate_producer_v2_examples.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/scripts/generate_producer_v2_examples.py) |
+| `scripts/generate_reconstruction_examples.py` | [suites/cognous-replay-bundle/scripts/generate_reconstruction_examples.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/scripts/generate_reconstruction_examples.py) |
+| `tests/recovery_inspection_checks.py` | [suites/cognous-replay-bundle/tests/recovery_inspection_checks.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/tests/recovery_inspection_checks.py) |
+| `tests/test_pinned_integration.py` | [suites/cognous-replay-bundle/tests/test_pinned_integration.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/tests/test_pinned_integration.py) |
+| `tests/test_producer_v2.py` | [suites/cognous-replay-bundle/tests/test_producer_v2.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/tests/test_producer_v2.py) |
+| `tests/test_producer_v2_persistence.py` | [suites/cognous-replay-bundle/tests/test_producer_v2_persistence.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/tests/test_producer_v2_persistence.py) |
+| `tests/test_refusal_evidence.py` | [suites/cognous-replay-bundle/tests/test_refusal_evidence.py](https://github.com/cogno-us/cognous-stack-qualification/blob/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle/tests/test_refusal_evidence.py) |

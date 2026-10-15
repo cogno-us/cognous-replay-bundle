@@ -1,42 +1,27 @@
+# Cross-component suite delegated to its canonical testing repository.
 name: Synthetic recovery inspection
-on:
+'on':
   pull_request:
     paths:
-      - src/agent_replay_bundle/recovery_inspection.py
-      - tests/recovery_inspection_checks.py
-      - docs/recovery-inspection.md
-      - .github/workflows/recovery-inspection.yml
+    - src/agent_replay_bundle/recovery_inspection.py
+    - tests/recovery_inspection_checks.py
+    - docs/recovery-inspection.md
+    - .github/workflows/recovery-inspection.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - src/agent_replay_bundle/recovery_inspection.py
-      - tests/recovery_inspection_checks.py
-      - docs/recovery-inspection.md
-      - .github/workflows/recovery-inspection.yml
+    - src/agent_replay_bundle/recovery_inspection.py
+    - tests/recovery_inspection_checks.py
+    - docs/recovery-inspection.md
+    - .github/workflows/recovery-inspection.yml
 permissions:
   contents: read
 jobs:
-  inspect:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: replay
-      - uses: actions/checkout@v4
-        with:
-          repository: cogno-us/cognous-execution-runtime
-          ref: 8e7d634cf0a22b6f3c1fc6d93afe92c7414fa243
-          path: runtime
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Verify producer revision
-        run: test "$(git -C runtime rev-parse HEAD)" = "8e7d634cf0a22b6f3c1fc6d93afe92c7414fa243"
-      - name: Install Replay and test dependencies
-        working-directory: replay
-        run: python -m pip install -e '.[dev]'
-      - name: Validate Runtime-generated recovery inspection
-        working-directory: replay
-        env:
-          COGNOUS_RUNTIME_SOURCE: ${{ github.workspace }}/runtime
-        run: python -m pytest -q tests/recovery_inspection_checks.py
+  cross-component:
+    uses: cogno-us/cognous-stack-qualification/.github/workflows/cognous-replay-bundle--recovery-inspection.yml@39f038435afdd71ba162860faa5718d90d7bde64
+    with:
+      source_revision: ${{ github.event.pull_request.head.sha || github.sha }}
+      qualification_revision: 39f038435afdd71ba162860faa5718d90d7bde64
+    permissions:
+      contents: read
