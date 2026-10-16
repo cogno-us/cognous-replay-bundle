@@ -56,14 +56,25 @@ MOLTBOT_SECURITY_REVISION = "fd6b76fa0e85feb5b67324114bf790d3a12fdaf1"
 MANIFEST_SECURITY_REVISION = "e385f8c19b4444817a8b84b72ed6edbc37deb807"
 BOUNDED_SECURITY_PROFILE = "control-plane-security-runtime@996baeb4"
 MOLTBOT_SECURITY_PROFILE = "moltbot-safe-executor-producer-2.0.0@fd6b76fa"
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION)
+# Separate exact producer generation after the F5b security repairs. The
+# 996baeb4/fd6b76fa generation above stays accepted for retained evidence.
+CONTROL_PLANE_F5B_REVISION = "a34c3dc26f84a767a55f9d5c89dc0b53e63fefa5"
+MOLTBOT_F5B_REVISION = "e20f92e104aba2ba6ad06120d8549c6170eaf63f"
+MANIFEST_F5B_REVISION = "2c36bcd0b620dbfe7ad924bc7196a3f0c04c5c5e"
+BOUNDED_F5B_PROFILE = "control-plane-security-runtime@a34c3dc2"
+MOLTBOT_F5B_PROFILE = "moltbot-safe-executor-producer-2.0.0@e20f92e1"
+# Control Plane revisions whose bounded output uses the security-runtime semantics.
+SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION})
+SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE})
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
 MOLTBOT_V2_PROFILE = "moltbot-safe-executor-producer-2.0.0@177354e9"
 # Every 2.0 executor profile fails closed on a dangling/ambiguous explicit attempt reference.
 STRICT_ACK_PROFILES = frozenset({MOLTBOT_V2_PROFILE, MOLTBOT_MERGED_PROFILE, MOLTBOT_REFUSAL_PROFILE,
-                                 MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE})
+                                 MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE,
+                                 MOLTBOT_F5B_PROFILE})
 PRODUCER_COMPATIBILITY = {
     "1.0.0": (MOLTBOT_SAFE_REVISION, CONTROL_PLANE_REVISION, MOLTBOT_PROFILE),
     "2.0.0": (MOLTBOT_V2_REVISION, CONTROL_PLANE_V2_REVISION, MOLTBOT_V2_PROFILE),
@@ -330,6 +341,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_SECURITY_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_SECURITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, MOLTBOT_SECURITY_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_SECURITY_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_F5B_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_F5B_REVISION, CONTROL_PLANE_F5B_REVISION, MOLTBOT_F5B_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_F5B_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -380,6 +394,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_REFUSAL_REVISION: BOUNDED_REFUSAL_PROFILE,
         CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION: BOUNDED_RUNTIME_AUTHORITY_PROFILE,
         CONTROL_PLANE_SECURITY_REVISION: BOUNDED_SECURITY_PROFILE,
+        CONTROL_PLANE_F5B_REVISION: BOUNDED_F5B_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -412,8 +427,8 @@ def import_bounded_workflow(
             "reconciliations": "records[reconciliation]",
         },
     )
-    authority = control_plane_revision in {CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION}
-    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION}
+    authority = control_plane_revision in {CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS}
+    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS}
     if extended:
         from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
         EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
@@ -692,8 +707,9 @@ def import_bounded_workflow(
             "control_plane_revision": control_plane_revision,
             "moltbot_safe_revision": contract["repository_revision"] if moltbot_export else None,
             "moltbot_producer_contract": contract if moltbot_export else None,
-            "manifest_revision": MANIFEST_SECURITY_REVISION if control_plane_revision == CONTROL_PLANE_SECURITY_REVISION else MANIFEST_REVISION,
-            **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision == CONTROL_PLANE_SECURITY_REVISION else {}),
+            "manifest_revision": {CONTROL_PLANE_SECURITY_REVISION: MANIFEST_SECURITY_REVISION,
+                                  CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
+            **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
     )
@@ -1190,9 +1206,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     # Do not weaken operation binding for accepted upstream observations.
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
-    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, BOUNDED_SECURITY_PROFILE} for r in cp_records):
+    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES} for r in cp_records):
         allowed = {'attempt', 'reconciliation', 'refusal'}
-        security = any(r.producer_profile_id == BOUNDED_SECURITY_PROFILE for r in cp_records)
+        security = any(r.producer_profile_id in SECURITY_RUNTIME_BOUNDED_PROFILES for r in cp_records)
         if security:
             allowed.add('failure_record_id')
         if set(evidence) - allowed:

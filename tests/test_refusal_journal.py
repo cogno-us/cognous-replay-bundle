@@ -6,6 +6,12 @@ security-runtime suite case `test_effect_and_commit_boundar0` (the valid case of
 test_effect_and_commit_boundary) at the base pins (Control Plane 996baeb4,
 runtime fd6b76fa, Replay 3601fb21; synthetic data only). It is not part of the
 hosted, archived F3 qualification evidence.
+
+The F5b generation (Control Plane a34c3dc2, runtime e20f92e1) is a separate,
+additive mapping; the fd6b76fa / 996baeb4 generation stays accepted, so this
+fixture is kept unchanged and is reused for both generations by rewriting only
+the executor's source-asserted revision. Native F5b-pin output is exercised by
+cognous-stack-qualification/suites/security-runtime.
 """
 from __future__ import annotations
 
@@ -19,12 +25,14 @@ from agent_replay_bundle import importers as I
 from agent_replay_bundle.importers import ImportContractError, import_bounded_workflow
 
 FIXTURE = Path(__file__).parent / "fixtures" / "security_runtime_valid"
-JOURNAL_REVISIONS = [I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.CONTROL_PLANE_SECURITY_REVISION]
+JOURNAL_REVISIONS = [I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.CONTROL_PLANE_SECURITY_REVISION,
+                     I.CONTROL_PLANE_F5B_REVISION]
 PAIRS = {
     "merged": (I.CONTROL_PLANE_MERGED_REVISION, I.MOLTBOT_MERGED_REVISION),
     "refusal": (I.CONTROL_PLANE_REFUSAL_REVISION, I.MOLTBOT_REFUSAL_REVISION),
     "runtime_authority": (I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.MOLTBOT_RUNTIME_AUTHORITY_REVISION),
     "security": (I.CONTROL_PLANE_SECURITY_REVISION, I.MOLTBOT_SECURITY_REVISION),
+    "f5b_security": (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_F5B_REVISION),
 }
 EXECUTOR = dict(PAIRS.values())
 
@@ -96,3 +104,28 @@ def test_dangling_acknowledgement_fails_closed_for_all_v2_profiles(pair):
     cp["attempts"][0]["acknowledgement"] = {"attempt_id": "executor-attempt-missing"}
     with pytest.raises(ImportContractError, match="dangling or ambiguous"):
         run(cp, proposal, executor, revision)
+
+
+def test_f5b_generation_is_separate_and_attributed():
+    cp, proposal, executor = load(I.MOLTBOT_F5B_REVISION)
+    bundle = run(cp, proposal, executor, I.CONTROL_PLANE_F5B_REVISION)
+    assert bundle.status == "reconstruction_complete"
+    assert {p.profile_id for p in bundle.producer_profiles} >= {I.BOUNDED_F5B_PROFILE, I.MOLTBOT_F5B_PROFILE}
+    assert bundle.metadata["manifest_revision"] == I.MANIFEST_F5B_REVISION
+    assert bundle.metadata["executor_failure_reference_verification"] == "source_asserted_not_independently_verified"
+    # The historical security generation keeps its own attribution.
+    cp, proposal, executor = load(I.MOLTBOT_SECURITY_REVISION)
+    bundle = run(cp, proposal, executor, I.CONTROL_PLANE_SECURITY_REVISION)
+    assert bundle.metadata["manifest_revision"] == I.MANIFEST_SECURITY_REVISION
+    assert I.BOUNDED_SECURITY_PROFILE in {p.profile_id for p in bundle.producer_profiles}
+
+
+@pytest.mark.parametrize("cp_revision, executor_revision", [
+    (I.CONTROL_PLANE_SECURITY_REVISION, I.MOLTBOT_F5B_REVISION),
+    (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_SECURITY_REVISION),
+    (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_RUNTIME_AUTHORITY_REVISION),
+])
+def test_f5b_generation_rejects_cross_generation_pairs(cp_revision, executor_revision):
+    cp, proposal, executor = load(executor_revision)
+    with pytest.raises(ImportContractError, match="revision combination"):
+        run(cp, proposal, executor, cp_revision)
