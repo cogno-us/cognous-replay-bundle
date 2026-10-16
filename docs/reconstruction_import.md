@@ -58,7 +58,7 @@ The bounded producer is event-oriented:
   version/digest are retained where supplied;
 - blocked/held decisions retain their producer `reasons`.
 
-A Control Plane attempt ID and Moltbot Safe attempt ID are different namespaces.
+A Control Plane attempt ID and Execution Runtime attempt ID are different namespaces.
 A link is created only when producer evidence explicitly supplies the Moltbot
 attempt ID, such as the pinned adapter acknowledgement. Shared decision/effect
 identifiers can support lineage but do not establish attempt identity.
@@ -78,7 +78,7 @@ reference. The reconstruction representation labels that value as
 Control Plane context-instance identifier.
 
 The Control Plane `AuthorizationBinding` does not persist
-`institution_id` or `authority_domain`. Moltbot Safe derives those values
+`institution_id` or `authority_domain`. Execution Runtime derives those values
 from its trusted integration context. Reconstruction preserves that provenance;
 it does not backfill the Control Plane record from caller assertions.
 
