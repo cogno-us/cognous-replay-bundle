@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Runtime-authority and security-runtime imports now mark opened-only or interrupted resolution journal checks with a B006 warning and `reconstruction_partial`.
+- A completed journal check is matched to a separately recorded resolution check by content; one resolution check can no longer substantiate two completed journals.
+- A dangling or ambiguous explicit executor attempt reference now fails closed for every producer 2.0.0 profile (merged, refusal, runtime-authority and security), as it already did for the original 2.0.0 profile.
+- Documented legacy HMAC coverage limits and the known limits of the legacy, W3 atomic and C8 paths.
+
 - Added exact producer-v2 compatibility for Control Plane persistence repair `248d899634d9db3518e831bc7ab568a48733f825` while preserving the earlier `2ea9528e...` revision.
 - Kept Reconstruction Bundle 0.2.0 because the persistence repair does not change the consumed bounded-record wire contract.
 - Added real-producer persistence-repair qualification and fail-closed contradiction tests without promoting source-asserted provenance.

@@ -4,7 +4,9 @@ This document describes the export integrity signing provided by Agent Replay Bu
 
 ## Purpose
 
-Signing a replay bundle provides **export integrity**: a verifiable record that the bundle has not been modified since it was signed. This is useful for sharing bundles across systems, storing them in audit logs, or attaching them to incident reports.
+Signing a 0.1 replay bundle provides limited **export integrity**: a holder of the same shared secret can check that the model-dumped inner `replay_bundle` (the canonical form below) still matches the HMAC. This is useful for sharing bundles across systems, storing them in audit logs, or attaching them to incident reports.
+
+It is not a record that the received JSON file is unmodified. Verification first parses the file through the Pydantic models and then recomputes the HMAC over `model_dump`. Properties those models do not retain can be added to the file and are not authenticated. The outer `SignedReplayBundle` envelope is also outside the HMAC: `signed_bundle_id` and every `signature_metadata` field other than the signature value itself (`signed`, `signed_at`, `signature_algorithm`, `key_id`) can be changed without failing verification.
 
 ## Algorithm
 
@@ -20,6 +22,8 @@ HMAC-SHA256 with a shared secret does not provide:
 - A PKI-based trust hierarchy
 
 For high-assurance production use cases, use a proper key management system and consider asymmetric signing (e.g., Ed25519 or RSA-PSS with an HSM or KMS).
+
+The CLI takes the secret only as a `--secret` argument. Command-line arguments can be visible to other local users and processes and may be kept in shell history or command logs. Use the Python API with a secret obtained from a deployment-specific secret store where that exposure matters.
 
 ## Usage
 
@@ -99,6 +103,6 @@ The output of signing is a `SignedReplayBundle`:
 }
 ```
 
-`SignedReplayBundle.signature_metadata` is the authoritative signature metadata for signed exports.
+`SignedReplayBundle.signature_metadata` is where signed exports carry their signature value. Only `signature` is checked; the remaining fields and `signed_bundle_id` are unauthenticated, caller-supplied labels and must not be relied on as signing time, algorithm or key identity.
 
 `AgentReplayBundle.signature_metadata` is optional embedded metadata for systems that store signature state directly on the bundle. It is not part of the canonical signing payload.
