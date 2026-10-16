@@ -1,7 +1,11 @@
 """Component-local regressions for runtime-authority journal and acknowledgement handling.
 
-The fixture is the retained native output of one actual valid security-runtime
-case (Control Plane 996baeb4, runtime fd6b76fa, synthetic data only).
+The fixture in tests/fixtures/security_runtime_valid/ is byte-identical to the
+native output of a LOCAL re-run of the cognous-stack-qualification
+security-runtime suite case `test_effect_and_commit_boundar0` (the valid case of
+test_effect_and_commit_boundary) at the base pins (Control Plane 996baeb4,
+runtime fd6b76fa, Replay 3601fb21; synthetic data only). It is not part of the
+hosted, archived F3 qualification evidence.
 """
 from __future__ import annotations
 
