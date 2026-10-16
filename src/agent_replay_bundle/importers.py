@@ -50,7 +50,13 @@ CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION = "2a17b2ba147462a592d9b1882aad09d8a3eb
 MOLTBOT_RUNTIME_AUTHORITY_REVISION = "a9a4f75a9a880ba0ae2c3b5a01fcee0ae904e127"
 BOUNDED_RUNTIME_AUTHORITY_PROFILE = "control-plane-runtime-authority@2a17b2ba"
 MOLTBOT_RUNTIME_AUTHORITY_PROFILE = "moltbot-safe-executor-producer-2.0.0@a9a4f75a"
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION)
+# Separate exact producer generation after the runtime security repair.
+CONTROL_PLANE_SECURITY_REVISION = "996baeb476c8745b1a58ddc968b9eecc6a39b76b"
+MOLTBOT_SECURITY_REVISION = "fd6b76fa0e85feb5b67324114bf790d3a12fdaf1"
+MANIFEST_SECURITY_REVISION = "e385f8c19b4444817a8b84b72ed6edbc37deb807"
+BOUNDED_SECURITY_PROFILE = "control-plane-security-runtime@996baeb4"
+MOLTBOT_SECURITY_PROFILE = "moltbot-safe-executor-producer-2.0.0@fd6b76fa"
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
@@ -318,6 +324,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_RUNTIME_AUTHORITY_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, MOLTBOT_RUNTIME_AUTHORITY_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_SECURITY_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_SECURITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, MOLTBOT_SECURITY_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_SECURITY_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -367,6 +376,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_MERGED_REVISION: BOUNDED_MERGED_PROFILE,
         CONTROL_PLANE_REFUSAL_REVISION: BOUNDED_REFUSAL_PROFILE,
         CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION: BOUNDED_RUNTIME_AUTHORITY_PROFILE,
+        CONTROL_PLANE_SECURITY_REVISION: BOUNDED_SECURITY_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -399,8 +409,8 @@ def import_bounded_workflow(
             "reconciliations": "records[reconciliation]",
         },
     )
-    authority = control_plane_revision == CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION
-    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION}
+    authority = control_plane_revision in {CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION}
+    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION}
     if extended:
         from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
         EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
@@ -672,7 +682,8 @@ def import_bounded_workflow(
             "control_plane_revision": control_plane_revision,
             "moltbot_safe_revision": contract["repository_revision"] if moltbot_export else None,
             "moltbot_producer_contract": contract if moltbot_export else None,
-            "manifest_revision": MANIFEST_REVISION,
+            "manifest_revision": MANIFEST_SECURITY_REVISION if control_plane_revision == CONTROL_PLANE_SECURITY_REVISION else MANIFEST_REVISION,
+            **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision == CONTROL_PLANE_SECURITY_REVISION else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
     )
@@ -1169,9 +1180,21 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     # Do not weaken operation binding for accepted upstream observations.
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
-    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE} for r in cp_records):
-        if set(evidence) - {'attempt','reconciliation','refusal'}:
+    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, BOUNDED_SECURITY_PROFILE} for r in cp_records):
+        allowed = {'attempt', 'reconciliation', 'refusal'}
+        security = any(r.producer_profile_id == BOUNDED_SECURITY_PROFILE for r in cp_records)
+        if security:
+            allowed.add('failure_record_id')
+        if set(evidence) - allowed:
             raise ImportContractError('unsupported typed refusal executor evidence field')
+        # This identifier is an attributable reference only. No failure row is
+        # exported by this producer, so it cannot establish independent durability.
+        if 'failure_record_id' in evidence:
+            reference = evidence['failure_record_id']
+            if (not isinstance(reference, str) or not reference or len(reference) > 200
+                    or result.get('status') != 'denied' or result.get('attempted')
+                    or result.get('acknowledged') or result.get('newly_executed')):
+                raise ImportContractError('invalid nonauthorizing executor failure reference')
         refusal = evidence.get('refusal')
         did = source['execution_envelope']['decision_id']
         retained = [r.data for r in cp_records if r.record_type == 'effect_time_refusal' and r.data.get('decision_id') == did and r.data.get('effect_id') == effect]
