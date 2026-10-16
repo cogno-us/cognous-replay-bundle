@@ -417,8 +417,15 @@ def import_bounded_workflow(
         if authority:
             cp = dict(cp)
             cp.setdefault("vocabulary_changes", [])
-        validate_run(cp, proposal, runtime_authority=authority)
+        unfinished = validate_run(cp, proposal, runtime_authority=authority)
         report.field_mappings.update({field: "records["+kind+"]" for field,kind in EXTENDED.items()})
+        for check_id in unfinished:
+            report.complete = False
+            report.findings.append(ImportFinding(
+                code="B006", category="value_state", severity="warning", path="check_events",
+                message=f"Resolution journal check {check_id} is opened-only or interrupted; its authority evaluation did not complete.",
+                value_state="unknown",
+            ))
     for field in sorted(set(cp) - required - (set(EXTENDED) if extended else set())):
         report.complete = False
         report.findings.append(ImportFinding(

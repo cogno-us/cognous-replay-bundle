@@ -7,10 +7,17 @@ and Reconstruction Bundle 0.2.0. Historical pairings remain unchanged.
 
 Import retains each resolution journal event, purpose read, vocabulary change,
 profile binding, refusal vocabulary and read-state field as original committed
-source data. Journal validation checks opening, ownership, terminality and
-original decision/effect bindings. Open or interrupted checks remain evidence of
-incompletion; reconstruction never grants permission or dispatches. Refusal
-capture must match the actual durable refusal supplied by the executor.
+source data. Journal validation checks opening, ownership, single closure and
+original decision/effect bindings. Each completed journal check must match a
+separately recorded resolution check by stage, inputs and reasons; journal and
+resolution-check identifiers are distinct producer UUIDs, so the match is by
+content, and one resolution check can substantiate at most one completed
+journal. Open (never closed) or interrupted checks are retained as evidence of
+incompletion: each adds a B006 warning and the reconstruction is
+`reconstruction_partial`, never complete. (Imports before this correction did
+not lower completeness for such checks.) Reconstruction never grants permission
+or dispatches. Refusal capture must match the actual durable refusal supplied by
+the executor.
 
 Unsupported fields in typed records reject rather than disappear. Unknown
 top-level collections remain explicit B001 losses and cannot yield complete

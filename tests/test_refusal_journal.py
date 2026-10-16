@@ -1,0 +1,84 @@
+"""Component-local regressions for runtime-authority journal and acknowledgement handling.
+
+The fixture is the retained native output of one actual valid security-runtime
+case (Control Plane 996baeb4, runtime fd6b76fa, synthetic data only).
+"""
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+from agent_replay_bundle import importers as I
+from agent_replay_bundle.importers import ImportContractError, import_bounded_workflow
+
+FIXTURE = Path(__file__).parent / "fixtures" / "security_runtime_valid"
+JOURNAL_REVISIONS = [I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.CONTROL_PLANE_SECURITY_REVISION]
+PAIRS = {
+    "merged": (I.CONTROL_PLANE_MERGED_REVISION, I.MOLTBOT_MERGED_REVISION),
+    "refusal": (I.CONTROL_PLANE_REFUSAL_REVISION, I.MOLTBOT_REFUSAL_REVISION),
+    "runtime_authority": (I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.MOLTBOT_RUNTIME_AUTHORITY_REVISION),
+    "security": (I.CONTROL_PLANE_SECURITY_REVISION, I.MOLTBOT_SECURITY_REVISION),
+}
+EXECUTOR = dict(PAIRS.values())
+
+
+def load(executor_revision=I.MOLTBOT_SECURITY_REVISION):
+    cp = json.loads((FIXTURE / "control_plane_run.json").read_text())
+    proposal = json.loads((FIXTURE / "proposal.json").read_text())
+    executor = json.loads((FIXTURE / "executor.json").read_text())
+    executor["repository"]["revision"] = executor_revision
+    executor["provenance"]["source_asserted"]["repository_revision"] = executor_revision
+    return cp, proposal, executor
+
+
+def run(cp, proposal, executor, revision):
+    return import_bounded_workflow(cp, proposal=proposal, moltbot_export=executor,
+                                   control_plane_revision=revision)
+
+
+@pytest.mark.parametrize("revision", JOURNAL_REVISIONS)
+def test_completed_journal_fixture_remains_complete(revision):
+    cp, proposal, executor = load(EXECUTOR[revision])
+    bundle = run(cp, proposal, executor, revision)
+    assert bundle.status == "reconstruction_complete"
+    assert not any(f.code == "B006" for f in bundle.import_reports[0].findings)
+
+
+@pytest.mark.parametrize("revision", JOURNAL_REVISIONS)
+@pytest.mark.parametrize("terminal", [None, "interrupted"])
+def test_unfinished_journal_check_makes_reconstruction_partial(revision, terminal):
+    cp, proposal, executor = load(EXECUTOR[revision])
+    opening = copy.deepcopy(cp["check_events"][0])
+    assert opening["phase"] == "opened"
+    opening["check_id"] = "unfinished-check"
+    cp["check_events"].append(opening)
+    if terminal:
+        cp["check_events"].append(dict(opening, phase=terminal, reasons=["check_interrupted"]))
+    bundle = run(cp, proposal, executor, revision)
+    assert bundle.status == "reconstruction_partial"
+    report = bundle.import_reports[0]
+    assert report.complete is False
+    finding = next(f for f in report.findings if f.code == "B006")
+    assert "unfinished-check" in finding.message and finding.value_state == "unknown"
+    # The unfinished journal is still retained as original source evidence.
+    events = [r.data for r in bundle.records if r.record_type == "resolution_check_event"]
+    assert events == cp["check_events"]
+
+
+@pytest.mark.parametrize("revision", JOURNAL_REVISIONS)
+def test_completed_journals_cannot_reuse_one_resolution_check(revision):
+    cp, proposal, executor = load(EXECUTOR[revision])
+    first = cp["check_events"][0]["check_id"]
+    sibling = [dict(copy.deepcopy(e), check_id="sibling-check") for e in cp["check_events"] if e["check_id"] == first]
+    cp["check_events"].extend(sibling)
+    with pytest.raises(ImportContractError, match="reuse one actual resolution check"):
+        run(cp, proposal, executor, revision)
+    # A separately recorded check with a different producer UUID substantiates it.
+    stage = sibling[0]["stage"]
+    check = copy.deepcopy(next(x for x in cp["resolution_checks"] if x["stage"] == stage))
+    check["check_id"] = "separately-recorded-check"
+    cp["resolution_checks"].append(check)
+    assert run(cp, proposal, executor, revision).status == "reconstruction_complete"
