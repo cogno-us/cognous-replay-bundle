@@ -82,3 +82,13 @@ def test_completed_journals_cannot_reuse_one_resolution_check(revision):
     check["check_id"] = "separately-recorded-check"
     cp["resolution_checks"].append(check)
     assert run(cp, proposal, executor, revision).status == "reconstruction_complete"
+
+
+@pytest.mark.parametrize("pair", sorted(PAIRS))
+def test_dangling_acknowledgement_fails_closed_for_all_v2_profiles(pair):
+    revision, executor_revision = PAIRS[pair]
+    cp, proposal, executor = load(executor_revision)
+    run(cp, proposal, executor, revision)
+    cp["attempts"][0]["acknowledgement"] = {"attempt_id": "executor-attempt-missing"}
+    with pytest.raises(ImportContractError, match="dangling or ambiguous"):
+        run(cp, proposal, executor, revision)
