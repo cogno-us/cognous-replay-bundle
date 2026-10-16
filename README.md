@@ -76,7 +76,7 @@ Test results, run commentary and historical qualification records are maintained
 
 ## Limitations and deployment decisions
 
-Reconstruction is non-effecting. It does not reevaluate policy, renew authorization, repeat an effect or independently verify delivery. Reconstruction completeness is not destination finality. A valid digest or HMAC is not institutional authority; redaction and key custody require deployment-specific controls.
+Reconstruction is non-effecting. It does not reevaluate policy, renew authorization, repeat an effect or independently verify delivery. Reconstruction completeness is not destination finality. A valid digest or HMAC is not institutional authority; redaction and key custody require deployment-specific controls. Known limits of the legacy and non-V1 paths are listed in [docs/reconstruction_import.md](docs/reconstruction_import.md#known-limitations-of-legacy-and-non-v1-paths).
 
 Review original artifacts and their exact source revisions before extending a claim to a new environment. New dependencies, authority sources, destinations or enforcement mechanisms need their own compatibility and qualification. A passing reference case is not a certification of an enterprise deployment.
 

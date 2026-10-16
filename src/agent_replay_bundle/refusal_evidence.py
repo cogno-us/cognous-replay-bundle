@@ -125,6 +125,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
     InputModel = AuthorityInput if runtime_authority else Input
     RefusalModel = AuthorityRefusal if runtime_authority else Refusal
     CheckModel = AuthorityCheck if runtime_authority else Check
+    unfinished=[]
     try:
         require(set(EXTENDED) <= cp.keys(), 'required evidence collection missing')
         require(isinstance(cp['input_time_floors'],dict), 'time floors must be an object')
@@ -155,7 +156,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
             require(any(r['effect_id']==x.effect_id and r.get('observation_accepted') and (r.get('observation') or {}).get('state')==x.observed_state and (r.get('observation') or {}).get('observed_at')==x.observed_at for r in cp['reconciliations']),'closeout lacks accepted observation lineage')
         if runtime_authority:
             require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
-            checks={}
+            checks={};completions=[]
             def normalize(values):
                 return [{k:v for k,v in x.items() if k!='previous_observed_at'} for x in values]
             for raw in cp['check_events']:
@@ -173,12 +174,29 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                         checks[event.check_id][2].append(raw['input'])
                     else:
                         checks[event.check_id][1]=True
+                        if event.phase=='interrupted':
+                            unfinished.append(event.check_id)
                         if event.phase=='completed':
-                            require(any(x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
-                                        and set(event.reasons)<=set(x['reasons']) for x in cp['resolution_checks']),
-                                    'completed journal differs from actual resolution check')
+                            # Journal and resolution-check IDs are separate producer UUIDs; bind by content.
+                            candidates=[i for i,x in enumerate(cp['resolution_checks']) if x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
+                                        and set(event.reasons)<=set(x['reasons'])]
+                            require(bool(candidates),'completed journal differs from actual resolution check')
+                            completions.append(candidates)
                 if event.decision_id is not None:
                     require(event.decision_id in decisions and decisions[event.decision_id]['effect_id']==event.effect_id,'journal decision/effect lineage mismatch')
+            # Each actual resolution check may substantiate at most one completed journal.
+            owner={}
+            def assign(j,seen):
+                for i in completions[j]:
+                    if i not in seen:
+                        seen.add(i)
+                        if i not in owner or assign(owner[i],seen):
+                            owner[i]=j;return True
+                return False
+            for j in range(len(completions)):
+                require(assign(j,set()),'completed journals reuse one actual resolution check')
+            # Opened-only and interrupted checks are retained as evidence of incompletion.
+            unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:
                 require(d.get('reason_vocabulary_version')=='runtime-authority-reasons/0.1','decision vocabulary missing')
                 binding=d.get('binding') or {}
@@ -196,6 +214,8 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 _aware_time(change['acknowledged_at'])
     except (ValidationError,KeyError,TypeError,AttributeError) as exc:
         raise ImportContractError('typed refusal profile: unsupported/missing evidence fields') from exc
+    # Journal check IDs that never completed (opened-only or interrupted), in journal order.
+    return unfinished
 
 
 def extend_retained_inputs(cp, bundle):

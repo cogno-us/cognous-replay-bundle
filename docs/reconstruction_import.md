@@ -275,3 +275,53 @@ comparison of reconciliation timestamps, attempt timestamps, or unrelated local
 historical observations establishes a combined timeline. Cross-sequence order is
 explicitly `not_established`; freshness at import is `not_evaluated`. These are
 recorded observations, not a new destination query or authority evaluation.
+
+## Known limitations of legacy and non-V1 paths
+
+These limits are recorded as found; the behavior is unchanged. None of these
+paths is the V1 Control Plane path, and none of them authorizes, renews or
+dispatches anything.
+
+Legacy 0.1 replay bundles (`validator.py`, `redaction.py`, `signing.py`):
+
+- The semantic validator does not reject duplicate action, decision or trace
+  identities (action IDs are compared as a set and traces are looked up by a
+  last-wins map), and it does not require a decision's referenced policy trace
+  to describe the same action. A `valid` report does not establish unique or
+  action-consistent identities.
+- Legacy redaction copies any `redaction_metadata.redacted_fields` already
+  present on the input into the output without checking those paths were
+  redacted. Treat inherited entries as unverified claims. It also keeps an
+  embedded `signature_metadata` unchanged, so a redacted bundle can still show
+  `signed: true` with a signature over the earlier content. Re-sign derivatives
+  and do not trust embedded signature state.
+- The legacy HMAC limits and the `--secret` command-line exposure are described
+  in [signing.md](signing.md).
+
+Executor adapters:
+
+- The legacy unversioned and producer-profile 1.0.0 adapters do not correlate
+  retained `observations` with `execution_result.observation` or
+  `observed_state`. Only producer-profile 2.0.0 enforces that equality, so a
+  legacy or 1.0.0 import can retain observations that contradict the result.
+- An executor export with no `producer_profile` is treated as a legacy
+  unversioned export. If it also has no `repository`, the importer records the
+  adapter's pinned legacy revision `6b0ba1185bcd390f71df947dda349415e4105f5f`
+  as the executor revision. That revision is assigned by the adapter, not
+  stated by the producer, and versioned identity and observation checks are not
+  applied. V1 Control Plane exports always carry a producer profile, so the V1
+  path does not reach this branch.
+
+W3/C8 mappings (`w3_atomic_import.py`, `w3_c8_lineage.py`) are non-V1,
+non-authorizing reconstructions:
+
+- The W3 atomic importer accepts an observation that has no `decision_id`, and
+  one whose `decision_id` differs from the caller's, and records it under the
+  caller-supplied effect and decision identities. Only a stated, contradicting
+  `effect_id` is rejected. Observation-to-decision binding is not established.
+- The C8 importer does not key grant, approval or policy rows uniquely. Only the
+  first grant row's revision is compared, and approval and policy coverage is
+  checked by set membership, so conflicting duplicate rows can be retained in a
+  complete reconstruction. Stop events are checked for internal order and a
+  single effect, but are not bound to the authority claim or its operation
+  commitment before the two are combined.

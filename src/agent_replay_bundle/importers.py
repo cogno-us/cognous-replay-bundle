@@ -61,6 +61,9 @@ MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
 MOLTBOT_V2_PROFILE = "moltbot-safe-executor-producer-2.0.0@177354e9"
+# Every 2.0 executor profile fails closed on a dangling/ambiguous explicit attempt reference.
+STRICT_ACK_PROFILES = frozenset({MOLTBOT_V2_PROFILE, MOLTBOT_MERGED_PROFILE, MOLTBOT_REFUSAL_PROFILE,
+                                 MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE})
 PRODUCER_COMPATIBILITY = {
     "1.0.0": (MOLTBOT_SAFE_REVISION, CONTROL_PLANE_REVISION, MOLTBOT_PROFILE),
     "2.0.0": (MOLTBOT_V2_REVISION, CONTROL_PLANE_V2_REVISION, MOLTBOT_V2_PROFILE),
@@ -417,8 +420,15 @@ def import_bounded_workflow(
         if authority:
             cp = dict(cp)
             cp.setdefault("vocabulary_changes", [])
-        validate_run(cp, proposal, runtime_authority=authority)
+        unfinished = validate_run(cp, proposal, runtime_authority=authority)
         report.field_mappings.update({field: "records["+kind+"]" for field,kind in EXTENDED.items()})
+        for check_id in unfinished:
+            report.complete = False
+            report.findings.append(ImportFinding(
+                code="B006", category="value_state", severity="warning", path="check_events",
+                message=f"Resolution journal check {check_id} is opened-only or interrupted; its authority evaluation did not complete.",
+                value_state="unknown",
+            ))
     for field in sorted(set(cp) - required - (set(EXTENDED) if extended else set())):
         report.complete = False
         report.findings.append(ImportFinding(
@@ -1041,7 +1051,7 @@ def _import_moltbot(
                     establishes_identity_equivalence=False,
                 ))
             else:
-                if profile_id == MOLTBOT_V2_PROFILE:
+                if profile_id in STRICT_ACK_PROFILES:
                     raise ImportContractError("explicit executor attempt reference is dangling or ambiguous")
                 findings.append(ImportFinding(
                     code="M001",
