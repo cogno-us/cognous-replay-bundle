@@ -19,9 +19,9 @@ permissions:
   contents: read
 jobs:
   cross-component:
-    uses: cogno-us/cognous-stack-qualification/.github/workflows/cognous-replay-bundle--recovery-inspection.yml@39f038435afdd71ba162860faa5718d90d7bde64
+    uses: cogno-us/cognous-stack-qualification/.github/workflows/cognous-replay-bundle--recovery-inspection.yml@5c61cd89f95751ad56d1b4e46d1b2ee7cf095543
     with:
       source_revision: ${{ github.event.pull_request.head.sha || github.sha }}
-      qualification_revision: 39f038435afdd71ba162860faa5718d90d7bde64
+      qualification_revision: 5c61cd89f95751ad56d1b4e46d1b2ee7cf095543
     permissions:
       contents: read
