@@ -181,6 +181,50 @@ def _decode_payload_json(value: Any, path: str) -> dict[str, Any]:
     return decoded
 
 
+# Route B (atomic local executor) reports a post-commit failure as result 'unknown' carrying a *recovery*
+# observation: the destination's claim-reconciliation report, keyed by 'status' (not the Control Plane
+# observation's 'state'). It is a recovery report, never validated Control Plane evidence.
+RECOVERY_OBSERVATION_KEYS = {"status", "claim_state", "retry_eligible", "effect_id", "operation_digest", "reason"}
+RECOVERY_OBSERVATION_STATUSES = {"applied", "partial", "hold", "unknown"}
+
+
+def _is_recovery_observation(observation: object) -> bool:
+    return isinstance(observation, dict) and "state" not in observation and "status" in observation
+
+
+def _recovery_observed_state(observation: dict[str, Any]) -> str:
+    status = observation.get("status")
+    return status if status in {"applied", "partial"} else "unknown"
+
+
+def _validate_recovery_observation(observation: dict[str, Any], result: dict[str, Any],
+                                   effect_id: str, op: dict[str, Any]) -> None:
+    path = "execution_result.observation"
+    extra = sorted(set(observation) - RECOVERY_OBSERVATION_KEYS)
+    if extra:
+        raise ImportContractError(f"{path} recovery report has undeclared members: " + ",".join(extra))
+    status = observation.get("status")
+    if status not in RECOVERY_OBSERVATION_STATUSES:
+        raise ImportContractError(f"{path}.status is not a recovery status")
+    if observation.get("retry_eligible") is not False:
+        raise ImportContractError("unsupported retry eligibility")
+    if result.get("status") != "unknown":
+        raise ImportContractError("a recovery report cannot establish a validated result; result must be unknown")
+    if result.get("observed_state") != _recovery_observed_state(observation):
+        raise ImportContractError("recovery report observed-state contradiction")
+    if "effect_id" in observation:
+        _require_equal(observation["effect_id"], effect_id, path + ".effect_id")
+    if "operation_digest" in observation:
+        _require_equal(observation["operation_digest"], _sha256(op), path + ".operation_digest")
+    if status in {"applied", "partial"}:
+        for field in ("claim_state", "effect_id", "operation_digest"):
+            if field not in observation:
+                raise ImportContractError(f"{path}.{field} is required for an {status} recovery report")
+    elif not isinstance(observation.get("reason"), str) or not observation["reason"]:
+        raise ImportContractError(f"{path}.reason is required for a {status} recovery report")
+
+
+
 def _validate_observation_content(observation: dict[str, Any], effect_id: str, op: dict[str, Any], path: str) -> None:
     _require_equal(observation.get("effect_id"), effect_id, path + ".effect_id")
     state = observation.get("state")
@@ -834,7 +878,11 @@ def _import_moltbot(
                 message="Historical local observation is retained without Control Plane validation or renewed authority."))
 
     result_observation = result.get("observation")
-    if isinstance(result_observation, dict) and result_observation:
+    if _is_recovery_observation(result_observation):
+        findings.append(ImportFinding(code="M021", category="unsupported_semantic",
+            severity="info", path="execution_result.observation",
+            message="Destination recovery report is retained as a report only; it is not a validated Control Plane observation."))
+    elif isinstance(result_observation, dict) and result_observation:
         _require_equal(result_observation.get("effect_id"), envelope_effect, "execution_result.observation.effect_id")
         if "state" in result_observation and result.get("observed_state") not in (None, "unknown"):
             _require_equal(result_observation.get("state"), result.get("observed_state"), "execution_result.observation.state")
@@ -1062,6 +1110,15 @@ def _import_moltbot(
 
     for i, raw in enumerate(source.get("observations") or []):
         raw = _obj(raw, f"moltbot.observations[{i}]")
+        if _is_recovery_observation(raw):
+            # Destination recovery report (route B): retained under its own record type so that it can never be
+            # read as a validated executor observation. Its content was checked by the producer-2.0.0 export gate.
+            records.append(_record(
+                profile_id, "executor_recovery_report", seq, f"moltbot.observations[{i}]", raw,
+                ids={"effect_id": raw.get("effect_id") or envelope_effect},
+            ))
+            seq += 1
+            continue
         _validate_observation_content(raw, envelope_effect, op, f"moltbot.observations[{i}]")
         if raw.get("state") in {"absent", "unknown"}:
             destination_state = raw.get("destination_state")
@@ -1255,8 +1312,11 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
         terminal = per_attempt[result_attempt][-1].get("status")
         # The Control Plane adapter reports an acknowledged-but-unobserved delivery as result 'unknown'
         # (no observation) while the executor's own terminal event is 'executed'.
+        observation = result.get("observation")
         unresolved_ack = (terminal == "executed" and result.get("status") == "unknown"
-                          and result.get("observation") is None and result.get("observed_state") == "unknown")
+                          and ((observation is None and result.get("observed_state") == "unknown")
+                               or (_is_recovery_observation(observation)
+                                   and result.get("observed_state") == _recovery_observed_state(observation))))
         if terminal != result.get("status") and not unresolved_ack:
             raise ImportContractError(
                 f"execution result status {result.get('status')!r} contradicts the terminal attempt event {terminal!r}")
@@ -1279,7 +1339,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         raise ImportContractError('accepted executor observations differ from result')
     if not observation and result.get('observed_state') != 'unknown':
         raise ImportContractError('null observation cannot establish observed state')
-    if observation:
+    if observation and _is_recovery_observation(observation):
+        _validate_recovery_observation(observation, result, effect, op)
+    elif observation:
         if result.get('observed_state') != observation.get('state'):
             raise ImportContractError('execution observed-state contradiction')
         _validate_observation_content(observation, effect, op, 'execution_result.observation')
@@ -1301,16 +1363,30 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         security = any(r.producer_profile_id in SECURITY_RUNTIME_BOUNDED_PROFILES for r in cp_records)
         if security:
             allowed.add('failure_record_id')
+        recovery_report = bool(observation) and _is_recovery_observation(observation)
+        if recovery_report:
+            # Route B post-commit failure: the executor names the failure it recorded (reference only).
+            allowed |= {'failure_record_id', 'failure_class'}
         if set(evidence) - allowed:
             raise ImportContractError('unsupported typed refusal executor evidence field')
         # This identifier is an attributable reference only. No failure row is
         # exported by this producer, so it cannot establish independent durability.
         if 'failure_record_id' in evidence:
             reference = evidence['failure_record_id']
-            if (not isinstance(reference, str) or not reference or len(reference) > 200
-                    or result.get('status') != 'denied' or result.get('attempted')
-                    or result.get('acknowledged') or result.get('newly_executed')):
+            if recovery_report:
+                invalid = (not isinstance(reference, str) or not reference or len(reference) > 200
+                           or result.get('status') != 'unknown' or result.get('acknowledged')
+                           or result.get('newly_executed'))
+            else:
+                invalid = (not isinstance(reference, str) or not reference or len(reference) > 200
+                           or result.get('status') != 'denied' or result.get('attempted')
+                           or result.get('acknowledged') or result.get('newly_executed'))
+            if invalid:
                 raise ImportContractError('invalid nonauthorizing executor failure reference')
+        if 'failure_class' in evidence:
+            failure_class = evidence['failure_class']
+            if not isinstance(failure_class, str) or not failure_class or len(failure_class) > 100:
+                raise ImportContractError('invalid executor failure class')
         refusal = evidence.get('refusal')
         did = source['execution_envelope']['decision_id']
         retained = [r.data for r in cp_records if r.record_type == 'effect_time_refusal' and r.data.get('decision_id') == did and r.data.get('effect_id') == effect]
@@ -1346,7 +1422,10 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
             raise ImportContractError('rejected observation cannot establish observed state')
     elif source['rejected_observations']:
         raise ImportContractError('rejected evidence has no enclosing reconciliation')
-    if result.get('attempted'):
+    if result.get('attempted') and not (attempt is None and rec is None and _is_recovery_observation(observation)
+                                        and result.get('attempt_id')):
+        # (A route B atomic-local execution has no Control Plane attempt or reconciliation; its recovery
+        # report stands in for them and is retained as a report only.)
         if not attempt or rec is None or not result.get('attempt_id'):
             raise ImportContractError('attempted execution lacks owning attempt/reconciliation')
     elif result.get('acknowledged') or result.get('newly_executed'):
