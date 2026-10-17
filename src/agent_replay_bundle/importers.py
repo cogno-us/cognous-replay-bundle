@@ -851,6 +851,9 @@ def _import_moltbot(
                  "effect_id": attempts[aid].get("effect_id"), "decision_id": attempts[aid].get("decision_id")},
         )); seq += 1
 
+    if source.get("producer_profile", {}).get("profile_version") == "2.0.0":
+        _validate_v2_executor_rows(source, attempts, result)
+
     cp_attempt_records = {
         r.identifiers.get("attempt_id"): r
         for r in cp_records
@@ -997,6 +1000,8 @@ def _import_moltbot(
             _decode_payload_json(raw.get("payload_json"), f"moltbot.effects[{i}].payload_json"),
             op.get("payload"), f"moltbot.effects[{i}].payload_json",
         )
+        if eid in effects and source.get("producer_profile", {}).get("profile_version") == "2.0.0":
+            raise ImportContractError(f"duplicate destination effect row for {eid}")
         _unique_or_same(effects, eid, invariant, "effect_id")
         rr = _record(
             profile_id, "destination_effect", seq, f"moltbot.effects[{i}]", raw,
@@ -1167,9 +1172,62 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
     if cp.get('observations') != accepted:
         raise ImportContractError('accepted Control Plane observations differ from retained reconciliations')
     terminal = {}
+    lifecycle: dict[Any, list[dict[str, Any]]] = {}
     for attempt in cp.get('attempts', []):
+        attempt = _obj(attempt, 'attempt')
         if attempt.get('status') != 'attempted':
             _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt')
+        lifecycle.setdefault(attempt.get('attempt_id'), []).append(attempt)
+    # Each attempt lifecycle starts with exactly one 'attempted' record; no lifecycle record is repeated
+    # verbatim. A dropped start record or a duplicated record is a defect, not repeated history.
+    for attempt_id, rows in lifecycle.items():
+        if rows[0].get('status') != 'attempted':
+            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle lacks its attempted start record')
+        if any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i)):
+            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record')
+
+
+def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
+                               result: dict[str, Any]) -> None:
+    """Producer 2.0.0 executor rows must be a complete, ordered, non-repeated lifecycle.
+
+    Attempt rows are unique; the attempt events of every executor attempt are present, carry strictly
+    increasing event ids and non-decreasing times, start with ``attempted`` and are not repeated; the
+    terminal event of the attempt that the execution result names equals the result status.
+    """
+    rows = source["attempts"]
+    if len(rows) != len(attempts):
+        raise ImportContractError("duplicate executor attempt row")
+    events = source["attempt_events"]
+    last_id = None
+    last_time = None
+    per_attempt: dict[str, list[dict[str, Any]]] = {}
+    for i, raw in enumerate(events):
+        event_id = raw.get("event_id")
+        if type(event_id) is not int or (last_id is not None and event_id <= last_id):
+            raise ImportContractError(f"moltbot.attempt_events[{i}] event_id is repeated or out of order")
+        last_id = event_id
+        created = raw.get("created_at")
+        if isinstance(created, bool) or not isinstance(created, (int, float)) or (last_time is not None and created < last_time):
+            raise ImportContractError(f"moltbot.attempt_events[{i}] created_at is missing or out of order")
+        last_time = created
+        per_attempt.setdefault(raw.get("attempt_id"), []).append(raw)
+    for aid in attempts:
+        rows_for = per_attempt.get(aid)
+        if not rows_for:
+            raise ImportContractError(f"executor attempt {aid} has no attempt events")
+        if rows_for[0].get("status") != "attempted":
+            raise ImportContractError(f"executor attempt {aid} events do not start with attempted")
+        if any(r.get("status") == "attempted" for r in rows_for[1:]):
+            raise ImportContractError(f"executor attempt {aid} repeats its attempted event")
+    attempt_identity = source.get("attempt_identity") or {}
+    result_attempt = result.get("attempt_id")
+    if (attempt_identity.get("namespace") == "executor" and result_attempt in attempts
+            and result.get("status") != "observed"):
+        terminal = per_attempt[result_attempt][-1].get("status")
+        if terminal != result.get("status"):
+            raise ImportContractError(
+                f"execution result status {result.get('status')!r} contradicts the terminal attempt event {terminal!r}")
 
 
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
@@ -1286,6 +1344,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                 raise ImportContractError('acknowledgement claim contradicts owning attempt')
         if result.get('newly_executed') and ack.get('newly_executed') is not True:
             raise ImportContractError('new effect claim lacks producer acknowledgement')
+        if (primary.get('namespace') == 'executor' and ack.get('newly_executed') is True
+                and not result.get('newly_executed')):
+            raise ImportContractError('producer acknowledgement of a new effect contradicts the execution result')
 
 
 def _effect_observation_history(cp: dict[str, Any]) -> dict[str, Any]:
