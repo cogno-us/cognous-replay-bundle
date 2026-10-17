@@ -150,10 +150,22 @@ def validate_run(cp, proposal, *, runtime_authority=False):
         for raw in cp['resolution_checks']:
             x=CheckModel.model_validate(raw);require(bool(x.check_id) and x.check_id not in seen,'duplicate/empty resolution check id');seen.add(x.check_id)
             _aware_time(x.evaluated_at);inputs(x.inputs)
+        closeout_keys=set()
         for raw in cp['closeouts']:
             x=Closeout.model_validate(raw);_aware_time(x.observed_at);_aware_time(x.reconciled_at)
+            require((x.attempt_id,x.observed_state) not in closeout_keys,'duplicate attempt closeout');closeout_keys.add((x.attempt_id,x.observed_state))
             require(any(a['attempt_id']==x.attempt_id and a['effect_id']==x.effect_id and a['status']==x.original_status for a in cp['attempts']),'closeout lacks original attempt lineage')
             require(any(r['effect_id']==x.effect_id and r.get('observation_accepted') and (r.get('observation') or {}).get('state')==x.observed_state and (r.get('observation') or {}).get('observed_at')==x.observed_at for r in cp['reconciliations']),'closeout lacks accepted observation lineage')
+        # An attempt whose last recorded status is still uncertain (attempted/unknown/failed) must be closed out
+        # for every accepted applied/partial observation of its effect (Control Plane close_uncertain_attempts).
+        latest={}
+        for a in cp['attempts']: latest[a['attempt_id']]=a
+        for r in cp['reconciliations']:
+            state=(r.get('observation') or {}).get('state')
+            if r.get('observation_accepted') and state in ('applied','partial'):
+                for aid,a in latest.items():
+                    if a['effect_id']==r['effect_id'] and a['status'] in ('attempted','unknown','failed'):
+                        require((aid,state) in closeout_keys,'uncertain attempt lacks closeout for accepted observation')
         if runtime_authority:
             require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
             checks={};completions=[]
@@ -195,6 +207,12 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 return False
             for j in range(len(completions)):
                 require(assign(j,set()),'completed journals reuse one actual resolution check')
+            # Resolution checks are appended as they complete, so completed journals must match actual checks in order.
+            previous=-1
+            for candidates in completions:
+                later=[i for i in candidates if i>previous]
+                require(bool(later),'resolution checks are out of journal order')
+                previous=min(later)
             # Opened-only and interrupted checks are retained as evidence of incompletion.
             unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:
