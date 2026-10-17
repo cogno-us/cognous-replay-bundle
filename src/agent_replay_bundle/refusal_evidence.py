@@ -1,6 +1,6 @@
 """Strict, non-authorizing preservation of the c7f122ba bounded evidence fields."""
 from copy import deepcopy
-from typing import Literal
+from typing import Any, Literal
 import re
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -10,6 +10,23 @@ class Evidence(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
 
 
+class Extensible(Evidence):
+    """Reserved ``extensions`` member (ODES execution-attempt-lifecycle contract, decision 16): ``x-`` named members
+    are accepted and preserved verbatim (the retained record is the raw object); their names are checked by
+    ``check_extensions``. They carry no authority and are ignored by the journal-to-check content binding."""
+    extensions: dict[str, Any] | None = None
+
+
+def check_extensions(raw, label):
+    from .importers import ImportContractError, EXTENSION_NAME
+    ext = raw.get('extensions') if isinstance(raw, dict) else None
+    if ext is None: return
+    bad = sorted(str(k) for k in ext if not (isinstance(k, str) and EXTENSION_NAME.match(k)))
+    if bad:
+        raise ImportContractError(f"typed refusal profile: {label}.extensions names must start with 'x-': " + ",".join(bad),
+                                  'invalid_extension_key')
+
+
 class Horizon(Evidence):
     source: Literal['runtime_proposal']
     proposal_commitment: str
@@ -17,7 +34,7 @@ class Horizon(Evidence):
     expires_at: str | None
 
 
-class Input(Evidence):
+class Input(Extensible):
     input_type: Literal['manifest','authority_context','grant','policy','approval','evidence','role_mapping','identity','mandate','conflict']
     input_id: str
     expected: dict[str,str]
@@ -48,7 +65,7 @@ class Refusal(Evidence):
     resolution_inputs: list[Input]
 
 
-class Check(Evidence):
+class Check(Extensible):
     check_id: str
     stage: Literal['decision','effect','claim']
     evaluated_at: str
@@ -81,7 +98,7 @@ class AuthorityCheck(Check):
     inputs: list[AuthorityInput]
 
 
-class JournalEvent(Evidence):
+class JournalEvent(Extensible):
     check_id: str
     phase: Literal['opened','input','completed','interrupted']
     stage: Literal['decision','effect','claim']
@@ -119,6 +136,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
     def inputs(values):
         for x in values:
             require(bool(x.input_id), 'empty input identity')
+            check_extensions({'extensions': x.extensions}, 'input')
             require(x.record_commitment is None or re.fullmatch(r'sha256:[0-9a-f]{64}',x.record_commitment), 'invalid input commitment')
             require(not x.missing or x.record_commitment is None, 'missing input claims a record commitment')
             if x.previous_observed_at is not None: _aware_time(x.previous_observed_at)
@@ -159,6 +177,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
         for raw in cp['resolution_checks']:
             x=CheckModel.model_validate(raw);require(bool(x.check_id) and x.check_id not in seen,'duplicate/empty resolution check id','duplicate_check_id');seen.add(x.check_id)
             _aware_time(x.evaluated_at);inputs(x.inputs)
+            check_extensions(raw,'resolution_checks');[check_extensions(i,'resolution_checks.inputs') for i in raw['inputs']]
         closeout_keys=set()
         for raw in cp['closeouts']:
             x=Closeout.model_validate(raw);_aware_time(x.observed_at);_aware_time(x.reconciled_at)
@@ -179,9 +198,10 @@ def validate_run(cp, proposal, *, runtime_authority=False):
             require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
             checks={};completions=[];open_at={};close_at={}
             def normalize(values):
-                return [{k:v for k,v in x.items() if k!='previous_observed_at'} for x in values]
+                return [{k:v for k,v in x.items() if k not in ('previous_observed_at','extensions')} for x in values]
             for seq,raw in enumerate(cp['check_events']):
                 event=JournalEvent.model_validate(raw);_aware_time(event.recorded_at)
+                check_extensions(raw,'check_events');check_extensions(raw.get('input'),'check_events.input')
                 require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
                 if event.phase=='opened':
                     require(event.check_id not in checks,'duplicate journal opening','journal_protocol')
