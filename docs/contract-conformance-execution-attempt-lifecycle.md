@@ -62,7 +62,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executor-dropped-terminal-event` | refuse: terminal_event_missing | REFUSED | `terminal_event_missing`: execution result status 'executed' contradicts the terminal attempt event 'attempted' |  |
 | `executor-terminal-failed-vs-status` | refuse: status_terminal_mismatch | REFUSED | `status_terminal_mismatch`: execution result status 'executed' contradicts the terminal attempt event 'failed' |  |
 | `executor-unknown-recovery-state-contradiction` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: recovery report observed-state contradiction |  |
-| `executor-unknown-with-validated-observation` | refuse: unknown_with_validated_observation | REFUSED | `unknown_with_validated_observation`: an unknown result cannot carry a validated observation |  |
+| `executor-unknown-with-validated-observation` | refuse: unknown_with_validated_observation | DIVERGES | accepted | RP-6 deferred to step B (owner decision 2026-10-17): the pinned runtimes still export a lost ack as unknown with a validated applied observation un... |
 | `extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: moltbot_export.extensions names must start with 'x-': trace | rule order: refused here before observed_result_claims_attempt would be |
 | `observed-result-claims-attempt` | refuse: observed_result_claims_attempt | REFUSED | `observed_result_claims_attempt`: an observed result cannot claim an attempt, acknowledgement or new effect (a normal execution reports executed) |  |
 | `recovery-applied-missing-operation-digest` | refuse: recovery_report_incomplete | REFUSED | `recovery_report_incomplete`: execution_result.observation.operation_digest is required for an applied recovery report |  |
@@ -75,7 +75,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `undeclared-member-outside-extensions` | refuse: undeclared_member | REFUSED | `undeclared_member`: execution_result has unsupported member(s): injected_member | rule order: refused here before observed_result_claims_attempt would be |
 <!-- END FIXTURE TABLE -->
 
-Totals: 16 ACCEPTED, 20 REFUSED, 1 DIVERGES, 0 NOT-EXERCISED.
+Totals: 16 ACCEPTED, 19 REFUSED, 2 DIVERGES, 0 NOT-EXERCISED.
 
 ## Probes beyond the fixtures
 
@@ -155,7 +155,7 @@ except the one decision below. Evidence for the current behaviour is the tests, 
 | RP-2 `started_at` immutable | The contract adopted it (`attempt_started_at_changed`). |
 | RP-3, RP-4 `recovery_observations`, layout | Accepted: `observations` lists the validated observation only, `recovery_observations` is optional, `execution_result.observation` carries the report. Mismatches are `observations_mismatch` / `recovery_observations_mismatch`. |
 | RP-5 legacy layout | Deliberately still tolerated (step A): a report mirrored in `observations`, with no `recovery_observations`, is accepted and retained as `executor_recovery_report`. The fixture `recovery-report-in-observations-member` therefore stays a strict xfail until step B drops the legacy layout. |
-| RP-6 unknown with a validated observation | Refused (`unknown_with_validated_observation`), whatever the terminal event. |
+| RP-6 unknown with a validated observation | Rule written (`unknown_with_validated_observation`, whatever the terminal event) but NOT enforced yet: owner decision 2026-10-17 defers it to step B, after the runtime change lands and pins advance (`ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION`). |
 | RP-7 closed enumerations | Enforced (`unknown_enum_value`) for result, event and Control Plane attempt statuses, `time_source` and the validated observation state; `denied` is a valid event status. |
 | RP-8 closed members, `x-` keys | Enforced for attempt rows, events and Control Plane attempt rows as well (`undeclared_member`, `invalid_extension_key`); the extension name pattern is the contract's. |
 | RP-9 reconciled marker | Valid only as the whole acknowledgement of a lone `acknowledged`/`partial` row, and exactly `true`. |

@@ -1536,6 +1536,12 @@ def _validate_result_contract(result: dict[str, Any], observation: Any, kind: st
                                   "executed_without_observation")
 
 
+# RP-6 (contract rule unknown_with_validated_observation). Owner decision 2026-10-17: enforced in step B, together
+# with dropping the legacy layout, after the runtime change (reconciled/partial instead of unknown) is merged and the
+# pinned runtimes advance. Until then the pinned runtimes' lost-ack exports (unknown + validated applied) must import.
+ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = False
+
+
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                         op: dict[str, Any], effect: str) -> None:
     result = source['execution_result']
@@ -1552,10 +1558,10 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     _validate_result_contract(result, observation, kind)
     if kind == "recovery":
         _validate_recovery_observation(observation, result, effect, op)
-    elif kind == "validated" and result.get('status') == 'unknown':
+    elif kind == "validated" and result.get('status') == 'unknown' and ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION:
         raise ImportContractError("an unknown result cannot carry a validated observation",
                                   "unknown_with_validated_observation")
-    elif result.get('status') == 'unknown' and result.get('observed_state') != 'unknown':
+    elif kind == "none" and result.get('status') == 'unknown' and result.get('observed_state') != 'unknown':
         raise ImportContractError('null observation cannot establish observed state', "unknown_state_mismatch")
     elif kind == "none" and result.get('observed_state') in {'applied', 'partial'}:
         raise ImportContractError('null observation cannot establish observed state')

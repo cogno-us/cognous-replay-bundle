@@ -372,6 +372,10 @@ NOTES = {
     "recovery-report-in-observations-member":
         "deliberate step A: the legacy layout (report mirrored in observations) is still tolerated until step B "
         "(owner decision 1); the contract draft already refuses it (F-P2-RP-5)",
+    "executor-unknown-with-validated-observation":
+        "RP-6 deferred to step B (owner decision 2026-10-17): the pinned runtimes still export a lost ack as unknown "
+        "with a validated applied observation until the runtime change (draft PR cognous-execution-runtime#105) lands "
+        "and the pins advance; ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION then flips to True",
     "executor-denied-attempt-event":
         "adapter clears the capture's effect and Control Plane attempt evidence (nothing was attempted)",
     "extension-key-without-x-prefix":
@@ -394,6 +398,7 @@ def classify(fixture):
 
 DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED" for fid, fx in FIXTURES.items()}
 DECLARED["recovery-report-in-observations-member"] = "DIVERGES"  # deliberate step-A tolerance, see NOTES
+DECLARED["executor-unknown-with-validated-observation"] = "DIVERGES"  # RP-6 deferred to step B, see NOTES
 
 
 def _fixture_params():
@@ -485,7 +490,6 @@ REPAIRS = {
     "executed-without-observation": lambda d: d["execution_result"].update(status="unknown", observed_state="unknown",
                                                                          newly_executed=False),
     "executor-terminal-failed-vs-status": _repair_terminal_event,
-    "executor-unknown-with-validated-observation": _as_executed,
     "observed-result-claims-attempt": _as_executed,
     "recovery-observations-differs-from-result": _repair_recovery_observations,
     "result-status-unknown-enum-value": lambda d: d["execution_result"].__setitem__("status", "unknown"),
@@ -880,7 +884,8 @@ def test_denied_is_an_attempt_event_status_and_other_values_are_not():
     assert not outcome.accepted and outcome.code == "unknown_enum_value"
 
 
-def test_unknown_with_a_validated_observation_is_refused_whatever_the_terminal_event():
+def test_unknown_with_a_validated_observation_is_refused_whatever_the_terminal_event(monkeypatch):
+    monkeypatch.setattr(I, "ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION", True)  # step-B behaviour
     doc = copy.deepcopy(FIXTURES["executor-unknown-with-validated-observation"]["document"])
     for terminal in ("executed", "unknown"):
         doc["attempt_events"][1]["status"] = terminal
