@@ -36,7 +36,7 @@ def load(variant):
 
 def run(cp, proposal, executor):
     return import_bounded_workflow(cp, proposal=proposal, moltbot_export=executor,
-                                   control_plane_revision=I.CONTROL_PLANE_F5B_REVISION)
+                                   control_plane_revision=I.CONTROL_PLANE_P4_REVISION)
 
 
 def planted(variant, mutate):
@@ -52,7 +52,8 @@ def rejects(variant, mutate, match):
 
 def _set_observation(x, observation, observed_state=None):
     x["execution_result"]["observation"] = observation
-    x["observations"] = [copy.deepcopy(observation)]
+    x["recovery_observations"] = [copy.deepcopy(observation)]
+    x["observations"] = []
     if observed_state is not None:
         x["execution_result"]["observed_state"] = observed_state
 
@@ -119,15 +120,15 @@ def test_effect_free_reconcile_still_rejects_genuine_defects(name, mutate, match
 
 @pytest.mark.parametrize("name,mutate,match", [
     ("undeclared_member", lambda x: x["execution_result"]["observation"].__setitem__("note", "x") or
-        x["observations"][0].__setitem__("note", "x"), "undeclared members"),
+        x["recovery_observations"][0].__setitem__("note", "x"), "undeclared members"),
     ("retry_eligible_true", lambda x: x["execution_result"]["observation"].__setitem__("retry_eligible", True) or
-        x["observations"][0].__setitem__("retry_eligible", True), "unsupported retry eligibility"),
+        x["recovery_observations"][0].__setitem__("retry_eligible", True), "unsupported retry eligibility"),
     ("wrong_effect", lambda x: x["execution_result"]["observation"].__setitem__("effect_id", "sha256:" + "0" * 64) or
-        x["observations"][0].__setitem__("effect_id", "sha256:" + "0" * 64), "effect_id"),
+        x["recovery_observations"][0].__setitem__("effect_id", "sha256:" + "0" * 64), "effect_id"),
     ("wrong_operation_digest", lambda x: x["execution_result"]["observation"].__setitem__("operation_digest", "sha256:" + "0" * 64) or
-        x["observations"][0].__setitem__("operation_digest", "sha256:" + "0" * 64), "operation_digest"),
+        x["recovery_observations"][0].__setitem__("operation_digest", "sha256:" + "0" * 64), "operation_digest"),
     ("applied_without_operation_digest", lambda x: x["execution_result"]["observation"].pop("operation_digest") and
-        x["observations"][0].pop("operation_digest"), "operation_digest is required"),
+        x["recovery_observations"][0].pop("operation_digest"), "operation_digest is required"),
     ("observed_state_contradicts_status", lambda x: x["execution_result"].__setitem__("observed_state", "unknown"),
         "observed-state contradiction"),
     ("promoted_to_observed_result", lambda x: x["execution_result"].__setitem__("status", "observed"),
@@ -140,10 +141,10 @@ def test_applied_recovery_report_still_rejects_genuine_defects(name, mutate, mat
 
 
 @pytest.mark.parametrize("name,mutate,match", [
-    ("unknown_without_reason", lambda x: x["execution_result"]["observation"].pop("reason") and x["observations"][0].pop("reason"),
+    ("unknown_without_reason", lambda x: x["execution_result"]["observation"].pop("reason") and x["recovery_observations"][0].pop("reason"),
         "reason is required"),
     ("status_not_a_recovery_status", lambda x: x["execution_result"]["observation"].__setitem__("status", "absent") or
-        x["observations"][0].__setitem__("status", "absent"), "not a recovery status"),
+        x["recovery_observations"][0].__setitem__("status", "absent"), "not a recovery status"),
     ("unknown_claims_applied_state", lambda x: x["execution_result"].__setitem__("observed_state", "applied"),
         "observed-state contradiction"),
 ])
@@ -169,6 +170,7 @@ def test_failure_class_is_not_admitted_without_a_recovery_report():
     def plant(x):
         x["execution_result"].update(observation=None, observed_state="unknown")
         x["observations"] = []
+        x.pop("recovery_observations", None)
     rejects("observe_bound_fail", plant, "unsupported typed refusal executor evidence field")
 
 
@@ -206,3 +208,111 @@ def test_extensions_without_x_names_or_not_an_object_are_refused(where, bad):
 
 def test_undeclared_member_outside_extensions_at_top_level_is_still_refused():
     _cp_rejects(lambda cp, x: x.__setitem__("injected_member", 1), "unsupported member")
+
+
+# ---- F-28: a normal executed route-B export (control_plane_evidence carries the claim and the authority receipt) ----
+
+EXECUTED = "executed"
+
+
+def _both_evidence(x, fn):
+    fn(x["control_plane_evidence"])
+    fn(x["execution_result"]["control_plane_evidence"])
+
+
+def test_real_route_b_normal_execution_export_imports_complete():
+    bundle = run(*load(EXECUTED))
+    assert bundle.status == "reconstruction_complete"
+    assert all(report.complete for report in bundle.import_reports)
+    result = next(r for r in bundle.records if r.record_type == "execution_result")
+    assert result.data["status"] == "executed"
+    assert "executor_recovery_report" not in [r.record_type for r in bundle.records]
+
+
+@pytest.mark.parametrize("name,mutate,match", [
+    ("receipt_other_attempt", lambda x: _both_evidence(x, lambda e: e["authority_receipt"].__setitem__("attempt_id", "other")),
+        "authority receipt attempt_id contradicts"),
+    ("receipt_other_effect", lambda x: _both_evidence(x, lambda e: e["authority_receipt"].__setitem__("effect_id", "sha256:" + "0" * 64)),
+        "authority receipt effect_id contradicts"),
+    ("receipt_other_decision", lambda x: _both_evidence(x, lambda e: e["authority_receipt"].__setitem__("decision_id", "other")),
+        "authority receipt decision_id contradicts"),
+    ("receipt_other_claim", lambda x: _both_evidence(x, lambda e: e["authority_receipt"].__setitem__("claim_id", "claim-2")),
+        "authority receipt claim_id contradicts"),
+    ("receipt_grant_not_active", lambda x: _both_evidence(x, lambda e: e["authority_receipt"].__setitem__("grant_status", "revoked")),
+        "does not show an active grant"),
+    ("unsupported_profile", lambda x: _both_evidence(x, lambda e: e.__setitem__("local_authority_effect_profile", "urn:x")),
+        "unsupported local authority effect profile"),
+    ("claim_not_a_string", lambda x: _both_evidence(x, lambda e: e.__setitem__("claim_id", 7)), "invalid route B claim id"),
+    ("linearized_at_not_a_time", lambda x: _both_evidence(x, lambda e: e.__setitem__("linearized_at", "yesterday")),
+        "invalid route B linearized_at"),
+    ("receipt_missing", lambda x: _both_evidence(x, lambda e: e.pop("authority_receipt")), "incomplete"),
+    ("unknown_evidence_member", lambda x: _both_evidence(x, lambda e: e.__setitem__("extra", 1)),
+        "unsupported typed refusal executor evidence field"),
+    ("receipt_on_a_denied_result", lambda x: x["execution_result"].update(status="denied", attempted=False, acknowledged=False,
+                                                                         newly_executed=False),
+        "newly executed result|contradict|denied"),
+])
+def test_route_b_normal_execution_evidence_is_bound_to_the_result(name, mutate, match):
+    rejects(EXECUTED, mutate, match)
+
+
+# ---- step B: the legacy layout, the empty observation and unknown + validated applied are refused -------------------
+
+def test_legacy_layout_recovery_report_in_observations_is_refused():
+    def plant(x):
+        report = x["execution_result"]["observation"]
+        x.pop("recovery_observations")
+        x["observations"] = [copy.deepcopy(report)]
+    rejects("observe_bound_fail", plant, "not a validated observation")
+    cp, proposal, executor = load("observe_bound_fail")
+    report = executor["execution_result"]["observation"]
+    executor.pop("recovery_observations")
+    executor["observations"] = [copy.deepcopy(report)]
+    with pytest.raises(ImportContractError) as info:
+        run(cp, proposal, executor)
+    assert info.value.code == "schema_violation"
+
+
+@pytest.mark.parametrize("variant", [EXECUTED, "observe_bound_fail", "lost_ack_recon_down", RECONCILE])
+def test_empty_observation_object_is_refused(variant):
+    cp, proposal, executor = load(variant)
+    executor["execution_result"]["observation"] = {}
+    with pytest.raises(ImportContractError) as info:
+        run(cp, proposal, executor)
+    assert info.value.code == "schema_violation"
+
+
+def test_unknown_result_with_a_validated_applied_observation_is_refused_on_a_real_export():
+    """What an older runtime exported for a lost acknowledgement: result unknown, validated applied observation."""
+    cp, proposal, executor = load(EXECUTED)
+    executor["execution_result"]["status"] = "unknown"
+    executor["execution_result"]["acknowledged"] = False
+    executor["execution_result"]["newly_executed"] = False
+    executor["attempt_events"][-1]["status"] = "unknown"
+    with pytest.raises(ImportContractError) as info:
+        run(cp, proposal, executor)
+    assert info.value.code == "unknown_with_validated_observation"
+
+
+# ---- real-export scan: no captured export may carry a shape step B refuses -----------------------------------------
+
+FIXTURES_ROOT = Path(__file__).parent / "fixtures"
+
+
+def test_no_captured_real_export_carries_a_shape_step_b_refuses():
+    """Every real executor export captured under tests/fixtures (runtime 3024ef6e) is already in the final layout."""
+    seen = 0
+    for path in sorted(FIXTURES_ROOT.rglob("executor.json")):
+        x = json.loads(path.read_text(encoding="utf-8"))
+        result = x["execution_result"]
+        seen += 1
+        assert result["observation"] != {}, path
+        for item in x.get("observations", []):
+            assert "state" in item, (path, "a recovery report in observations")
+        listed = x.get("recovery_observations")
+        if listed is not None:
+            assert listed == [result["observation"]], path
+        observation = result["observation"]
+        if result["status"] == "unknown" and observation and "state" in observation:
+            assert observation["state"] not in {"applied", "partial"}, (path, "unknown with a validated applied/partial reading")
+    assert seen >= 5

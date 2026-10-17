@@ -477,6 +477,9 @@ def _validate_export_structure(source: dict[str, Any], result: dict[str, Any]) -
     observation = result["observation"]
     if observation is not None and not isinstance(observation, dict):
         raise ImportContractError("execution observation must be object or null", "schema_violation")
+    if observation == {}:
+        # Step B (owner decision 2026-10-17): the observation is null or a typed observation; `{}` is never valid.
+        raise ImportContractError("execution observation must be null or a typed observation, not {}", "schema_violation")
     kind = _observation_kind(observation)
     if kind == "validated":
         _check_extensions(observation, "execution_result.observation")
@@ -490,9 +493,12 @@ def _validate_export_structure(source: dict[str, Any], result: dict[str, Any]) -
         if name in source and not isinstance(source[name], list):
             raise ImportContractError(f"{name} must be an array", "schema_violation")
     for i, item in enumerate(source.get("observations") or []):
-        # The legacy layout mirrors the recovery report here; it is checked (and tolerated) by the layout rule.
-        if isinstance(item, dict) and "state" in item:
-            _closed_enum(item["state"], VALIDATED_OBSERVATION_STATES, f"moltbot.observations[{i}].state")
+        # `observations` carries validated observations only (step B: the legacy layout that mirrored the recovery
+        # report here is refused).
+        if not isinstance(item, dict) or "state" not in item:
+            raise ImportContractError(f"moltbot.observations[{i}] is not a validated observation (it has no state)",
+                                      "schema_violation")
+        _closed_enum(item["state"], VALIDATED_OBSERVATION_STATES, f"moltbot.observations[{i}].state")
 
 
 def _validate_control_plane_attempt_row(raw: Any, label: str) -> None:
@@ -1520,8 +1526,8 @@ def _validate_export_layout(source: dict[str, Any], observation: Any, kind: str)
 
     ``observations`` lists the validated observation the result carries (or is empty); ``recovery_observations`` is
     optional and equals the recovery report the result carries (or is empty). Both members are optional. The legacy
-    layout, which mirrors the recovery report in ``observations`` (and has no ``recovery_observations``), is still
-    tolerated and is dropped when the contract freezes (step B)."""
+    layout, which mirrored the recovery report in ``observations``, is refused (step B, schema_violation, in the
+    structure check; a recovery report in ``observations`` also fails the equality below)."""
     listed = source.get("recovery_observations")
     recovery_expected = [observation] if kind == "recovery" else []
     if listed is not None and listed != recovery_expected:
@@ -1530,8 +1536,7 @@ def _validate_export_layout(source: dict[str, Any], observation: Any, kind: str)
     if observations is None:
         return
     validated_expected = [observation] if kind == "validated" else []
-    legacy = kind == "recovery" and listed is None and observations == [observation]
-    if observations != validated_expected and not legacy:
+    if observations != validated_expected:
         raise ImportContractError("accepted executor observations differ from result", "observations_mismatch")
 
 
@@ -1551,11 +1556,46 @@ def _validate_result_contract(result: dict[str, Any], observation: Any, kind: st
 
 
 # RP-6, narrowed (contract rule unknown_with_validated_observation). Result unknown may carry a validated observation
-# whose state is absent/unknown (always accepted, observed_state must equal observation.state). Only the refusal of
-# unknown + validated applied/partial stays behind this flag: owner decision 2026-10-17, enforced in step B after the
-# runtime change (reconciled/partial instead of unknown) is merged and the pinned runtimes advance (P4). Until then
-# the pinned runtimes' lost-ack exports (unknown + validated applied) must import.
-ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = False
+# whose state is absent/unknown (always accepted, observed_state must equal observation.state). A result unknown with a
+# validated applied/partial observation is refused: owner decision 2026-10-17, enforced since step B (P4), after the
+# runtime change (reconciled/partial instead of unknown) merged and the pinned runtimes advanced. Producers older than
+# the lifecycle contract (which export a lost ack as unknown + validated applied) are not accepted any more.
+ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = True
+
+
+ROUTE_B_EXECUTION_EVIDENCE_MEMBERS = frozenset({"local_authority_effect_profile", "claim_id", "linearized_at", "authority_receipt"})
+ROUTE_B_AUTHORITY_PROFILE = "urn:cognous:profiles:local-authority-effect:0.1.0-proposed"
+
+
+def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[str, Any], effect: str,
+                                         decision_id: str) -> None:
+    """F-28: control_plane_evidence of a normal route-B execution (all four members, bound to the result)."""
+    if set(evidence) & ROUTE_B_EXECUTION_EVIDENCE_MEMBERS != ROUTE_B_EXECUTION_EVIDENCE_MEMBERS:
+        raise ImportContractError("route B execution evidence is incomplete (profile, claim, linearized_at and "
+                                  "authority_receipt are required together)")
+    if evidence["local_authority_effect_profile"] != ROUTE_B_AUTHORITY_PROFILE:
+        raise ImportContractError("unsupported local authority effect profile")
+    claim = evidence["claim_id"]
+    if not isinstance(claim, str) or not claim or len(claim) > 200:
+        raise ImportContractError("invalid route B claim id")
+    linearized = evidence["linearized_at"]
+    if not isinstance(linearized, str) or not linearized:
+        raise ImportContractError("invalid route B linearized_at")
+    try:
+        datetime.fromisoformat(linearized)
+    except ValueError as exc:
+        raise ImportContractError("invalid route B linearized_at") from exc
+    if (result.get("status") not in {"executed", "partial"} or not result.get("attempted")
+            or not result.get("acknowledged") or not result.get("newly_executed")):
+        raise ImportContractError("route B authority receipt is only carried by a newly executed result")
+    receipt = _obj(evidence["authority_receipt"], "route B authority receipt")
+    for field, expected in (("attempt_id", result.get("attempt_id")), ("effect_id", effect),
+                            ("decision_id", decision_id), ("claim_id", claim),
+                            ("profile", ROUTE_B_AUTHORITY_PROFILE)):
+        if expected is None or receipt.get(field) != expected:
+            raise ImportContractError(f"route B authority receipt {field} contradicts the execution result")
+    if receipt.get("grant_status") != "active":
+        raise ImportContractError("route B authority receipt does not show an active grant")
 
 
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
@@ -1604,6 +1644,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     # Do not weaken operation binding for accepted upstream observations.
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
+    route_b_members: set[str] = set()
     if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES} for r in cp_records):
         allowed = {'attempt', 'reconciliation', 'refusal'}
         security = any(r.producer_profile_id in SECURITY_RUNTIME_BOUNDED_PROFILES for r in cp_records)
@@ -1613,6 +1654,13 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         if recovery_report:
             # Route B post-commit failure: the executor names the failure it recorded (reference only).
             allowed |= {'failure_record_id', 'failure_class'}
+        route_b_members = set(evidence) & ROUTE_B_EXECUTION_EVIDENCE_MEMBERS
+        if route_b_members:
+            # Route B (atomic local authority) normal execution: the executor names the claim and the local authority
+            # receipt it linearized under. The members are descriptive evidence of the destination's own authority check;
+            # they are bound to this result by identity and never establish more than the validated observation does.
+            _validate_route_b_execution_evidence(evidence, result, effect, source['execution_envelope']['decision_id'])
+            allowed |= ROUTE_B_EXECUTION_EVIDENCE_MEMBERS
         if set(evidence) - allowed:
             raise ImportContractError('unsupported typed refusal executor evidence field')
         # This identifier is an attributable reference only. No failure row is
@@ -1666,13 +1714,14 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
             raise ImportContractError('rejected observation cannot establish observed state')
     elif source['rejected_observations']:
         raise ImportContractError('rejected evidence has no enclosing reconciliation')
-    if result.get('attempted') and not (attempt is None and rec is None and _is_recovery_observation(observation)
-                                        and result.get('attempt_id')):
+    if result.get('attempted') and not (attempt is None and rec is None and result.get('attempt_id')
+                                        and (_is_recovery_observation(observation) or route_b_members)):
         # (A route B atomic-local execution has no Control Plane attempt or reconciliation; its recovery
-        # report stands in for them and is retained as a report only.)
+        # report stands in for them and is retained as a report only, and a normal execution is described by its
+        # validated local authority receipt, which is bound to the result above.)
         if not attempt or rec is None or not result.get('attempt_id'):
             raise ImportContractError('attempted execution lacks owning attempt/reconciliation')
-    elif result.get('acknowledged') or result.get('newly_executed'):
+    elif not result.get('attempted') and (result.get('acknowledged') or result.get('newly_executed')):
         raise ImportContractError('non-attempted result cannot acknowledge or execute')
     if result.get('status') == 'observed' and evidence:
         raise ImportContractError('historical local observation cannot claim CP validation')
