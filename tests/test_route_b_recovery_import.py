@@ -24,6 +24,7 @@ from agent_replay_bundle.importers import ImportContractError, import_bounded_wo
 
 BASE = Path(__file__).parent / "fixtures" / "route_b_post_commit"
 VARIANTS = ("observe_bound_fail", "lost_ack_recon_down")
+RECONCILE = "reconcile_only"
 
 
 def load(variant):
@@ -92,6 +93,28 @@ def test_hold_recovery_report_without_a_claim_row_is_accepted():
     assert planted("observe_bound_fail", plant).status == "reconstruction_complete"
 
 
+# ---- effect-free reconcile: result 'observed' carrying the same recovery report ----------------
+
+def test_effect_free_reconcile_export_imports_complete_and_stays_a_report():
+    bundle = run(*load(RECONCILE))
+    assert bundle.status == "reconstruction_complete"
+    kinds = [r.record_type for r in bundle.records]
+    assert "executor_recovery_report" in kinds and "executor_observation" not in kinds
+
+
+@pytest.mark.parametrize("name,mutate,match", [
+    ("claims_an_attempt", lambda x: x["execution_result"].__setitem__("attempted", True), "cannot claim an attempt|attempt"),
+    ("claims_acknowledgement", lambda x: x["execution_result"].__setitem__("acknowledged", True), "cannot claim an attempt|acknowledg"),
+    ("claims_new_effect", lambda x: x["execution_result"].__setitem__("newly_executed", True), "cannot claim an attempt|new effect"),
+    ("observed_state_contradicts_report", lambda x: x["execution_result"].__setitem__("observed_state", "unknown"),
+        "observed-state contradiction"),
+    ("status_executed_with_report", lambda x: x["execution_result"].__setitem__("status", "executed"),
+        "only carried by results unknown or observed|contradicts"),
+])
+def test_effect_free_reconcile_still_rejects_genuine_defects(name, mutate, match):
+    rejects(RECONCILE, mutate, match)
+
+
 # ---- the neighbouring genuine defects are still rejected --------------------------------------
 
 @pytest.mark.parametrize("name,mutate,match", [
@@ -108,7 +131,7 @@ def test_hold_recovery_report_without_a_claim_row_is_accepted():
     ("observed_state_contradicts_status", lambda x: x["execution_result"].__setitem__("observed_state", "unknown"),
         "observed-state contradiction"),
     ("promoted_to_observed_result", lambda x: x["execution_result"].__setitem__("status", "observed"),
-        "recovery report cannot establish a validated result|contradicts the terminal attempt event"),
+        "cannot claim an attempt|contradicts the terminal attempt event"),
     ("acknowledged_result", lambda x: x["execution_result"].__setitem__("acknowledged", True), "failure reference|contradict"),
     ("terminal_event_dropped", lambda x: x["attempt_events"].pop(-1), "contradicts the terminal attempt event"),
 ])

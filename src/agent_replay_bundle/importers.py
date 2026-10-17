@@ -208,8 +208,12 @@ def _validate_recovery_observation(observation: dict[str, Any], result: dict[str
         raise ImportContractError(f"{path}.status is not a recovery status")
     if observation.get("retry_eligible") is not False:
         raise ImportContractError("unsupported retry eligibility")
-    if result.get("status") != "unknown":
-        raise ImportContractError("a recovery report cannot establish a validated result; result must be unknown")
+    if result.get("status") == "observed":
+        # Effect-free reconcile (no attempt is made): the report is the whole result.
+        if result.get("attempted") or result.get("acknowledged") or result.get("newly_executed") or result.get("attempt_id"):
+            raise ImportContractError("an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect")
+    elif result.get("status") != "unknown":
+        raise ImportContractError("a recovery report is only carried by results unknown or observed")
     if result.get("observed_state") != _recovery_observed_state(observation):
         raise ImportContractError("recovery report observed-state contradiction")
     if "effect_id" in observation:
