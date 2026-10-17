@@ -729,17 +729,19 @@ def test_versioned_operation_content_substitution_is_rejected_even_if_attempt_di
         import_bounded_workflow(cp, proposal=proposal_source(), moltbot_export=source)
 
 
-@pytest.mark.parametrize("location", ["top_level", "producer_profile", "repository"])
-@pytest.mark.parametrize("versioned", [True, False])
+@pytest.mark.parametrize("location,versioned", [
+    ("top_level", True),
+    ("top_level", False),  # legacy unversioned exports carry only the top level
+    ("producer_profile", True),
+    ("repository", True),
+])
 def test_executor_export_unknown_member_is_rejected_not_dropped(location, versioned):
     """Unsupported fields in typed records reject rather than disappear (F-10, runtime #98)."""
     cp = bounded_source()
     source = versioned_moltbot_source(cp) if versioned else moltbot_source(cp)
     if location == "top_level":
         source["injected_unknown_member"] = "x"
-    elif versioned:
-        source[location]["injected_unknown_member"] = "x"
     else:
-        pytest.skip("legacy exports carry no producer_profile/repository")
+        source[location]["injected_unknown_member"] = "x"
     with pytest.raises(ImportContractError, match="unsupported member.*injected_unknown_member"):
         import_bounded_workflow(cp, proposal=proposal_source(), moltbot_export=source)

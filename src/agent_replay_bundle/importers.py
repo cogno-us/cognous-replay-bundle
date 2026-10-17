@@ -1206,7 +1206,10 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
     # Each attempt lifecycle starts with exactly one 'attempted' record; no lifecycle record is repeated
     # verbatim. A dropped start record or a duplicated record is a defect, not repeated history.
     for attempt_id, rows in lifecycle.items():
-        if rows[0].get('status') != 'attempted':
+        # Control Plane bounded.py mints a single-record attempt (no 'attempted' start) when it reconciles an
+        # already-applied/partial effect; that record is marked acknowledgement={'reconciled_existing': True}.
+        reconciled_only = len(rows) == 1 and rows[0].get('acknowledgement') == {'reconciled_existing': True}
+        if rows[0].get('status') != 'attempted' and not reconciled_only:
             raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle lacks its attempted start record')
         if any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i)):
             raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record')
@@ -1250,7 +1253,11 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
     if (attempt_identity.get("namespace") == "executor" and result_attempt in attempts
             and result.get("status") != "observed"):
         terminal = per_attempt[result_attempt][-1].get("status")
-        if terminal != result.get("status"):
+        # The Control Plane adapter reports an acknowledged-but-unobserved delivery as result 'unknown'
+        # (no observation) while the executor's own terminal event is 'executed'.
+        unresolved_ack = (terminal == "executed" and result.get("status") == "unknown"
+                          and result.get("observation") is None and result.get("observed_state") == "unknown")
+        if terminal != result.get("status") and not unresolved_ack:
             raise ImportContractError(
                 f"execution result status {result.get('status')!r} contradicts the terminal attempt event {terminal!r}")
 
