@@ -168,15 +168,15 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                         require((aid,state) in closeout_keys,'uncertain attempt lacks closeout for accepted observation')
         if runtime_authority:
             require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
-            checks={};completions=[]
+            checks={};completions=[];open_at={};close_at={}
             def normalize(values):
                 return [{k:v for k,v in x.items() if k!='previous_observed_at'} for x in values]
-            for raw in cp['check_events']:
+            for seq,raw in enumerate(cp['check_events']):
                 event=JournalEvent.model_validate(raw);_aware_time(event.recorded_at)
                 require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
                 if event.phase=='opened':
                     require(event.check_id not in checks,'duplicate journal opening')
-                    checks[event.check_id]=[event,False,[]]
+                    checks[event.check_id]=[event,False,[]];open_at[event.check_id]=seq
                 else:
                     require(event.check_id in checks and not checks[event.check_id][1],'journal missing opening or already closed')
                     opening=checks[event.check_id][0]
@@ -193,13 +193,13 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                             candidates=[i for i,x in enumerate(cp['resolution_checks']) if x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
                                         and set(event.reasons)<=set(x['reasons'])]
                             require(bool(candidates),'completed journal differs from actual resolution check')
-                            completions.append(candidates)
+                            completions.append((event.check_id,candidates));close_at[event.check_id]=seq
                 if event.decision_id is not None:
                     require(event.decision_id in decisions and decisions[event.decision_id]['effect_id']==event.effect_id,'journal decision/effect lineage mismatch')
             # Each actual resolution check may substantiate at most one completed journal.
             owner={}
             def assign(j,seen):
-                for i in completions[j]:
+                for i in completions[j][1]:
                     if i not in seen:
                         seen.add(i)
                         if i not in owner or assign(owner[i],seen):
@@ -207,12 +207,15 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 return False
             for j in range(len(completions)):
                 require(assign(j,set()),'completed journals reuse one actual resolution check')
-            # Resolution checks are appended as they complete, so completed journals must match actual checks in order.
-            previous=-1
-            for candidates in completions:
+            # Resolution checks are appended as they complete. Checks that did not overlap in the journal (one
+            # completed before the other opened) must match actual checks in that order; overlapping (concurrent)
+            # checks may complete in either order.
+            chosen={}
+            for cid,candidates in completions:
+                previous=max([chosen[o] for o in chosen if close_at[o]<open_at[cid]],default=-1)
                 later=[i for i in candidates if i>previous]
                 require(bool(later),'resolution checks are out of journal order')
-                previous=min(later)
+                chosen[cid]=min(later)
             # Opened-only and interrupted checks are retained as evidence of incompletion.
             unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:

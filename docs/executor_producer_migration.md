@@ -65,3 +65,11 @@ lineage.
 Legitimate historical `absent` and `unknown` observations may contain no
 effect row. Applied or partial observations require retained destination effect
 evidence. Denied results cannot coexist with retained effect evidence.
+
+## Accepted lifecycle shapes
+
+Producer 2.0.0 import accepts these real-producer shapes and keeps rejecting their neighbouring defects:
+
+- Result `unknown` with terminal executor event `executed` is accepted only when `observation` is null and `observed_state` is `unknown` (Control Plane observation unavailable after an acknowledged delivery). A dropped terminal event, any other terminal status, or a result carrying an observation still fails with a terminal-event contradiction.
+- A Control Plane attempt lifecycle consisting of one record with `acknowledgement == {"reconciled_existing": true}` (minted when reconciling an already applied or partial effect) needs no `attempted` start record. Every other lifecycle must start with exactly one `attempted` record.
+- Resolution checks must match the journal's completion order only when they do not overlap (one completed before the other opened). Concurrent checks may complete in either order.
