@@ -8,7 +8,7 @@ cogno-us/cognous-control-plane#38, steps P2 and P3; P3b applies the owner decisi
 | Contract | `execution-attempt-lifecycle` `0.1.0-draft` (draft, not frozen; any change may break) |
 | Vendored from | `cogno-us/open-decision-evidence-standard` at `a9db024c6f346f741a9963552e559476fdfc4189`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
 | Role | consumer |
-| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the four DIVERGES below (all deliberate step A tolerances). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
+| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the five DIVERGES below (all deliberate step A tolerances). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
 | Test | `tests/test_contract_lifecycle_conformance.py`; the importer changes are in `src/agent_replay_bundle/importers.py` and `refusal_evidence.py` (P3 and P3b) |
 
 ## How it is tested
@@ -40,7 +40,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `control-plane-normal-attempted-acknowledged` | accept | ACCEPTED | accepted |  |
 | `control-plane-reconciled-existing-acknowledged` | accept | ACCEPTED | accepted |  |
 | `control-plane-reconciled-existing-partial` | accept | ACCEPTED | accepted |  |
-| `executor-denied-attempt-event` | accept | ACCEPTED | accepted | adapter clears the capture's effect and Control Plane attempt evidence (nothing was attempted) |
+| `executor-denied-attempt-event` | accept | ACCEPTED | accepted |  |
 | `executor-normal-attempted-executed-observed` | accept | ACCEPTED | accepted |  |
 | `executor-normal-observations-member` | accept | ACCEPTED | accepted |  |
 | `executor-observed-effect-free-reconcile-route-b` | accept | ACCEPTED | accepted |  |
@@ -50,7 +50,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executor-unknown-recovery-separate-member-route-b` | accept | ACCEPTED | accepted |  |
 | `executor-unknown-recovery-unavailable-route-b` | accept | ACCEPTED | accepted |  |
 | `executor-unknown-validated-absent-after-ambiguous-dispatch` | accept | ACCEPTED | accepted |  |
-| `executor-unknown-validated-unknown-after-ambiguous-dispatch` | accept | ACCEPTED | accepted | adapter: the reconciliation accepts the validated unknown reading (result hold, no destination content); Replay now accepts a validated unknown sta... |
+| `executor-unknown-validated-unknown-after-ambiguous-dispatch` | accept | DIVERGES | unsupported accepted observation state | waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP acceptance unreviewed |
 | `extension-namespace-member-preserved` | accept | ACCEPTED | accepted |  |
 | `resolution-checks-overlap-a-completes-first` | accept | ACCEPTED | accepted |  |
 | `resolution-checks-overlap-b-completes-first-listed-completion-order` | accept | ACCEPTED | accepted |  |
@@ -72,7 +72,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executor-unknown-validated-absent-state-mismatch` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: unknown result observed-state contradiction with its validated observation |  |
 | `executor-unknown-with-validated-observation` | refuse: unknown_with_validated_observation | DIVERGES | accepted | narrowed RP-6, applied/partial refusal deferred to step B (owner decision 2026-10-17): the pinned runtimes still export a lost ack as unknown with ... |
 | `executor-unknown-with-validated-partial-observation` | refuse: unknown_with_validated_observation | DIVERGES | accepted | same as executor-unknown-with-validated-observation (validated partial on result unknown): refusal behind ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATIO... |
-| `extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: moltbot_export.extensions names must start with 'x-': trace | rule order: refused here before observed_result_claims_attempt would be |
+| `extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: moltbot_export.extensions names must start with 'x-': trace |  |
 | `mixed-layout-observations-disagree-with-result` | refuse: observations_mismatch | REFUSED | `observations_mismatch`: accepted executor observations differ from result |  |
 | `null-observation-state-absent` | refuse: null_observation_state_mismatch | REFUSED | `null_observation_state_mismatch`: null observation cannot establish observed state |  |
 | `null-observation-state-applied-failed-result` | refuse: null_observation_state_mismatch | REFUSED | `null_observation_state_mismatch`: null observation cannot establish observed state |  |
@@ -86,10 +86,10 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `resolution-checks-sequential-reorder` | refuse: resolution_checks_out_of_order | REFUSED | `resolution_checks_out_of_order`: typed refusal profile: resolution checks are out of journal order |  |
 | `resolution-journal-extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: typed refusal profile: check_events.extensions names must start with 'x-': note |  |
 | `result-status-unknown-enum-value` | refuse: unknown_enum_value | REFUSED | `unknown_enum_value`: execution_result.status is not a declared value: 'finished' |  |
-| `undeclared-member-outside-extensions` | refuse: undeclared_member | REFUSED | `undeclared_member`: execution_result has unsupported member(s): injected_member | rule order: refused here before observed_result_claims_attempt would be |
+| `undeclared-member-outside-extensions` | refuse: undeclared_member | REFUSED | `undeclared_member`: execution_result has unsupported member(s): injected_member |  |
 <!-- END FIXTURE TABLE -->
 
-Totals: 20 ACCEPTED, 27 REFUSED, 4 DIVERGES, 0 NOT-EXERCISED.
+Totals: 19 ACCEPTED, 27 REFUSED, 5 DIVERGES, 0 NOT-EXERCISED.
 
 ## Probes beyond the fixtures
 
@@ -170,7 +170,7 @@ except the one decision below. Evidence for the current behaviour is the tests, 
 | RP-2 `started_at` immutable | The contract adopted it (`attempt_started_at_changed`). |
 | RP-3, RP-4 `recovery_observations`, layout | Accepted: `observations` lists the validated observation only, `recovery_observations` is optional, `execution_result.observation` carries the report. Mismatches are `observations_mismatch` / `recovery_observations_mismatch`. |
 | RP-5 legacy layout | Deliberately still tolerated (step A, owner item 17: a recovery report inside `observations` stays tolerated until step B): a report mirrored in `observations`, with no `recovery_observations`, is accepted and retained as `executor_recovery_report`. The fixture `recovery-report-in-observations-member` therefore stays a strict xfail until step B drops the legacy layout. The mixed layout (the mirror together with `recovery_observations`, or a validated observation the result does not carry) is refused today as `observations_mismatch` (fixture `mixed-layout-observations-disagree-with-result`). |
-| RP-6 unknown with a validated observation (narrowed, owner item 14) | Result `unknown` may carry a validated observation whose state is `absent` or `unknown`, with `observed_state` equal to `observation.state` (`unknown_state_mismatch` otherwise): accepted now. The refusal of `unknown` with a validated `applied`/`partial` observation (`unknown_with_validated_observation`, whatever the terminal event) is written but NOT enforced yet: the pinned runtimes still export a lost ack as `unknown` with a validated `applied` observation until the pins advance in P4, so it stays behind `ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION` (False); the fixtures `executor-unknown-with-validated-observation` and `executor-unknown-with-validated-partial-observation` are strict xfails until step B. To carry a validated `unknown` reading Replay now accepts state `unknown` (empty destination state, reconciliation result `hold`) as an accepted Control Plane observation. |
+| RP-6 unknown with a validated observation (narrowed, owner item 14) | Result `unknown` may carry a validated observation whose state is `absent` or `unknown`, with `observed_state` equal to `observation.state` (`unknown_state_mismatch` otherwise): accepted now. The refusal of `unknown` with a validated `applied`/`partial` observation (`unknown_with_validated_observation`, whatever the terminal event) is written but NOT enforced yet: the pinned runtimes still export a lost ack as `unknown` with a validated `applied` observation until the pins advance in P4, so it stays behind `ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION` (False); the fixtures `executor-unknown-with-validated-observation` and `executor-unknown-with-validated-partial-observation` are strict xfails until step B. The carry applies to a validated `absent` observation only: a validated `unknown` observation cannot be an accepted Control Plane observation in Replay, and the owner decided (2026-10-17) not to widen Control Plane acceptance unreviewed, so `executor-unknown-validated-unknown-after-ambiguous-dispatch` is a strict xfail until the Control Plane emits an `unknown` observation. |
 | RP-7 closed enumerations | Enforced (`unknown_enum_value`) for result, event and Control Plane attempt statuses, `time_source` and the validated observation state; `denied` is a valid event status. |
 | RP-8 closed members, `x-` keys | Enforced for attempt rows, events and Control Plane attempt rows as well (`undeclared_member`, `invalid_extension_key`); the extension name pattern is the contract's. P3b (owner item 16): `x-` extensions are accepted and preserved verbatim on resolution journal events and inputs, resolution checks and check inputs (the journal-to-check content binding ignores `extensions`), and on Control Plane attempt rows (closed sets, extras only via `extensions`). |
 | RP-9 reconciled marker | Valid only as the whole acknowledgement of a lone `acknowledged`/`partial` row, and exactly `true`. |
@@ -182,7 +182,7 @@ Replay behaviour that goes beyond or differs from the contract, kept on purpose 
 
 - `execution_result.observation: {}` (a real producer exports it on a denied result, `examples/producer-v2/producer_v2_prior_absence.json`) is still tolerated as no observation. The contract allows only null (owner item 13). Step B refuses it with `schema_violation`; the fixture `empty-object-observation` is a strict xfail until then.
 - A recovery report inside `observations` (legacy layout) is still tolerated (see RP-5).
-- `unknown` with a validated `applied`/`partial` observation is still tolerated (see RP-6).
+- `unknown` with a validated `applied`/`partial` observation is still tolerated, and a validated `unknown` observation on result `unknown` is refused (see RP-6).
 
 Replay now matches the contract on the null-observation rule (owner item 15, reversing the P3 relaxation): whenever the observation is null, `observed_state` is `unknown` for every result status (`null_observation_state_mismatch`). This is also what real denied exports carry.
 

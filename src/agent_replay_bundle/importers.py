@@ -1367,10 +1367,9 @@ def _accepted_repaired_observation(observation: dict[str, Any], effect: str) -> 
         destination = _obj(destination, 'accepted observation.destination_state')
         _require_equal(destination.get('effect_id'), effect, 'accepted destination.effect_id')
         _require_equal(destination.get('state'), state, 'accepted destination.state')
-    elif state in {'absent', 'unknown'}:
-        # 'unknown' is a validated reading that established nothing (contract: carried by result 'unknown').
+    elif state == 'absent':
         if destination != {}:
-            raise ImportContractError(f'accepted {state} contains destination content')
+            raise ImportContractError('accepted absence contains destination content')
     else:
         raise ImportContractError('unsupported accepted observation state')
 
@@ -1417,7 +1416,7 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
         age = (_aware_time(rec.get('evaluation_time')) - _aware_time(observation.get('observed_at'))).total_seconds()
         if age > maximum or age < -tolerance:
             raise ImportContractError('accepted observation violates recorded temporal policy')
-        expected = {'applied': 'applied', 'absent': 'observed_absent', 'partial': 'hold', 'unknown': 'hold'}[observation['state']]
+        expected = {'applied': 'applied', 'absent': 'observed_absent', 'partial': 'hold'}[observation['state']]
         if rec.get('result') != expected:
             raise ImportContractError('reconciliation result contradicts accepted observation')
         accepted.append(observation)

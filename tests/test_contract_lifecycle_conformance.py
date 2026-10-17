@@ -416,14 +416,8 @@ NOTES = {
         "deliberate step A: observation {} is still tolerated as no observation (a real producer exports it on a "
         "denied result); step B refuses it (schema_violation), null only (owner decision 2026-10-17)",
     "executor-unknown-validated-unknown-after-ambiguous-dispatch":
-        "adapter: the reconciliation accepts the validated unknown reading (result hold, no destination content); "
-        "Replay now accepts a validated unknown state as a Control Plane observation for this carry",
-    "executor-denied-attempt-event":
-        "adapter clears the capture's effect and Control Plane attempt evidence (nothing was attempted)",
-    "extension-key-without-x-prefix":
-        "rule order: refused here before observed_result_claims_attempt would be",
-    "undeclared-member-outside-extensions":
-        "rule order: refused here before observed_result_claims_attempt would be",
+        "waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP "
+        "acceptance unreviewed",
 }
 
 
@@ -442,6 +436,7 @@ DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED"
 DECLARED["recovery-report-in-observations-member"] = "DIVERGES"  # deliberate step-A tolerance, see NOTES
 DECLARED["executor-unknown-with-validated-observation"] = "DIVERGES"  # RP-6 applied/partial refusal deferred, see NOTES
 DECLARED["executor-unknown-with-validated-partial-observation"] = "DIVERGES"  # same, see NOTES
+DECLARED["executor-unknown-validated-unknown-after-ambiguous-dispatch"] = "DIVERGES"  # CP acceptance not widened
 DECLARED["empty-object-observation"] = "DIVERGES"  # {} tolerated in step A, refused in step B, see NOTES
 
 
@@ -960,9 +955,8 @@ def test_null_observation_requires_unknown_for_every_result_status(fixture, stat
     assert not outcome.accepted and outcome.code == "null_observation_state_mismatch", outcome.message
 
 
-@pytest.mark.parametrize("fixture", ["executor-unknown-validated-absent-after-ambiguous-dispatch",
-                                     "executor-unknown-validated-unknown-after-ambiguous-dispatch"])
-def test_unknown_result_carries_a_validated_absent_or_unknown_observation(fixture, monkeypatch):
+@pytest.mark.parametrize("fixture", ["executor-unknown-validated-absent-after-ambiguous-dispatch"])
+def test_unknown_result_carries_a_validated_absent_observation(fixture, monkeypatch):
     """Narrowed RP-6: accepted now and also once step B enforces the applied/partial refusal."""
     doc = copy.deepcopy(FIXTURES[fixture]["document"])
     assert not _contract_codes(doc)
@@ -970,7 +964,7 @@ def test_unknown_result_carries_a_validated_absent_or_unknown_observation(fixtur
     monkeypatch.setattr(I, "ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION", True)
     assert evaluate_doc(doc).accepted
     state = doc["execution_result"]["observation"]["state"]
-    for wrong in sorted({"absent", "unknown"} - {state}) + ["applied"]:
+    for wrong in ["unknown", "applied"]:
         mismatch = copy.deepcopy(doc)
         mismatch["execution_result"]["observed_state"] = wrong
         assert "unknown_state_mismatch" in _contract_codes(mismatch)
