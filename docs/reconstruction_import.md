@@ -339,3 +339,23 @@ non-authorizing reconstructions:
   complete reconstruction. Stop events are checked for internal order and a
   single effect, but are not bound to the authority claim or its operation
   commitment before the two are combined.
+
+
+## Audit-defect checks on producer artifacts
+
+The bounded import fails closed when the producer artifacts are internally inconsistent in ways that indicate a dropped, repeated, reordered or altered record. These checks are consistency checks over the retained records; they do not authenticate the producer or establish that the records are complete relative to the real world.
+
+Executor producer 2.0.0 export:
+
+- attempt rows and destination effect rows are unique;
+- every executor attempt has attempt events, `event_id` strictly increases and `created_at` does not decrease across the export, the first event of an attempt is `attempted` and `attempted` is not repeated;
+- when the execution result names an executor attempt, the status of that attempt's last event equals the result status;
+- an acknowledged new effect cannot be reported as not newly executed.
+
+Control Plane run (repaired profiles and later):
+
+- each attempt lifecycle starts with its single `attempted` record and no lifecycle record is repeated verbatim;
+- completed journal checks match the recorded resolution checks in order (a resolution check still substantiates at most one journal);
+- closeouts are unique per attempt and observed state, and an attempt whose last record is `attempted`, `unknown` or `failed` has a closeout for every accepted applied or partial observation of its effect.
+
+Limits: the order checks assume sequential checks and one array order per producer (no cross-array clock); the closeout rule uses the last recorded attempt status. Whether a retained bundle's `import_reports` and `semantics` still match a fresh import is a consumer responsibility (Evidence Pack, ODES).
