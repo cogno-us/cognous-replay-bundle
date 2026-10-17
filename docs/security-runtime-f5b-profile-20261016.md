@@ -1,6 +1,6 @@
 # F5b repaired runtime producer generation (16 October 2026)
 
-This change adds another exact generation, kept separate from the others: Control Plane `a34c3dc26f84a767a55f9d5c89dc0b53e63fefa5`, executor `e20f92e104aba2ba6ad06120d8549c6170eaf63f` and Manifest `2c36bcd0b620dbfe7ad924bc7196a3f0c04c5c5e`. Its profiles are `control-plane-security-runtime@a34c3dc2` and `moltbot-safe-executor-producer-2.0.0@e20f92e1`. These are the merged revisions after the F5b security repairs.
+This change adds another exact generation, kept separate from the others: Control Plane `a34c3dc26f84a767a55f9d5c89dc0b53e63fefa5`, executor `4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f` and Manifest `2c36bcd0b620dbfe7ad924bc7196a3f0c04c5c5e`. Its profiles are `control-plane-security-runtime@a34c3dc2` and `moltbot-safe-executor-producer-2.0.0@4a83b175`. These are the merged revisions after the F5b security repairs.
 
 The change follows the same additive pattern as the [repaired runtime generation](security-runtime-profile-20261016.md). It does not change the earlier CP `996baeb4` / executor `fd6b76fa` / Manifest `e385f8c1` generation, the other historical mappings or the producer pairing restrictions, so retained evidence from those generations still imports. Each pairing is exact and one-to-one: Replay rejects any executor/Control Plane combination that mixes revisions from different generations.
 

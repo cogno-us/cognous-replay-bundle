@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Repin: the F5b executor generation now accepts the remediated runtime `4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f` (runtime #100-#103) in place of `e20f92e1`. Control Plane and Manifest identities are unchanged.
 - Audit-defect detection (qualification F-06 / F-12). Producer 2.0.0 imports now reject: repeated executor attempt or destination effect rows; executor attempt events that are missing, repeated, out of `event_id`/`created_at` order, not started by `attempted`, or whose terminal event differs from the execution result status; an execution result that denies a newly executed effect the producer acknowledged. Control Plane journal imports now reject attempt lifecycles without their single `attempted` start record or with a repeated record, resolution checks that do not match the completed journal checks in order, duplicate attempt closeouts, and an attempt left uncertain (`attempted`/`unknown`/`failed`) without the closeout owed to an accepted applied/partial observation. Clean real-producer exports are unaffected. A downstream consumer must still compare `import_reports` and `semantics` of a retained bundle against a fresh import; Replay does not own that comparison.
 - Runtime-authority and security-runtime imports now mark opened-only or interrupted resolution journal checks with a B006 warning and `reconstruction_partial`.
 - A completed journal check is matched to a separately recorded resolution check by content; one resolution check can no longer substantiate two completed journals.

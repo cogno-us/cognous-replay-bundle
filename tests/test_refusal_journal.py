@@ -7,7 +7,7 @@ test_effect_and_commit_boundary) at the base pins (Control Plane 996baeb4,
 runtime fd6b76fa, Replay 3601fb21; synthetic data only). It is not part of the
 hosted, archived F3 qualification evidence.
 
-The F5b generation (Control Plane a34c3dc2, runtime e20f92e1) is a separate,
+The F5b generation (Control Plane a34c3dc2, runtime 4a83b175) is a separate,
 additive mapping; the fd6b76fa / 996baeb4 generation stays accepted, so this
 fixture is kept unchanged and is reused for both generations by rewriting only
 the executor's source-asserted revision. Native F5b-pin output is exercised by
