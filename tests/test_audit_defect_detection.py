@@ -71,7 +71,9 @@ def test_duplicate_executor_rows_are_rejected(name, mutate, match):
 
 def test_result_status_must_match_terminal_attempt_event():
     def flip(cp, x):
-        x["execution_result"]["status"] = "unknown"
+        # 'failed' (not 'unknown'): an unknown result carrying a validated observation is refused earlier, as
+        # unknown_with_validated_observation, by the lifecycle contract rule.
+        x["execution_result"]["status"] = "failed"
         x["control_plane_evidence"] = x["execution_result"]["control_plane_evidence"]
     rejects(flip, "contradicts the terminal attempt event")
 

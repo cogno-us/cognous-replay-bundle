@@ -1,6 +1,6 @@
 """Consumer conformance of Replay to the ODES execution-attempt lifecycle contract (0.1.0-draft, level L).
 
-The contract (vendored under tests/contracts/execution-attempt-lifecycle/, ODES d1e17fa1) ships abstract fixtures
+The contract (vendored under tests/contracts/execution-attempt-lifecycle/, ODES e33d541a) ships abstract fixtures
 with synthetic ids. This module feeds every vendored fixture through Replay's real import code and records the
 outcome of each one in a generated table (also kept in docs/contract-conformance-execution-attempt-lifecycle.md):
 
@@ -8,9 +8,10 @@ outcome of each one in a generated table (also kept in docs/contract-conformance
 * DIVERGES            Replay does something else; the test is a strict xfail that states the contract expectation.
 * NOT-EXERCISED       the adapter cannot reach the rule; the test asserts that limitation and its reason.
 
-Replay never emits contract codes, so CODE_TO_REPLAY is the agreed mapping from each contract refusal code to the
-message pattern Replay is expected to raise (``emitted=False`` marks a rule Replay does not implement yet; its
-pattern is the proposed wording, not an existing message).
+Replay refuses with the contract's code: ``ImportContractError.code`` carries it and the message stays the
+human-readable detail. CODE_TO_REPLAY maps each contract refusal code to the message pattern Replay raises; a refusal
+counts only with the expected code AND a matching message (the union rule: an unknown value inside the observation
+union may carry ``schema_violation`` instead of ``unknown_enum_value``, as the contract allows).
 
 Adapters (never weaken a fixture to make it pass):
 
@@ -26,8 +27,9 @@ Adapters (never weaken a fixture to make it pass):
 Adapter completions are limited to data Replay needs and the contract leaves abstract: synthetic ids and the
 synthetic observation time are rebound to the base capture's, the attempt row gets the base row's
 ``operation_digest`` / ``created_at``, a validated applied observation gets the base destination_state when the
-fixture's is absent or ``{}``, and ``observations`` is mirrored from the result when the fixture has no such member
-(Replay requires it). Every refused fixture is paired with a control: the same document with only the planted
+fixture's is absent or ``{}``, and for a denied result the capture's effect and Control Plane attempt evidence is
+cleared. ``observations`` is no longer mirrored: the contract leaves it optional and Replay accepts its absence
+(RP-11). Every refused fixture is paired with a control: the same document with only the planted
 defect repaired is accepted by the same adapter.
 """
 from __future__ import annotations
@@ -52,7 +54,7 @@ DOC = HERE.parent / "docs" / "contract-conformance-execution-attempt-lifecycle.m
 
 CONTRACT_NAME = "execution-attempt-lifecycle"
 CONTRACT_VERSION = "0.1.0-draft"
-ODES_COMMIT = "d1e17fa155140f371050aff4b61da0f2cc84f44a"
+ODES_COMMIT = "e33d541a1a7def2d3e3040eeb35a6d6cd7147afb"
 REVISION = I.CONTROL_PLANE_F5B_REVISION
 EXECUTOR_REVISION = I.MOLTBOT_F5B_REVISION
 
@@ -91,8 +93,11 @@ def test_vendored_contract_has_not_drifted():
 # ---------------------------------------------------------------------------------------------------------
 
 class Mapped:
-    def __init__(self, pattern: str, emitted=True, note: str = ""):  # emitted: True, False or "partly"
-        self.pattern, self.emitted, self.note = pattern, emitted, note
+    """Replay refuses with the contract's code (``ImportContractError.code``) and a human-readable message; the
+    pattern pins the message so a refusal is attributable to the rule it names."""
+
+    def __init__(self, pattern: str, note: str = ""):
+        self.pattern, self.note = pattern, note
 
 
 CODE_TO_REPLAY = {
@@ -102,34 +107,33 @@ CODE_TO_REPLAY = {
     "missing_start_event": Mapped(r"executor attempt .* events do not start with attempted"),
     "repeated_start_event": Mapped(r"executor attempt .* repeats its attempted event"),
     "event_order": Mapped(r"attempt_events\[\d+\] (event_id is repeated or out of order|created_at is missing or out of order)"),
-    "terminal_event_missing": Mapped(r"execution result status .* contradicts the terminal attempt event",
-                                     note="Replay does not distinguish a missing terminal event from a mismatched one"),
+    "terminal_event_missing": Mapped(r"execution result status .* contradicts the terminal attempt event 'attempted'"),
     "status_terminal_mismatch": Mapped(r"execution result status .* contradicts the terminal attempt event"),
     # observations and recovery
-    "observations_mismatch": Mapped(r"accepted executor observations differ from result",
-                                    note="Replay requires the recovery report to be mirrored in observations (legacy layout)"),
-    "recovery_observations_mismatch": Mapped(r"recovery_observations differ from the result report", emitted=False,
-                                             note="Replay does not know the member"),
+    "observations_mismatch": Mapped(r"accepted executor observations differ from result"),
+    "recovery_observations_mismatch": Mapped(r"recovery_observations differ from the result report"),
     "recovery_observation_status": Mapped(r"a recovery report is only carried by results unknown or observed"),
     "recovery_retry_eligible": Mapped(r"unsupported retry eligibility"),
     "recovery_report_incomplete": Mapped(r"(operation_digest|claim_state|effect_id|reason) is required for an? \w+ recovery report"),
     "effect_free_reconcile_claims_attempt": Mapped(r"an effect-free reconcile result cannot claim an attempt"),
     "recovery_state_mismatch": Mapped(r"recovery report observed-state contradiction"),
     "unknown_state_mismatch": Mapped(r"recovery report observed-state contradiction|null observation cannot establish observed state"),
-    "unknown_with_validated_observation": Mapped(r"unknown result cannot carry a validated observation", emitted=False,
-                                                 note="no Replay rule; see finding"),
+    "unknown_with_validated_observation": Mapped(r"unknown result cannot carry a validated observation"),
+    "observed_result_claims_attempt": Mapped(r"an observed result cannot claim an attempt"),
+    "executed_without_observation": Mapped(r"an executed result must carry the observation"),
     # member model
     "undeclared_member": Mapped(r"has unsupported member\(s\)|recovery report has undeclared members"),
     "invalid_extension_key": Mapped(r"extensions names must start with 'x-'"),
-    "schema_violation": Mapped(r"recovery report in observations \(legacy layout\)", emitted=False,
-                               note="Replay has no schema layer; for the legacy layout the proposed wording is used"),
-    "unknown_enum_value": Mapped(r"is not a recovery status|is not a declared (status|value)", emitted="partly",
-                                 note="Replay checks only the recovery report status (the rest uses the proposed wording)"),
-    "unsupported_contract_version": Mapped(r"contract_version", emitted=False,
-                                           note="Replay exports carry no contract_version member; out of scope"),
+    "schema_violation": Mapped(r"is required|must be an (object|array)|must be object or null",
+                               "Replay's legacy-layout tolerance means the contract's own schema_violation fixture is "
+                               "accepted (see the DIVERGES note); Replay emits this code for structural failures"),
+    "unknown_enum_value": Mapped(r"is not a recovery status|is not a declared value"),
+    "unsupported_contract_version": Mapped(r"contract_version",
+                                           "Replay exports carry no contract_version member; out of scope"),
     # Control Plane attempts
     "missing_start_record": Mapped(r"lifecycle lacks its attempted start record"),
     "invalid_reconciled_marker": Mapped(r"invalid reconciled_existing marker"),
+    "attempt_started_at_changed": Mapped(r"started_at changed between lifecycle rows|conflicting content under immutable attempt_id"),
     "repeated_record": Mapped(r"lifecycle repeats a record"),
     # resolution journal and checks
     "journal_protocol": Mapped(r"journal (missing opening or already closed|binding changed|input missing)|duplicate journal opening"),
@@ -138,6 +142,20 @@ CODE_TO_REPLAY = {
     "duplicate_check_id": Mapped(r"duplicate/empty resolution check id"),
     "resolution_checks_out_of_order": Mapped(r"resolution checks are out of journal order"),
 }
+
+# Codes Replay does not emit, with the reason (everything else in CODE_TO_REPLAY is emitted and asserted).
+NOT_EMITTED = {"unsupported_contract_version": "Replay exports carry no contract_version member"}
+
+# A refusal inside the observation union may carry either code (the contract: an unknown value inside a union
+# may surface as schema_violation).
+UNION_ALTERNATIVES = {"unknown_enum_value": {"unknown_enum_value", "schema_violation"}}
+
+
+def refusal_matches(expected_code: str, outcome) -> bool:
+    mapped = CODE_TO_REPLAY[expected_code]
+    codes = UNION_ALTERNATIVES.get(expected_code, {expected_code})
+    return (not outcome.accepted and not outcome.crash and outcome.code in codes
+            and re.search(mapped.pattern, outcome.message) is not None)
 
 
 def test_every_contract_code_has_a_mapping():
@@ -190,15 +208,15 @@ class NotExercised(Exception):
 
 
 class Outcome:
-    def __init__(self, accepted: bool, message: str = "", crash: bool = False):
-        self.accepted, self.message, self.crash = accepted, message, crash
+    def __init__(self, accepted: bool, message: str = "", crash: bool = False, code: str | None = None):
+        self.accepted, self.message, self.crash, self.code = accepted, message, crash, code
 
 
 def run_import(cp, proposal, executor=None) -> Outcome:
     try:
         bundle = import_bounded_workflow(cp, proposal=proposal, moltbot_export=executor, control_plane_revision=REVISION)
     except ImportContractError as exc:
-        return Outcome(False, str(exc))
+        return Outcome(False, str(exc), code=exc.code)
     except Exception as exc:  # a crash is not a refusal
         return Outcome(False, f"{type(exc).__name__}: {exc}", crash=True)
     return Outcome(True, bundle.status)
@@ -263,7 +281,16 @@ def _make_route_c_unobserved(cp, x, table):
     return evidence
 
 
-def build_executor(doc, mirror_observations=True):
+def _make_denied(cp, x):
+    """Route A policy denial: nothing was attempted, so no destination effect, Control Plane attempt or
+    reconciliation evidence is exported (the capture's applied effect and attempt are not the fixture's)."""
+    x["effects"] = []
+    x["control_plane_attempts"] = []
+    x["control_plane_evidence"] = {}
+    x["execution_result"]["control_plane_evidence"] = {}
+
+
+def build_executor(doc, mirror_observations=False):
     result = doc["execution_result"]
     observation = result.get("observation")
     if _is_recovery(observation):
@@ -290,14 +317,16 @@ def build_executor(doc, mirror_observations=True):
     x["execution_result"] = res
     if "observations" in planted:
         x["observations"] = [_complete_destination_state(o, base_destination) for o in planted["observations"]]
-    elif mirror_observations:
+    elif mirror_observations:  # legacy layout probes only; the contract leaves `observations` optional (RP-11)
         x["observations"] = [copy.deepcopy(res["observation"])] if res["observation"] else []
     else:
         x.pop("observations", None)
     for member in ("recovery_observations", "extensions"):
         if member in planted:
             x[member] = planted[member]
-    if res["observation"] is None:
+    if res["status"] == "denied":
+        _make_denied(cp, x)
+    elif res["observation"] is None:
         res["control_plane_evidence"] = _make_route_c_unobserved(cp, x, table)
     return lambda: run_import(cp, proposal, x)
 
@@ -336,39 +365,23 @@ def evaluate(fixture) -> Outcome:
 # 3. The status of every fixture
 # ---------------------------------------------------------------------------------------------------------
 
-NOT_EXERCISED = {
-    "executor-terminal-failed-vs-status": (
-        "result executed with observation null is refused first by a Replay-only rule (importers.py:1384-1385, "
-        "an attempt without a validated observation must remain unknown), so the terminal-event rule is "
-        "unreachable without replacing the fixture's explicit observation null (not done). The rule itself is "
-        "exercised by executor-dropped-terminal-event and by test_audit_defect_detection.py"),
-}
+NOT_EXERCISED: dict[str, str] = {}  # every vendored fixture is reachable through an adapter at this revision
 
 # fixture id -> finding ids / note shown in the table
 NOTES = {
-    "control-plane-normal-attempted-acknowledged":
-        "F-P2-RP-2: started_at differs between the two rows; Replay treats it as an attempt invariant",
-    "executor-normal-attempted-executed-observed":
-        "F-P2-RP-1: result observed with attempted/acknowledged/newly_executed true is refused",
-    "executor-normal-observations-member":
-        "F-P2-RP-3: refused first for the unknown member recovery_observations; with it removed, F-P2-RP-1 refuses it",
-    "executor-unknown-recovery-separate-member-route-b":
-        "F-P2-RP-3 (member recovery_observations); without it F-P2-RP-4 (observations [] is refused)",
-    "executor-unknown-with-validated-observation":
-        "F-P2-RP-6: no rule; refused only by the terminal-event rule, accepted when the terminal event is unknown",
-    "recovery-observations-differs-from-result":
-        "F-P2-RP-3: refused only because the member is unknown; no mismatch rule exists",
     "recovery-report-in-observations-member":
-        "F-P2-RP-5: legacy layout is the layout Replay requires, so it is accepted",
-    "result-status-unknown-enum-value":
-        "F-P2-RP-7: refused only because a recovery report needs unknown/observed; a consistent unknown status is accepted",
-    "executor-terminal-failed-vs-status": "see reason",
-    "extension-namespace-member-preserved":
-        "accepted; top-level extensions are not retained (F-P2-RP-12)",
+        "deliberate step A: the legacy layout (report mirrored in observations) is still tolerated until step B "
+        "(owner decision 1); the contract draft already refuses it (F-P2-RP-5)",
+    "executor-unknown-with-validated-observation":
+        "RP-6 deferred to step B (owner decision 2026-10-17): the pinned runtimes still export a lost ack as unknown "
+        "with a validated applied observation until the runtime change (draft PR cognous-execution-runtime#105) lands "
+        "and the pins advance; ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION then flips to True",
+    "executor-denied-attempt-event":
+        "adapter clears the capture's effect and Control Plane attempt evidence (nothing was attempted)",
     "extension-key-without-x-prefix":
-        "rule order: refused here before F-P2-RP-1 would be",
+        "rule order: refused here before observed_result_claims_attempt would be",
     "undeclared-member-outside-extensions":
-        "rule order: refused here before F-P2-RP-1 would be",
+        "rule order: refused here before observed_result_claims_attempt would be",
 }
 
 
@@ -380,46 +393,12 @@ def classify(fixture):
         return "NOT-EXERCISED", None
     if fixture["expected_outcome"] == "accept":
         return ("ACCEPTED" if outcome.accepted else "DIVERGES"), outcome
-    mapped = CODE_TO_REPLAY[fixture["expected_refusal"]]
-    ok = (not outcome.accepted and not outcome.crash and re.search(mapped.pattern, outcome.message) is not None)
-    return ("REFUSED" if ok else "DIVERGES"), outcome
+    return ("REFUSED" if refusal_matches(fixture["expected_refusal"], outcome) else "DIVERGES"), outcome
 
 
-DECLARED = {
-    "control-plane-normal-attempted-acknowledged": "DIVERGES",
-    "control-plane-reconciled-existing-acknowledged": "ACCEPTED",
-    "control-plane-reconciled-existing-partial": "ACCEPTED",
-    "executor-normal-attempted-executed-observed": "DIVERGES",
-    "executor-normal-observations-member": "DIVERGES",
-    "executor-observed-effect-free-reconcile-route-b": "ACCEPTED",
-    "executor-unknown-ack-unobserved": "ACCEPTED",
-    "executor-unknown-recovery-hold-route-b": "ACCEPTED",
-    "executor-unknown-recovery-observation-route-b": "ACCEPTED",
-    "executor-unknown-recovery-separate-member-route-b": "DIVERGES",
-    "executor-unknown-recovery-unavailable-route-b": "ACCEPTED",
-    "extension-namespace-member-preserved": "ACCEPTED",
-    "resolution-checks-overlap-a-completes-first": "ACCEPTED",
-    "resolution-checks-overlap-b-completes-first-listed-completion-order": "ACCEPTED",
-    "resolution-checks-overlap-b-completes-first-listed-open-order": "ACCEPTED",
-    "control-plane-dropped-start-record": "REFUSED",
-    "control-plane-start-row-reconciled-existing-false": "REFUSED",
-    "effect-free-reconcile-claims-attempt": "REFUSED",
-    "effect-free-reconcile-state-mismatch": "REFUSED",
-    "executor-dropped-start-event": "REFUSED",
-    "executor-dropped-terminal-event": "REFUSED",
-    "executor-terminal-failed-vs-status": "NOT-EXERCISED",
-    "executor-unknown-recovery-state-contradiction": "REFUSED",
-    "executor-unknown-with-validated-observation": "DIVERGES",
-    "extension-key-without-x-prefix": "REFUSED",
-    "recovery-applied-missing-operation-digest": "REFUSED",
-    "recovery-hold-missing-reason": "REFUSED",
-    "recovery-observations-differs-from-result": "DIVERGES",
-    "recovery-report-in-observations-member": "DIVERGES",
-    "recovery-retry-eligible-true": "REFUSED",
-    "resolution-checks-sequential-reorder": "REFUSED",
-    "result-status-unknown-enum-value": "DIVERGES",
-    "undeclared-member-outside-extensions": "REFUSED",
-}
+DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED" for fid, fx in FIXTURES.items()}
+DECLARED["recovery-report-in-observations-member"] = "DIVERGES"  # deliberate step-A tolerance, see NOTES
+DECLARED["executor-unknown-with-validated-observation"] = "DIVERGES"  # RP-6 deferred to step B, see NOTES
 
 
 def _fixture_params():
@@ -434,7 +413,7 @@ def _fixture_params():
 
 def test_declared_statuses_cover_every_fixture_and_match_the_adapters():
     assert set(DECLARED) == set(FIXTURES)
-    assert len(FIXTURES) == 33
+    assert len(FIXTURES) == 37
     actual = {fid: classify(fx)[0] for fid, fx in FIXTURES.items()}
     assert actual == DECLARED
 
@@ -457,10 +436,12 @@ def test_vendored_fixture_through_replay(fid):
     if fixture["expected_outcome"] == "accept":
         assert outcome.accepted, f"contract-valid fixture refused by Replay: {outcome.message}"
         return
-    mapped = CODE_TO_REPLAY[fixture["expected_refusal"]]
-    assert not outcome.accepted, f"contract-invalid fixture ({fixture['expected_refusal']}) accepted by Replay"
-    assert re.search(mapped.pattern, outcome.message), (
-        f"refused, but not as {fixture['expected_refusal']}: {outcome.message!r} does not match {mapped.pattern!r}")
+    expected = fixture["expected_refusal"]
+    assert not outcome.accepted, f"contract-invalid fixture ({expected}) accepted by Replay"
+    assert outcome.code in UNION_ALTERNATIVES.get(expected, {expected}), (
+        f"refused, but with code {outcome.code!r} instead of {expected!r}: {outcome.message!r}")
+    assert re.search(CODE_TO_REPLAY[expected].pattern, outcome.message), (
+        f"refused, but not as {expected}: {outcome.message!r} does not match {CODE_TO_REPLAY[expected].pattern!r}")
 
 
 def _harmonize_started_at(doc):
@@ -496,7 +477,22 @@ def _repair_undeclared(doc):
 
 # Repair of ONLY the planted defect. extension-key / undeclared-member also set result status executed in the
 # control, because their fixture shape (result observed + attempted true) is refused by F-P2-RP-1 on its own.
+def _repair_terminal_event(doc):
+    doc["attempt_events"][-1]["status"] = "executed"
+
+
+def _repair_recovery_observations(doc):
+    doc["recovery_observations"] = [doc["execution_result"]["observation"]]
+
+
 REPAIRS = {
+    "attempt-started-at-changed": _harmonize_started_at,
+    "executed-without-observation": lambda d: d["execution_result"].update(status="unknown", observed_state="unknown",
+                                                                         newly_executed=False),
+    "executor-terminal-failed-vs-status": _repair_terminal_event,
+    "observed-result-claims-attempt": _as_executed,
+    "recovery-observations-differs-from-result": _repair_recovery_observations,
+    "result-status-unknown-enum-value": lambda d: d["execution_result"].__setitem__("status", "unknown"),
     "control-plane-dropped-start-record": _repair_cp_dropped_start,
     "control-plane-start-row-reconciled-existing-false": _repair_cp_marker,
     "effect-free-reconcile-claims-attempt": lambda d: d["execution_result"].__setitem__("attempted", False),
@@ -554,7 +550,7 @@ def _direct_cp_validator(doc) -> Outcome:
     try:
         I._validate_repaired_run({"attempts": doc["control_plane_attempts"], "reconciliations": [], "observations": []})
     except ImportContractError as exc:
-        return Outcome(False, str(exc))
+        return Outcome(False, str(exc), code=exc.code)
     return Outcome(True, "accepted")
 
 
@@ -620,16 +616,16 @@ R_NORMAL = "executor-normal-attempted-executed-observed"
 # id, base fixture, mutation, contract code (None = contract-valid), runner, finding (None = Replay conforms)
 PROBES = [
     _p(id="undeclared-member-attempt-row", base=R_RECOVERY, mutate=_set(("attempts", 0, "injected"), 1),
-       code="undeclared_member", finding="F-P2-RP-8"),
+       code="undeclared_member", finding=None),
     _p(id="undeclared-member-event-row", base=R_RECOVERY, mutate=_set(("attempt_events", 1, "injected"), 1),
-       code="undeclared_member", finding="F-P2-RP-8"),
+       code="undeclared_member", finding=None),
     _p(id="undeclared-member-control-plane-attempt-row", base=R_CP,
-       mutate=_set(("control_plane_attempts", 0, "injected"), 1), code="undeclared_member", finding="F-P2-RP-8"),
+       mutate=_set(("control_plane_attempts", 0, "injected"), 1), code="undeclared_member", finding=None),
     _p(id="undeclared-member-recovery-report", base=R_RECOVERY,
        mutate=_set(("execution_result", "observation", "injected"), 1), code="undeclared_member", finding=None,
-       alt={"schema_violation"}),
+       alt={"schema_violation"}),  # the reference validator reports the union failure as schema_violation
     _p(id="extension-bad-key-attempt-row", base=R_RECOVERY,
-       mutate=_set(("attempts", 0, "extensions"), {"trace": 1}), code="invalid_extension_key", finding="F-P2-RP-8"),
+       mutate=_set(("attempts", 0, "extensions"), {"trace": 1}), code="invalid_extension_key", finding=None),
     _p(id="extension-bad-key-result", base=R_RECOVERY,
        mutate=_set(("execution_result", "extensions"), {"trace": 1}), code="invalid_extension_key", finding=None),
     _p(id="reconciled-marker-extra-acknowledgement-member", base=R_CP,
@@ -639,30 +635,30 @@ PROBES = [
        mutate=_set(("control_plane_attempts", 0, "acknowledgement"), {"reconciled_existing": "yes"}),
        code="invalid_reconciled_marker", runner=_direct_cp_validator, finding=None),
     _p(id="reconciled-marker-on-failed-row", base=R_CP, mutate=_marker_on_row_status("failed"),
-       code="invalid_reconciled_marker", runner=_direct_cp_validator, finding="F-P2-RP-9"),
+       code="invalid_reconciled_marker", runner=_direct_cp_validator, finding=None),
     _p(id="reconciled-marker-on-unknown-row", base=R_CP, mutate=_marker_on_row_status("unknown"),
-       code="invalid_reconciled_marker", runner=_direct_cp_validator, finding="F-P2-RP-9"),
+       code="invalid_reconciled_marker", runner=_direct_cp_validator, finding=None),
     _p(id="enum-result-and-terminal-event-status", base=R_NORMAL,
        mutate=lambda d: (_as_executed(d), _consistent_unknown_result_status(d)), code="unknown_enum_value",
-       finding="F-P2-RP-7"),
+       finding=None),
     _p(id="enum-middle-event-status", base=R_RECOVERY, mutate=_middle_event_bogus, code="unknown_enum_value",
-       finding="F-P2-RP-7"),
+       finding=None),
     _p(id="enum-control-plane-attempt-status", base="control-plane-normal-attempted-acknowledged",
-       mutate=_cp_attempt_enum("status"), code="unknown_enum_value", finding="F-P2-RP-7"),
+       mutate=_cp_attempt_enum("status"), code="unknown_enum_value", finding=None),
     _p(id="enum-control-plane-time-source", base="control-plane-normal-attempted-acknowledged",
-       mutate=_cp_attempt_enum("time_source"), code="unknown_enum_value", finding="F-P2-RP-7"),
+       mutate=_cp_attempt_enum("time_source"), code="unknown_enum_value", finding=None),
     _p(id="enum-recovery-status", base=R_RECOVERY,
        mutate=_set(("execution_result", "observation", "status"), "bogus"), code="unknown_enum_value",
        finding=None),
     _p(id="enum-validated-observation-state", base=R_NORMAL, mutate=_validated_unknown_state,
-       code="unknown_enum_value", finding="F-P2-RP-7"),
+       code="unknown_enum_value", finding=None),
     _p(id="recovery-report-on-executed-result", base=R_RECOVERY, mutate=_recovery_report_on_executed,
        code="recovery_observation_status", finding=None),
     _p(id="executed-result-with-null-observation", base=R_TERMINAL_FAILED,
        mutate=lambda d: (d["attempt_events"][1].__setitem__("status", "executed"), _executed_null_observation(d)),
-       code=None, finding="F-P2-RP-10"),
+       code="executed_without_observation", finding=None),
     _p(id="export-without-observations-member", base=R_RECOVERY, mutate=lambda d: None, code=None,
-       runner=_no_observations_member, finding="F-P2-RP-11"),
+       runner=_no_observations_member, finding=None),
 ]
 
 
@@ -705,24 +701,24 @@ def test_probe_through_replay(probe):
         assert outcome.accepted, f"contract-valid document refused: {outcome.message}"
         return
     assert not outcome.accepted, f"contract-invalid document ({probe['code']}) accepted"
+    allowed = UNION_ALTERNATIVES.get(probe["code"], {probe["code"]}) | probe.get("alt", set())
+    assert outcome.code in allowed, f"refused with code {outcome.code!r}, not {probe['code']!r}: {outcome.message!r}"
     pattern = CODE_TO_REPLAY[probe["code"]].pattern
-    assert re.search(pattern, outcome.message), f"refused, but not as {probe['code']}: {outcome.message!r}"
+    assert re.search(pattern, outcome.message) or probe.get("alt"), (
+        f"refused, but not as {probe['code']}: {outcome.message!r}")
 
 
 def test_top_level_extensions_are_preserved_in_the_imported_bundle():
-    """Contract: consumers preserve extension members when re-emitting. Replay validates the export-level
-    ``extensions`` member and then drops it (F-P2-RP-12)."""
+    """Contract: consumers preserve extension members when re-emitting. Export-level ``extensions`` are retained
+    verbatim as their own record (RP-12)."""
     doc = copy.deepcopy(FIXTURES["extension-namespace-member-preserved"]["document"])
     cp, proposal, x = load_security()
     table = _table(cp, x)
     x["extensions"] = _rebind(doc["extensions"], table)
     bundle = import_bounded_workflow(cp, proposal=proposal, moltbot_export=x, control_plane_revision=REVISION)
     assert "x-syn-vendor.trace" in bundle.model_dump_json()
-
-
-test_top_level_extensions_are_preserved_in_the_imported_bundle = pytest.mark.xfail(
-    strict=True, reason="F-P2-RP-12: export-level extensions are validated, then not retained")(
-        test_top_level_extensions_are_preserved_in_the_imported_bundle)
+    record = next(r for r in bundle.records if r.record_type == "executor_export_extensions")
+    assert record.data == x["extensions"]
 
 
 def test_attempt_row_extensions_are_preserved_in_the_imported_bundle():
@@ -734,77 +730,263 @@ def test_attempt_row_extensions_are_preserved_in_the_imported_bundle():
     assert record.data["extensions"] == {"x-syn-vendor.note": "kept"}
 
 
-def test_unknown_enum_value_is_retained_verbatim_not_coerced(monkeypatch):
-    """Where Replay accepts a status outside the closed enumeration (F-P2-RP-7), it keeps the value as given."""
-    doc = _probe_doc(next(p for p in PROBES if p["id"] == "enum-result-and-terminal-event-status"))
-    captured = {}
-    original = import_bounded_workflow
-
-    def spy(*args, **kwargs):
-        captured["bundle"] = original(*args, **kwargs)
-        return captured["bundle"]
-
-    monkeypatch.setattr(sys.modules[__name__], "import_bounded_workflow", spy)
-    assert evaluate_doc(doc).accepted
-    record = next(r for r in captured["bundle"].records if r.record_type == "execution_result")
-    assert record.data["status"] == "finished"
-
-
-def test_recovery_observations_is_the_only_contract_export_member_replay_does_not_know():
-    """The only export member the contract declares that Replay's closed export set lacks is recovery_observations."""
+def test_replay_knows_every_contract_export_member():
+    """Every export member the contract declares is in Replay's closed export set (recovery_observations included)."""
     schema = json.loads((CONTRACT_DIR / "schema.json").read_text(encoding="utf-8"))
     document_only = {"contract", "contract_version", "producer", "resolution_journal", "resolution_checks"}
     contract_members = set(schema["properties"]) - document_only
     export_members = set(I.MOLTBOT_EXPORT_MEMBERS) | {"execution_result", "attempts", "attempt_events",
                                                        "control_plane_attempts"}
-    assert contract_members - export_members == {"recovery_observations"}
+    assert contract_members - export_members == set()
+
+
+def test_replay_enumerations_equal_the_contract_enumerations():
+    schema = json.loads((CONTRACT_DIR / "schema.json").read_text(encoding="utf-8"))
+    defs = schema["$defs"]
+    assert I.ATTEMPT_EVENT_STATUSES == set(defs["attempt_event"]["properties"]["status"]["enum"])
+    assert I.EXECUTION_RESULT_STATUSES == set(defs["execution_result"]["properties"]["status"]["enum"])
+    assert I.VALIDATED_OBSERVATION_STATES == set(defs["validated_observation"]["properties"]["state"]["enum"])
+    assert I.RECOVERY_OBSERVATION_STATUSES == set(defs["recovery_observation"]["properties"]["status"]["enum"])
+    assert I.CONTROL_PLANE_ATTEMPT_STATUSES == set(defs["control_plane_attempt"]["properties"]["status"]["enum"])
+    assert I.CONTROL_PLANE_TIME_SOURCES == set(defs["control_plane_attempt"]["properties"]["time_source"]["enum"])
+    assert I.EXECUTOR_ATTEMPT_MEMBERS == set(defs["executor_attempt"]["properties"])
+    assert I.ATTEMPT_EVENT_MEMBERS == set(defs["attempt_event"]["properties"])
+    assert I.CONTROL_PLANE_ATTEMPT_MEMBERS == set(defs["control_plane_attempt"]["properties"])
+    assert I.RECOVERY_OBSERVATION_KEYS == set(defs["recovery_observation"]["properties"])
+    assert I.MOLTBOT_EXECUTION_RESULT_MEMBERS == set(defs["execution_result"]["properties"])
+    assert I.EXTENSION_NAME.pattern == defs["extensions"]["propertyNames"]["pattern"]
 
 
 # ---------------------------------------------------------------------------------------------------------
-# Evidence the DIVERGES notes rely on. These pin Replay's CURRENT behaviour; update them together with the fix.
+# Behaviours added by the P3 alignment (each paired with what the vendored reference validator says)
 # ---------------------------------------------------------------------------------------------------------
 
-def _fixture_outcome(fid, mutate=lambda doc: None):
-    doc = copy.deepcopy(FIXTURES[fid]["document"])
-    mutate(doc)
-    return evaluate_doc(doc)
+def _contract_codes(doc):
+    return {v.code for v in REFERENCE_VALIDATE(doc)}
 
 
-def _observed_with_attempt_without_evidence():
+def test_import_contract_error_carries_a_code_and_keeps_the_message():
+    err = ImportContractError("some message")
+    assert err.code is None and str(err) == "some message" and isinstance(err, ValueError)
+    err = ImportContractError("another", "undeclared_member")
+    assert err.code == "undeclared_member" and str(err) == "another"
+
+
+def test_every_mapped_code_is_emitted_by_the_importer():
+    """Each contract code Replay claims to emit appears as a literal in the importer sources."""
+    text = "".join((Path(I.__file__).parent / name).read_text(encoding="utf-8")
+                   for name in ("importers.py", "refusal_evidence.py"))
+    for code in sorted(set(CODE_TO_REPLAY) - set(NOT_EMITTED)):
+        assert re.search(r"""["']%s["']""" % code, text), f"Replay never emits {code}"
+
+
+LEGACY_PROBE = "executor-unknown-recovery-observation-route-b"
+
+
+def _import_bundle(doc, mirror=False):
+    captured = {}
+    original = I.import_bounded_workflow
+
+    def spy(*a, **k):
+        captured["bundle"] = original(*a, **k)
+        return captured["bundle"]
+
+    mod = sys.modules[__name__]
+    old = mod.import_bounded_workflow
+    mod.import_bounded_workflow = spy
+    try:
+        outcome = build_executor(doc, mirror_observations=mirror)()
+    finally:
+        mod.import_bounded_workflow = old
+    assert outcome.accepted, outcome.message
+    return captured["bundle"]
+
+
+def test_new_layout_retains_the_recovery_report_from_recovery_observations():
+    doc = copy.deepcopy(FIXTURES["executor-unknown-recovery-separate-member-route-b"]["document"])
+    assert not _contract_codes(doc)
+    bundle = _import_bundle(doc)
+    reports = [r for r in bundle.records if r.record_type == "executor_recovery_report"]
+    assert [r.source_path for r in reports] == ["moltbot.recovery_observations[0]"]
+    assert not any(r.record_type == "executor_observation" for r in bundle.records)
+
+
+def test_new_layout_without_the_optional_member_still_retains_the_recovery_report():
+    doc = copy.deepcopy(FIXTURES[LEGACY_PROBE]["document"])
+    doc.pop("recovery_observations", None)
+    doc.pop("observations", None)
+    assert not _contract_codes(doc)
+    reports = [r for r in _import_bundle(doc).records if r.record_type == "executor_recovery_report"]
+    assert [r.source_path for r in reports] == ["moltbot.execution_result.observation"]
+
+
+def test_legacy_layout_is_still_tolerated_and_retained_as_before():
+    """Step A: the recovery report mirrored in ``observations`` is accepted until the runtime has moved (step B)."""
+    doc = copy.deepcopy(FIXTURES[LEGACY_PROBE]["document"])
+    doc.pop("recovery_observations", None)
+    doc["observations"] = [copy.deepcopy(doc["execution_result"]["observation"])]
+    assert "schema_violation" in _contract_codes(doc)  # the contract draft already refuses it
+    reports = [r for r in _import_bundle(doc).records if r.record_type == "executor_recovery_report"]
+    assert [r.source_path for r in reports] == ["moltbot.observations[0]"]
+
+
+def test_mixed_layout_is_refused():
+    """The legacy mirror together with recovery_observations is neither layout."""
+    doc = copy.deepcopy(FIXTURES[LEGACY_PROBE]["document"])
+    report = doc["execution_result"]["observation"]
+    doc["observations"] = [copy.deepcopy(report)]
+    doc["recovery_observations"] = [copy.deepcopy(report)]
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "observations_mismatch"
+
+
+def test_validated_observation_listed_in_recovery_observations_is_refused():
+    doc = copy.deepcopy(FIXTURES["executor-normal-observations-member"]["document"])
+    doc["recovery_observations"] = [copy.deepcopy(doc["execution_result"]["observation"])]
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "recovery_observations_mismatch"
+
+
+@pytest.mark.parametrize("observation", ["validated", "none"])
+def test_observed_result_cannot_claim_an_attempt_for_any_observation_kind(observation):
+    doc = copy.deepcopy(FIXTURES["observed-result-claims-attempt"]["document"])
+    if observation == "none":
+        doc["execution_result"]["observation"] = None
+        doc["execution_result"]["observed_state"] = "unknown"
+    assert "observed_result_claims_attempt" in _contract_codes(doc)
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "observed_result_claims_attempt", outcome.message
+
+
+@pytest.mark.parametrize("empty", [None, {}])
+def test_executed_result_with_a_null_or_empty_observation_is_refused(empty):
+    doc = copy.deepcopy(FIXTURES["executed-without-observation"]["document"])
+    doc["execution_result"]["observation"] = empty
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "executed_without_observation", outcome.message
+
+
+def test_empty_observation_object_is_tolerated_as_no_observation():
+    """A real producer exports ``observation: {}`` on a denied result (examples/producer-v2/producer_v2_prior_absence.json)
+    although the contract allows only null; Replay keeps treating it as no observation (owner decision pending)."""
+    doc = copy.deepcopy(FIXTURES["executor-denied-attempt-event"]["document"])
+    doc["execution_result"]["observation"] = {}
+    assert "schema_violation" in _contract_codes(doc)
+    assert evaluate_doc(doc).accepted
+
+
+def test_denied_is_an_attempt_event_status_and_other_values_are_not():
+    doc = copy.deepcopy(FIXTURES["executor-denied-attempt-event"]["document"])
+    assert evaluate_doc(doc).accepted
+    doc["attempt_events"][1]["status"] = "rejected"
+    assert "unknown_enum_value" in _contract_codes(doc)
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "unknown_enum_value"
+
+
+def test_unknown_with_a_validated_observation_is_refused_whatever_the_terminal_event(monkeypatch):
+    monkeypatch.setattr(I, "ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION", True)  # step-B behaviour
+    doc = copy.deepcopy(FIXTURES["executor-unknown-with-validated-observation"]["document"])
+    for terminal in ("executed", "unknown"):
+        doc["attempt_events"][1]["status"] = terminal
+        outcome = evaluate_doc(doc)
+        assert not outcome.accepted and outcome.code == "unknown_with_validated_observation", terminal
+
+
+@pytest.mark.parametrize("status", ["acknowledged", "partial"])
+def test_reconciled_marker_is_valid_on_a_lone_acknowledged_or_partial_row(status):
+    doc = copy.deepcopy(FIXTURES[R_CP]["document"])
+    doc["control_plane_attempts"][0]["status"] = status
+    assert not _contract_codes(doc)
+    assert _direct_cp_validator(doc).accepted
+
+
+@pytest.mark.parametrize("status", ["failed", "unknown", "attempted"])
+def test_reconciled_marker_is_refused_on_any_other_status(status):
+    doc = copy.deepcopy(FIXTURES[R_CP]["document"])
+    doc["control_plane_attempts"][0]["status"] = status
+    assert "invalid_reconciled_marker" in _contract_codes(doc)
+    outcome = _direct_cp_validator(doc)
+    assert not outcome.accepted and outcome.code == "invalid_reconciled_marker"
+
+
+def test_reconciled_marker_must_be_boolean_true_not_a_truthy_value():
+    doc = copy.deepcopy(FIXTURES[R_CP]["document"])
+    doc["control_plane_attempts"][0]["acknowledgement"] = {"reconciled_existing": 1}
+    assert "invalid_reconciled_marker" in _contract_codes(doc)
+    outcome = _direct_cp_validator(doc)
+    assert not outcome.accepted and outcome.code == "invalid_reconciled_marker"
+
+
+def test_started_at_is_immutable_across_control_plane_rows():
+    """Refused with the contract code on a repaired revision."""
     cp, proposal, x = load_security()
-    x["execution_result"]["status"] = "observed"
-    x["execution_result"]["control_plane_evidence"] = {}
-    x["control_plane_evidence"] = {}
-    x["control_plane_attempts"] = []
-    cp["attempts"] = []
-    return run_import(cp, proposal, x)
+    cp["attempts"][1]["started_at"] = "2026-10-05T19:00:09+00:00"
+    outcome = run_import(cp, proposal, x)
+    assert not outcome.accepted and outcome.code == "attempt_started_at_changed"
 
 
-def test_evidence_f_p2_rp_1_observed_result_claiming_an_attempt_is_refused_with_or_without_cp_evidence():
-    assert "historical local observation cannot claim CP validation" in _fixture_outcome(R_NORMAL).message
-    assert "attempted execution lacks owning attempt/reconciliation" in _observed_with_attempt_without_evidence().message
+def test_started_at_immutability_is_coded_on_the_legacy_revision_too():
+    """The legacy revision skips the repaired-run validator; the importer's own invariant check carries the code."""
+    from tests.test_importers import bounded_source
+    cp = bounded_source()
+    cp["attempts"][1]["started_at"] = "2026-10-05T00:00:09Z"
+    with pytest.raises(ImportContractError, match="conflicting content under immutable attempt_id") as info:
+        import_bounded_workflow(cp)
+    assert info.value.code == "attempt_started_at_changed"
 
 
-def test_evidence_f_p2_rp_2_started_at_is_the_only_obstacle_for_the_normal_lifecycle():
-    def harmonize(doc):
-        _harmonize_started_at(doc)
-    assert _fixture_outcome("control-plane-normal-attempted-acknowledged", harmonize).accepted
+@pytest.mark.parametrize("name", ["x-Upper", "x-", "x_trace", "trace", "x- space"])
+def test_extension_names_follow_the_contract_pattern(name):
+    cp, proposal, x = load_security()
+    x["extensions"] = {name: 1}
+    outcome = run_import(cp, proposal, x)
+    assert not outcome.accepted and outcome.code == "invalid_extension_key"
 
 
-def test_evidence_f_p2_rp_3_and_4_layout_members():
-    drop = lambda doc: doc.pop("recovery_observations")  # noqa: E731
-    assert "accepted executor observations differ from result" in _fixture_outcome(
-        "executor-unknown-recovery-separate-member-route-b", drop).message
-    assert "historical local observation cannot claim CP validation" in _fixture_outcome(
-        "executor-normal-observations-member", drop).message
-    mirrored = lambda doc: doc.__setitem__("observations", [doc["execution_result"]["observation"]])  # noqa: E731
-    assert _fixture_outcome("executor-unknown-recovery-separate-member-route-b",
-                            lambda doc: (drop(doc), mirrored(doc))).accepted
+def test_members_the_contract_leaves_optional_are_not_required():
+    """RP-11: observations, recovery_observations, control_plane_attempts, and the optional row and result members."""
+    cp, proposal, x = load_security()
+    for name in ("observations", "control_plane_attempts"):
+        x.pop(name)
+    x["execution_result"].pop("decision_id")
+    x["execution_result"].pop("effect_id")
+    x["execution_result"].pop("error")
+    x["attempts"][0].pop("operation_digest")
+    x["attempts"][0].pop("created_at")
+    x["attempt_events"][0].pop("error")
+    assert run_import(cp, proposal, x).accepted
 
 
-def test_evidence_f_p2_rp_6_unknown_with_validated_observation_is_accepted_when_the_terminal_event_is_unknown():
-    assert _fixture_outcome("executor-unknown-with-validated-observation",
-                            lambda doc: doc["attempt_events"][1].__setitem__("status", "unknown")).accepted
+@pytest.mark.parametrize("member", ["status", "attempt_id", "observed_state", "observation"])
+def test_members_the_contract_requires_are_still_required(member):
+    cp, proposal, x = load_security()
+    x["execution_result"].pop(member)
+    outcome = run_import(cp, proposal, x)
+    assert not outcome.accepted and outcome.code == "schema_violation", outcome.message
+
+
+@pytest.mark.parametrize("path", [("attempts", 0, "effect_id"), ("attempt_events", 0, "created_at"),
+                                  ("attempt_events", 0, "event_id")])
+def test_required_row_members_are_still_required(path):
+    cp, proposal, x = load_security()
+    x[path[0]][path[1]].pop(path[2])
+    outcome = run_import(cp, proposal, x)
+    assert not outcome.accepted and outcome.code == "schema_violation", outcome.message
+
+
+def test_captured_exports_satisfy_the_new_result_rules():
+    """No real captured export in tests/fixtures says result 'observed' with an attempt, or 'executed' without an
+    observation, so the new rules need no change to a captured fixture."""
+    seen = 0
+    for path in sorted(BASES.rglob("executor.json")):
+        result = json.loads(path.read_text(encoding="utf-8"))["execution_result"]
+        seen += 1
+        if result["status"] == "observed":
+            assert not result["attempted"] and result["attempt_id"] is None, path
+        if result["status"] == "executed":
+            assert result["observation"], path
+    assert seen == 4
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -819,6 +1001,10 @@ def _cell(text: str) -> str:
     return text if len(text) <= 150 else text[:147] + "..."
 
 
+def _refusal_cell(outcome) -> str:
+    return f"`{outcome.code}`: {outcome.message}" if outcome.code else outcome.message
+
+
 def render_fixture_table() -> str:
     lines = ["| Fixture | Contract expects | Status | Replay does | Note |", "|---|---|---|---|---|"]
     for fid, fixture in FIXTURES.items():
@@ -827,7 +1013,7 @@ def render_fixture_table() -> str:
         if status == "NOT-EXERCISED":
             does, note = "not run", NOT_EXERCISED[fid]
         else:
-            does = "accepted" if outcome.accepted else outcome.message
+            does = "accepted" if outcome.accepted else _refusal_cell(outcome)
             note = NOTES.get(fid, "")
         lines.append(f"| `{fid}` | {expects} | {status} | {_cell(does)} | {_cell(note)} |")
     return "\n".join(lines)
@@ -838,7 +1024,7 @@ def render_probe_table() -> str:
     for probe in PROBES:
         outcome = probe.get("runner", evaluate_doc)(_probe_doc(probe))
         expects = "valid" if probe["code"] is None else probe["code"]
-        does = "accepted" if outcome.accepted else outcome.message
+        does = "accepted" if outcome.accepted else _refusal_cell(outcome)
         lines.append(f"| `{probe['id']}` | {expects} | {_probe_status(probe)} | {_cell(does)} | {probe['finding'] or ''} |")
     return "\n".join(lines)
 
@@ -847,7 +1033,9 @@ def render_mapping_table() -> str:
     lines = ["| Contract code | Replay message pattern | Emitted by Replay | Note |", "|---|---|---|---|"]
     for code in sorted(CODE_TO_REPLAY):
         mapped = CODE_TO_REPLAY[code]
-        lines.append(f"| `{code}` | `{mapped.pattern.replace('|', chr(92) + '|')}` | { {True: 'yes', False: 'no (proposed)'}.get(mapped.emitted, mapped.emitted)} | {mapped.note} |")
+        emitted = "no" if code in NOT_EMITTED else "yes"
+        note = NOT_EMITTED.get(code) or mapped.note
+        lines.append(f"| `{code}` | `{mapped.pattern.replace('|', chr(92) + '|')}` | {emitted} | {note} |")
     return "\n".join(lines)
 
 
