@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime
 from typing import Any
 
@@ -82,7 +83,16 @@ PRODUCER_COMPATIBILITY = {
 
 
 class ImportContractError(ValueError):
-    """Producer data violates the pinned import contract."""
+    """Producer data violates the pinned import contract.
+
+    ``code`` is the refusal code of the ODES ``execution-attempt-lifecycle`` contract (for example
+    ``undeclared_member`` or ``recovery_retry_eligible``) when the refusal is one the contract names, else ``None``.
+    The message text is unchanged by the code and stays the human-readable detail.
+    """
+
+    def __init__(self, message: str = "", code: str | None = None):
+        super().__init__(message)
+        self.code = code
 
 
 def _sha256(value: object) -> str:
@@ -110,12 +120,12 @@ def _record(profile: str, kind: str, seq: int, path: str, data: dict[str, Any],
 
 
 def _unique_or_same(seen: dict[str, dict[str, Any]], key: str, value: dict[str, Any],
-                    label: str) -> None:
+                    label: str, code: str | None = None) -> None:
     old = seen.get(key)
     if old is None:
         seen[key] = value
     elif old != value:
-        raise ImportContractError(f"conflicting content under immutable {label} {key}")
+        raise ImportContractError(f"conflicting content under immutable {label} {key}", code)
 
 
 def _require_equal(actual: Any, expected: Any, path: str) -> None:
@@ -184,8 +194,23 @@ def _decode_payload_json(value: Any, path: str) -> dict[str, Any]:
 # Route B (atomic local executor) reports a post-commit failure as result 'unknown' carrying a *recovery*
 # observation: the destination's claim-reconciliation report, keyed by 'status' (not the Control Plane
 # observation's 'state'). It is a recovery report, never validated Control Plane evidence.
-RECOVERY_OBSERVATION_KEYS = {"status", "claim_state", "retry_eligible", "effect_id", "operation_digest", "reason"}
+RECOVERY_OBSERVATION_KEYS = {"status", "claim_state", "retry_eligible", "effect_id", "operation_digest", "reason",
+                             "extensions"}
 RECOVERY_OBSERVATION_STATUSES = {"applied", "partial", "hold", "unknown"}
+
+# Closed enumerations and member sets of the ODES execution-attempt-lifecycle contract (0.1.0-draft). A value
+# outside an enumeration is refused as ``unknown_enum_value`` and never coerced.
+ATTEMPT_EVENT_STATUSES = frozenset({"attempted", "executed", "partial", "failed", "reconciled", "unknown", "denied"})
+EXECUTION_RESULT_STATUSES = frozenset({"denied", "failed", "partial", "unknown", "executed", "observed", "reconciled"})
+VALIDATED_OBSERVATION_STATES = frozenset({"absent", "applied", "partial", "unknown"})
+CONTROL_PLANE_ATTEMPT_STATUSES = frozenset({"attempted", "acknowledged", "unknown", "failed", "partial"})
+CONTROL_PLANE_TIME_SOURCES = frozenset({"unrecorded", "control_plane", "test_override"})
+EXECUTOR_ATTEMPT_MEMBERS = frozenset({"attempt_id", "effect_id", "decision_id", "operation_digest", "created_at",
+                                      "extensions"})
+ATTEMPT_EVENT_MEMBERS = frozenset({"event_id", "attempt_id", "status", "error", "created_at", "extensions"})
+CONTROL_PLANE_ATTEMPT_MEMBERS = frozenset({"attempt_id", "effect_id", "decision_id", "started_at", "time_source",
+                                           "status", "acknowledgement", "error", "extensions"})
+EXTENSION_NAME = re.compile(r"^x-[a-z0-9][a-z0-9._-]*$")
 
 
 def _is_recovery_observation(observation: object) -> bool:
@@ -197,36 +222,56 @@ def _recovery_observed_state(observation: dict[str, Any]) -> str:
     return status if status in {"applied", "partial"} else "unknown"
 
 
+def _observation_kind(observation: object) -> str:
+    """'none' (null or empty), 'validated' (has ``state``) or 'recovery' (no ``state``): the contract's shape rule."""
+    if not observation:
+        return "none"
+    return "validated" if "state" in observation else "recovery"
+
+
+def _claims_attempt(result: dict[str, Any]) -> bool:
+    return bool(result.get("attempted") or result.get("acknowledged") or result.get("newly_executed")
+                or result.get("attempt_id") is not None)
+
+
 def _validate_recovery_observation(observation: dict[str, Any], result: dict[str, Any],
                                    effect_id: str, op: dict[str, Any]) -> None:
     path = "execution_result.observation"
     extra = sorted(set(observation) - RECOVERY_OBSERVATION_KEYS)
     if extra:
-        raise ImportContractError(f"{path} recovery report has undeclared members: " + ",".join(extra))
+        raise ImportContractError(f"{path} recovery report has undeclared members: " + ",".join(extra),
+                                  "undeclared_member")
     status = observation.get("status")
     if status not in RECOVERY_OBSERVATION_STATUSES:
-        raise ImportContractError(f"{path}.status is not a recovery status")
-    if observation.get("retry_eligible") is not False:
-        raise ImportContractError("unsupported retry eligibility")
+        raise ImportContractError(f"{path}.status is not a recovery status", "unknown_enum_value")
+    retry = observation.get("retry_eligible")
+    if retry is not False:
+        raise ImportContractError("unsupported retry eligibility",
+                                  "recovery_retry_eligible" if retry is True else "schema_violation")
+    if result.get("status") not in {"observed", "unknown"}:
+        raise ImportContractError("a recovery report is only carried by results unknown or observed",
+                                  "recovery_observation_status")
+    for field in ("claim_state", "effect_id", "operation_digest") if status in {"applied", "partial"} else ():
+        if field not in observation:
+            raise ImportContractError(f"{path}.{field} is required for an {status} recovery report",
+                                      "recovery_report_incomplete")
+    if status not in {"applied", "partial"} and (not isinstance(observation.get("reason"), str)
+                                                  or not observation["reason"]):
+        raise ImportContractError(f"{path}.reason is required for a {status} recovery report",
+                                  "recovery_report_incomplete")
     if result.get("status") == "observed":
         # Effect-free reconcile (no attempt is made): the report is the whole result.
-        if result.get("attempted") or result.get("acknowledged") or result.get("newly_executed") or result.get("attempt_id"):
-            raise ImportContractError("an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect")
-    elif result.get("status") != "unknown":
-        raise ImportContractError("a recovery report is only carried by results unknown or observed")
+        if _claims_attempt(result):
+            raise ImportContractError("an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect",
+                                      "effect_free_reconcile_claims_attempt")
     if result.get("observed_state") != _recovery_observed_state(observation):
-        raise ImportContractError("recovery report observed-state contradiction")
+        raise ImportContractError("recovery report observed-state contradiction",
+                                  "recovery_state_mismatch" if result.get("status") == "observed"
+                                  else "unknown_state_mismatch")
     if "effect_id" in observation:
         _require_equal(observation["effect_id"], effect_id, path + ".effect_id")
     if "operation_digest" in observation:
         _require_equal(observation["operation_digest"], _sha256(op), path + ".operation_digest")
-    if status in {"applied", "partial"}:
-        for field in ("claim_state", "effect_id", "operation_digest"):
-            if field not in observation:
-                raise ImportContractError(f"{path}.{field} is required for an {status} recovery report")
-    elif not isinstance(observation.get("reason"), str) or not observation["reason"]:
-        raise ImportContractError(f"{path}.reason is required for a {status} recovery report")
-
 
 
 def _validate_observation_content(observation: dict[str, Any], effect_id: str, op: dict[str, Any], path: str) -> None:
@@ -346,7 +391,7 @@ def import_legacy_control_plane_replay(source: dict[str, Any]) -> Reconstruction
 MOLTBOT_EXPORT_MEMBERS = frozenset({
     "execution_envelope", "execution_result", "effects", "attempts", "attempt_events",
     "producer_profile", "repository", "provenance", "attempt_identity",
-    "control_plane_attempts", "observations", "control_plane_evidence",
+    "control_plane_attempts", "observations", "recovery_observations", "control_plane_evidence",
     "rejected_observations", "extensions",
 })
 MOLTBOT_EXECUTION_RESULT_MEMBERS = frozenset({
@@ -358,7 +403,8 @@ MOLTBOT_REPOSITORY_MEMBERS = frozenset({"repository", "revision", "revision_stat
 
 
 def _check_extensions(obj: dict[str, Any], label: str) -> None:
-    """The reserved ``extensions`` member (ODES inter-component contracts): an object whose names all start 'x-'.
+    """The reserved ``extensions`` member (ODES inter-component contracts): an object whose names all match the
+    contract's ``x-`` form (``^x-[a-z0-9][a-z0-9._-]*$``).
 
     Extensions are carried, never interpreted: they stay inside the retained record (so they are digested with it)
     and carry no authority. Undeclared members anywhere else still reject."""
@@ -366,10 +412,11 @@ def _check_extensions(obj: dict[str, Any], label: str) -> None:
         return
     ext = obj["extensions"]
     if not isinstance(ext, dict):
-        raise ImportContractError(f"{label}.extensions must be an object")
-    bad = sorted(str(k) for k in ext if not (isinstance(k, str) and k.startswith("x-") and len(k) > 2))
+        raise ImportContractError(f"{label}.extensions must be an object", "schema_violation")
+    bad = sorted(str(k) for k in ext if not (isinstance(k, str) and EXTENSION_NAME.match(k)))
     if bad:
-        raise ImportContractError(f"{label}.extensions names must start with 'x-': " + ",".join(bad))
+        raise ImportContractError(f"{label}.extensions names must start with 'x-': " + ",".join(bad),
+                                  "invalid_extension_key")
 
 
 def _reject_unknown_members(obj: dict[str, Any], allowed: frozenset[str], label: str) -> None:
@@ -377,7 +424,78 @@ def _reject_unknown_members(obj: dict[str, Any], allowed: frozenset[str], label:
     (docs/runtime-authority-profile.md)."""
     unknown = sorted(str(k) for k in set(obj) - allowed)
     if unknown:
-        raise ImportContractError(f"{label} has unsupported member(s): " + ",".join(unknown))
+        raise ImportContractError(f"{label} has unsupported member(s): " + ",".join(unknown), "undeclared_member")
+
+
+def _closed_enum(value: Any, allowed: frozenset[str], label: str) -> None:
+    if not isinstance(value, str) or value not in allowed:
+        raise ImportContractError(f"{label} is not a declared value: {value!r}", "unknown_enum_value")
+
+
+def _require_members(obj: dict[str, Any], names: tuple[str, ...], label: str) -> None:
+    for name in names:
+        if name not in obj:
+            raise ImportContractError(f"{label}.{name} is required", "schema_violation")
+
+
+def _validate_export_structure(source: dict[str, Any], result: dict[str, Any]) -> None:
+    """Structure half of the execution-attempt-lifecycle contract for a producer 2.0.0 export: closed member
+    sets, closed enumerations, required members and the ``x-`` extension namespace."""
+    _check_extensions(source, "moltbot_export")
+    for name, label in (("attempts", "moltbot.attempts"), ("attempt_events", "moltbot.attempt_events"),
+                        ("control_plane_attempts", "moltbot.control_plane_attempts")):
+        if name in source and not isinstance(source[name], list):
+            raise ImportContractError(f"{name} must be an array", "schema_violation")
+    for i, raw in enumerate(source["attempts"]):
+        label = f"moltbot.attempts[{i}]"
+        row = _obj(raw, label)
+        _reject_unknown_members(row, EXECUTOR_ATTEMPT_MEMBERS, label)
+        _check_extensions(row, label)
+        _require_members(row, ("attempt_id", "effect_id", "decision_id"), label)
+    for i, raw in enumerate(source["attempt_events"]):
+        label = f"moltbot.attempt_events[{i}]"
+        event = _obj(raw, label)
+        _reject_unknown_members(event, ATTEMPT_EVENT_MEMBERS, label)
+        _check_extensions(event, label)
+        _require_members(event, ("event_id", "attempt_id", "status", "created_at"), label)
+        _closed_enum(event["status"], ATTEMPT_EVENT_STATUSES, label + ".status")
+    for i, raw in enumerate(source.get("control_plane_attempts") or []):
+        _validate_control_plane_attempt_row(raw, f"moltbot.control_plane_attempts[{i}]")
+    _reject_unknown_members(result, MOLTBOT_EXECUTION_RESULT_MEMBERS, "execution_result")
+    _check_extensions(result, "execution_result")
+    _require_members(result, ("status", "attempt_id", "observed_state", "observation"), "execution_result")
+    _closed_enum(result["status"], EXECUTION_RESULT_STATUSES, "execution_result.status")
+    observation = result["observation"]
+    if observation is not None and not isinstance(observation, dict):
+        raise ImportContractError("execution observation must be object or null", "schema_violation")
+    kind = _observation_kind(observation)
+    if kind == "validated":
+        _check_extensions(observation, "execution_result.observation")
+        if not isinstance(observation.get("effect_id"), str) or not observation["effect_id"]:
+            raise ImportContractError("execution_result.observation.effect_id is required", "schema_violation")
+        _closed_enum(observation["state"], VALIDATED_OBSERVATION_STATES, "execution_result.observation.state")
+    elif kind == "recovery":
+        _check_extensions(observation, "execution_result.observation")
+        _require_members(observation, ("status", "retry_eligible"), "execution_result.observation")
+    for name in ("observations", "recovery_observations"):
+        if name in source and not isinstance(source[name], list):
+            raise ImportContractError(f"{name} must be an array", "schema_violation")
+    for i, item in enumerate(source.get("observations") or []):
+        # The legacy layout mirrors the recovery report here; it is checked (and tolerated) by the layout rule.
+        if isinstance(item, dict) and "state" in item:
+            _closed_enum(item["state"], VALIDATED_OBSERVATION_STATES, f"moltbot.observations[{i}].state")
+
+
+def _validate_control_plane_attempt_row(raw: Any, label: str) -> None:
+    row = _obj(raw, label)
+    _reject_unknown_members(row, CONTROL_PLANE_ATTEMPT_MEMBERS, label)
+    _check_extensions(row, label)
+    _require_members(row, ("attempt_id", "effect_id", "decision_id", "started_at", "status", "acknowledgement"), label)
+    _closed_enum(row["status"], CONTROL_PLANE_ATTEMPT_STATUSES, label + ".status")
+    if "time_source" in row:
+        _closed_enum(row["time_source"], CONTROL_PLANE_TIME_SOURCES, label + ".time_source")
+    if not isinstance(row["acknowledgement"], dict):
+        raise ImportContractError(label + ".acknowledgement must be an object", "schema_violation")
 
 
 def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
@@ -661,7 +779,11 @@ def import_bounded_workflow(
         if decision_effects[did] != eid:
             raise ImportContractError(f"attempts[{i}] effect_id does not match its decision")
         invariant = {k: raw.get(k) for k in ("attempt_id", "effect_id", "decision_id", "started_at")}
-        _unique_or_same(attempt_invariants, aid, invariant, "attempt_id")
+        prior = attempt_invariants.get(aid)
+        started_changed = (prior is not None and prior != invariant
+                           and all(prior[k] == invariant[k] for k in prior if k != "started_at"))
+        _unique_or_same(attempt_invariants, aid, invariant, "attempt_id",
+                        "attempt_started_at_changed" if started_changed else None)
         records.append(_record(
             bounded_profile, "control_plane_attempt_transition", seq, f"attempts[{i}]", raw,
             ids={"run_id": run_id, "attempt_id": aid, "effect_id": raw.get("effect_id"),
@@ -848,7 +970,8 @@ def _import_moltbot(
 
     versioned_contract = source.get("producer_profile") is not None
     if versioned_contract:
-        for field in ("attempt_identity", "control_plane_attempts", "observations"):
+        # control_plane_attempts and observations are optional members of the lifecycle contract (RP-11).
+        for field in ("attempt_identity",):
             if field not in source:
                 raise ImportContractError(
                     f"versioned Moltbot export missing: {field}"
@@ -884,7 +1007,10 @@ def _import_moltbot(
         ))
 
     result = _obj(source["execution_result"], "execution_result")
-    if result.get("decision_id") != envelope_decision or result.get("effect_id") != envelope_effect:
+    # decision_id / effect_id are optional result members of the lifecycle contract: absent is accepted, present
+    # must match the envelope.
+    if (result.get("decision_id", envelope_decision) != envelope_decision
+            or result.get("effect_id", envelope_effect) != envelope_effect):
         raise ImportContractError("Moltbot execution_result identifiers do not match execution envelope")
     if source.get("producer_profile", {}).get("profile_version") == "2.0.0":
         _validate_v2_export(source, cp_records, op, envelope_effect)
@@ -927,7 +1053,7 @@ def _import_moltbot(
             raise ImportContractError("Moltbot attempt missing attempt_id")
         if raw.get("decision_id") != envelope_decision or raw.get("effect_id") != envelope_effect:
             raise ImportContractError(f"Moltbot attempt {aid} does not match execution envelope")
-        digest = raw.get("operation_digest")
+        digest = raw.get("operation_digest", expected_operation_digest)  # optional member of the contract
         if digest not in (expected_operation_digest, "legacy:unknown"):
             raise ImportContractError(f"Moltbot attempt {aid} operation_digest mismatch")
         _unique_or_same(attempts, aid, raw, "Moltbot attempt_id")
@@ -1131,16 +1257,25 @@ def _import_moltbot(
             "absence/unknown observation contradicts retained destination effect evidence"
         )
 
+    recovery_retained = False
+
+    def retain_recovery_report(raw: dict[str, Any], path: str) -> None:
+        # Destination recovery report (route B): retained under its own record type so that it can never be
+        # read as a validated executor observation. Its content was checked by the producer-2.0.0 export gate.
+        nonlocal seq, recovery_retained
+        records.append(_record(
+            profile_id, "executor_recovery_report", seq, path, raw,
+            ids={"effect_id": raw.get("effect_id") or envelope_effect},
+        ))
+        seq += 1
+        recovery_retained = True
+
     for i, raw in enumerate(source.get("observations") or []):
         raw = _obj(raw, f"moltbot.observations[{i}]")
         if _is_recovery_observation(raw):
-            # Destination recovery report (route B): retained under its own record type so that it can never be
-            # read as a validated executor observation. Its content was checked by the producer-2.0.0 export gate.
-            records.append(_record(
-                profile_id, "executor_recovery_report", seq, f"moltbot.observations[{i}]", raw,
-                ids={"effect_id": raw.get("effect_id") or envelope_effect},
-            ))
-            seq += 1
+            # Legacy layout: the recovery report is mirrored in ``observations``. Tolerated until the contract
+            # freezes; the new layout carries it in ``recovery_observations``.
+            retain_recovery_report(raw, f"moltbot.observations[{i}]")
             continue
         _validate_observation_content(raw, envelope_effect, op, f"moltbot.observations[{i}]")
         if raw.get("state") in {"absent", "unknown"}:
@@ -1153,6 +1288,17 @@ def _import_moltbot(
             profile_id, "executor_observation", seq, f"moltbot.observations[{i}]", raw,
             ids={"effect_id": raw.get("effect_id")},
         ))
+        seq += 1
+    for i, raw in enumerate(source.get("recovery_observations") or []):
+        retain_recovery_report(_obj(raw, f"moltbot.recovery_observations[{i}]"), f"moltbot.recovery_observations[{i}]")
+    if not recovery_retained and _is_recovery_observation(result_observation):
+        # New layout without the optional ``recovery_observations`` member: the report is carried by the result only.
+        retain_recovery_report(result_observation, "moltbot.execution_result.observation")
+    if isinstance(source.get("extensions"), dict):
+        _check_extensions(source, "moltbot_export")
+        # Export-level extensions are retained verbatim as their own record (digested with it), never interpreted.
+        records.append(_record(profile_id, "executor_export_extensions", seq, "moltbot.extensions",
+                               source["extensions"]))
         seq += 1
 
     cp_attempts = [
@@ -1278,27 +1424,34 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
         raise ImportContractError('accepted Control Plane observations differ from retained reconciliations')
     terminal = {}
     lifecycle: dict[Any, list[dict[str, Any]]] = {}
-    for attempt in cp.get('attempts', []):
+    for i, attempt in enumerate(cp.get('attempts', [])):
         attempt = _obj(attempt, 'attempt')
+        _validate_control_plane_attempt_row(attempt, f'attempts[{i}]')
         if attempt.get('status') != 'attempted':
             _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt')
         lifecycle.setdefault(attempt.get('attempt_id'), []).append(attempt)
     # Each attempt lifecycle starts with exactly one 'attempted' record; no lifecycle record is repeated
     # verbatim. A dropped start record or a duplicated record is a defect, not repeated history.
     for attempt_id, rows in lifecycle.items():
-        # The reconciled_existing marker is valid only as the whole acknowledgement of a lone non-start record.
-        for row in rows:
-            ack = row.get('acknowledgement')
-            if isinstance(ack, dict) and 'reconciled_existing' in ack and not (
-                    len(rows) == 1 and ack == {'reconciled_existing': True} and row.get('status') != 'attempted'):
-                raise ImportContractError(f'Control Plane attempt {attempt_id} carries an invalid reconciled_existing marker')
         # Control Plane bounded.py mints a single-record attempt (no 'attempted' start) when it reconciles an
         # already-applied/partial effect; that record is marked acknowledgement={'reconciled_existing': True}.
-        reconciled_only = len(rows) == 1 and rows[0].get('acknowledgement') == {'reconciled_existing': True}
+        # The marker is valid only as the whole acknowledgement of a lone acknowledged/partial record, and when
+        # present it must be exactly true.
+        reconciled_only = (len(rows) == 1 and rows[0].get('status') in {'acknowledged', 'partial'}
+                           and rows[0].get('acknowledgement') == {'reconciled_existing': True}
+                           and rows[0]['acknowledgement']['reconciled_existing'] is True)
+        marked = any('reconciled_existing' in row['acknowledgement'] for row in rows)
+        if marked and not reconciled_only:
+            raise ImportContractError(f'Control Plane attempt {attempt_id} carries an invalid reconciled_existing marker',
+                                      'invalid_reconciled_marker')
         if rows[0].get('status') != 'attempted' and not reconciled_only:
-            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle lacks its attempted start record')
+            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle lacks its attempted start record',
+                                      'missing_start_record')
+        if len({row.get('started_at') for row in rows}) > 1:
+            raise ImportContractError(f'Control Plane attempt {attempt_id} started_at changed between lifecycle rows',
+                                      'attempt_started_at_changed')
         if any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i)):
-            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record')
+            raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record', 'repeated_record')
 
 
 def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
@@ -1311,7 +1464,7 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
     """
     rows = source["attempts"]
     if len(rows) != len(attempts):
-        raise ImportContractError("duplicate executor attempt row")
+        raise ImportContractError("duplicate executor attempt row", "duplicate_attempt_row")
     events = source["attempt_events"]
     last_id = None
     last_time = None
@@ -1319,63 +1472,94 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
     for i, raw in enumerate(events):
         event_id = raw.get("event_id")
         if type(event_id) is not int or (last_id is not None and event_id <= last_id):
-            raise ImportContractError(f"moltbot.attempt_events[{i}] event_id is repeated or out of order")
+            raise ImportContractError(f"moltbot.attempt_events[{i}] event_id is repeated or out of order", "event_order")
         last_id = event_id
         created = raw.get("created_at")
         if isinstance(created, bool) or not isinstance(created, (int, float)) or (last_time is not None and created < last_time):
-            raise ImportContractError(f"moltbot.attempt_events[{i}] created_at is missing or out of order")
+            raise ImportContractError(f"moltbot.attempt_events[{i}] created_at is missing or out of order", "event_order")
         last_time = created
         per_attempt.setdefault(raw.get("attempt_id"), []).append(raw)
     for aid in attempts:
         rows_for = per_attempt.get(aid)
         if not rows_for:
-            raise ImportContractError(f"executor attempt {aid} has no attempt events")
+            raise ImportContractError(f"executor attempt {aid} has no attempt events", "attempt_without_events")
         if rows_for[0].get("status") != "attempted":
-            raise ImportContractError(f"executor attempt {aid} events do not start with attempted")
+            raise ImportContractError(f"executor attempt {aid} events do not start with attempted", "missing_start_event")
         if any(r.get("status") == "attempted" for r in rows_for[1:]):
-            raise ImportContractError(f"executor attempt {aid} repeats its attempted event")
+            raise ImportContractError(f"executor attempt {aid} repeats its attempted event", "repeated_start_event")
     attempt_identity = source.get("attempt_identity") or {}
     result_attempt = result.get("attempt_id")
     if (attempt_identity.get("namespace") == "executor" and result_attempt in attempts
             and result.get("status") != "observed"):
         terminal = per_attempt[result_attempt][-1].get("status")
         # The Control Plane adapter reports an acknowledged-but-unobserved delivery as result 'unknown'
-        # (no observation) while the executor's own terminal event is 'executed'.
-        observation = result.get("observation")
-        unresolved_ack = (terminal == "executed" and result.get("status") == "unknown"
-                          and ((observation is None and result.get("observed_state") == "unknown")
-                               or (_is_recovery_observation(observation)
-                                   and result.get("observed_state") == _recovery_observed_state(observation))))
+        # (no validated observation) while the executor's own terminal event is 'executed' (contract exception).
+        unresolved_ack = terminal == "executed" and result.get("status") == "unknown"
         if terminal != result.get("status") and not unresolved_ack:
             raise ImportContractError(
-                f"execution result status {result.get('status')!r} contradicts the terminal attempt event {terminal!r}")
+                f"execution result status {result.get('status')!r} contradicts the terminal attempt event {terminal!r}",
+                "terminal_event_missing" if terminal == "attempted" else "status_terminal_mismatch")
+
+
+def _validate_export_layout(source: dict[str, Any], observation: Any, kind: str) -> None:
+    """Export layout (ODES item 7, step A).
+
+    ``observations`` lists the validated observation the result carries (or is empty); ``recovery_observations`` is
+    optional and equals the recovery report the result carries (or is empty). Both members are optional. The legacy
+    layout, which mirrors the recovery report in ``observations`` (and has no ``recovery_observations``), is still
+    tolerated and is dropped when the contract freezes (step B)."""
+    listed = source.get("recovery_observations")
+    recovery_expected = [observation] if kind == "recovery" else []
+    if listed is not None and listed != recovery_expected:
+        raise ImportContractError("recovery_observations differ from the result report", "recovery_observations_mismatch")
+    observations = source.get("observations")
+    if observations is None:
+        return
+    validated_expected = [observation] if kind == "validated" else []
+    legacy = kind == "recovery" and listed is None and observations == [observation]
+    if observations != validated_expected and not legacy:
+        raise ImportContractError("accepted executor observations differ from result", "observations_mismatch")
+
+
+def _validate_result_contract(result: dict[str, Any], observation: Any, kind: str) -> None:
+    """Cross-record result rules of the lifecycle contract that do not depend on recovery-report content."""
+    status = result.get("status")
+    if kind == "recovery" and status not in {"unknown", "observed"}:
+        raise ImportContractError("a recovery report is only carried by results unknown or observed",
+                                  "recovery_observation_status")
+    if status == "observed" and kind != "recovery" and _claims_attempt(result):
+        # 'observed' is the effect-free observation; a normal execution reports 'executed'.
+        raise ImportContractError("an observed result cannot claim an attempt, acknowledgement or new effect "
+                                  "(a normal execution reports executed)", "observed_result_claims_attempt")
+    if status == "executed" and kind == "none":
+        raise ImportContractError("an executed result must carry the observation that established it",
+                                  "executed_without_observation")
 
 
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                         op: dict[str, Any], effect: str) -> None:
     result = source['execution_result']
-    _reject_unknown_members(result, MOLTBOT_EXECUTION_RESULT_MEMBERS, "execution_result")
-    _check_extensions(source, "moltbot_export")
-    _check_extensions(result, "execution_result")
-    if isinstance(result.get('observation'), dict):
-        _check_extensions(result['observation'], "execution_result.observation")
-    for field in ('control_plane_evidence', 'rejected_observations', 'observations'):
+    _validate_export_structure(source, result)
+    for field in ('control_plane_evidence', 'rejected_observations'):
         if field not in source:
             raise ImportContractError('producer 2.0.0 missing ' + field)
     evidence = _obj(source['control_plane_evidence'], 'control_plane_evidence')
-    if result.get('control_plane_evidence') != evidence:
+    if result.get('control_plane_evidence', {}) != evidence:  # absent equals empty (optional member)
         raise ImportContractError('result Control Plane evidence differs from export')
     observation = result.get('observation')
-    if observation is not None and not isinstance(observation, dict):
-        raise ImportContractError('execution observation must be object or null')
-    expected_observations = [observation] if observation else []
-    if source['observations'] != expected_observations:
-        raise ImportContractError('accepted executor observations differ from result')
-    if not observation and result.get('observed_state') != 'unknown':
-        raise ImportContractError('null observation cannot establish observed state')
-    if observation and _is_recovery_observation(observation):
+    kind = _observation_kind(observation)
+    _validate_export_layout(source, observation, kind)
+    _validate_result_contract(result, observation, kind)
+    if kind == "recovery":
         _validate_recovery_observation(observation, result, effect, op)
-    elif observation:
+    elif kind == "validated" and result.get('status') == 'unknown':
+        raise ImportContractError("an unknown result cannot carry a validated observation",
+                                  "unknown_with_validated_observation")
+    elif result.get('status') == 'unknown' and result.get('observed_state') != 'unknown':
+        raise ImportContractError('null observation cannot establish observed state', "unknown_state_mismatch")
+    elif kind == "none" and result.get('observed_state') in {'applied', 'partial'}:
+        raise ImportContractError('null observation cannot establish observed state')
+    elif kind == "validated":
         if result.get('observed_state') != observation.get('state'):
             raise ImportContractError('execution observed-state contradiction')
         _validate_observation_content(observation, effect, op, 'execution_result.observation')
@@ -1431,10 +1615,8 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
             raise ImportContractError('executor dropped retained typed refusal')
     rec = evidence.get('reconciliation')
     attempt = evidence.get('attempt')
-    supplied_attempts = source.get('control_plane_attempts')
-    if not isinstance(supplied_attempts, list):
-        raise ImportContractError('control_plane_attempts must be an array')
-    if supplied_attempts != ([attempt] if attempt else []):
+    supplied_attempts = source.get('control_plane_attempts')  # optional member of the lifecycle contract
+    if supplied_attempts is not None and supplied_attempts != ([attempt] if attempt else []):
         raise ImportContractError('Control Plane attempts differ from result owning evidence')
     if rec is not None:
         rec = _obj(rec, 'executor reconciliation')

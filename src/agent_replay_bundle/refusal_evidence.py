@@ -103,10 +103,19 @@ EXTENDED = {'refusals':'effect_time_refusal', 'resolution_checks':'resolution_ch
             'closeouts':'attempt_closeout', 'input_time_floors':'input_time_floors'}
 
 
+def _structure_code(exc):
+    """Contract refusal code for a pydantic failure: an undeclared member, a value outside a closed enumeration,
+    or any other structural violation."""
+    kinds = {e.get('type') for e in exc.errors()}
+    if 'extra_forbidden' in kinds: return 'undeclared_member'
+    if 'literal_error' in kinds or 'enum' in kinds: return 'unknown_enum_value'
+    return 'schema_violation'
+
+
 def validate_run(cp, proposal, *, runtime_authority=False):
     from .importers import ImportContractError, _aware_time
-    def require(ok, reason):
-        if not ok: raise ImportContractError('typed refusal profile: '+reason)
+    def require(ok, reason, code=None):
+        if not ok: raise ImportContractError('typed refusal profile: '+reason, code)
     def inputs(values):
         for x in values:
             require(bool(x.input_id), 'empty input identity')
@@ -148,7 +157,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 require(any(i.input_type==change.input_type and i.input_id==change.input_id for i in x.resolution_inputs),'changed input lacks actual read attribution')
         seen=set()
         for raw in cp['resolution_checks']:
-            x=CheckModel.model_validate(raw);require(bool(x.check_id) and x.check_id not in seen,'duplicate/empty resolution check id');seen.add(x.check_id)
+            x=CheckModel.model_validate(raw);require(bool(x.check_id) and x.check_id not in seen,'duplicate/empty resolution check id','duplicate_check_id');seen.add(x.check_id)
             _aware_time(x.evaluated_at);inputs(x.inputs)
         closeout_keys=set()
         for raw in cp['closeouts']:
@@ -175,14 +184,14 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 event=JournalEvent.model_validate(raw);_aware_time(event.recorded_at)
                 require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
                 if event.phase=='opened':
-                    require(event.check_id not in checks,'duplicate journal opening')
+                    require(event.check_id not in checks,'duplicate journal opening','journal_protocol')
                     checks[event.check_id]=[event,False,[]];open_at[event.check_id]=seq
                 else:
-                    require(event.check_id in checks and not checks[event.check_id][1],'journal missing opening or already closed')
+                    require(event.check_id in checks and not checks[event.check_id][1],'journal missing opening or already closed','journal_protocol')
                     opening=checks[event.check_id][0]
-                    require(all(getattr(event,k)==getattr(opening,k) for k in ['owner','stage','proposal_commitment','decision_id','effect_id','action_class']),'journal binding changed')
+                    require(all(getattr(event,k)==getattr(opening,k) for k in ['owner','stage','proposal_commitment','decision_id','effect_id','action_class']),'journal binding changed','journal_protocol')
                     if event.phase=='input':
-                        require(event.input is not None,'journal input missing');inputs([event.input])
+                        require(event.input is not None,'journal input missing','journal_protocol');inputs([event.input])
                         checks[event.check_id][2].append(raw['input'])
                     else:
                         checks[event.check_id][1]=True
@@ -192,7 +201,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                             # Journal and resolution-check IDs are separate producer UUIDs; bind by content.
                             candidates=[i for i,x in enumerate(cp['resolution_checks']) if x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
                                         and set(event.reasons)<=set(x['reasons'])]
-                            require(bool(candidates),'completed journal differs from actual resolution check')
+                            require(bool(candidates),'completed journal differs from actual resolution check','journal_unbound_completion')
                             completions.append((event.check_id,candidates));close_at[event.check_id]=seq
                 if event.decision_id is not None:
                     require(event.decision_id in decisions and decisions[event.decision_id]['effect_id']==event.effect_id,'journal decision/effect lineage mismatch')
@@ -206,7 +215,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                             owner[i]=j;return True
                 return False
             for j in range(len(completions)):
-                require(assign(j,set()),'completed journals reuse one actual resolution check')
+                require(assign(j,set()),'completed journals reuse one actual resolution check','journal_check_reused')
             # Resolution checks are appended as they complete. Checks that did not overlap in the journal (one
             # completed before the other opened) must match actual checks in that order; overlapping (concurrent)
             # checks may complete in either order.
@@ -214,7 +223,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
             for cid,candidates in completions:
                 previous=max([chosen[o] for o in chosen if close_at[o]<open_at[cid]],default=-1)
                 later=[i for i in candidates if i>previous]
-                require(bool(later),'resolution checks are out of journal order')
+                require(bool(later),'resolution checks are out of journal order','resolution_checks_out_of_order')
                 chosen[cid]=min(later)
             # Opened-only and interrupted checks are retained as evidence of incompletion.
             unfinished.extend(k for k,v in checks.items() if not v[1])
@@ -233,7 +242,9 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 require(set(change)=={'change_id','previous_version','version','registry_digest','kind','previous_codes','codes','acknowledged_by','acknowledged_at'},'vocabulary change fields unsupported')
                 require(change['previous_version']!=change['version'] and bool(change['acknowledged_by']),'invalid vocabulary transition')
                 _aware_time(change['acknowledged_at'])
-    except (ValidationError,KeyError,TypeError,AttributeError) as exc:
+    except ValidationError as exc:
+        raise ImportContractError('typed refusal profile: unsupported/missing evidence fields', _structure_code(exc)) from exc
+    except (KeyError,TypeError,AttributeError) as exc:
         raise ImportContractError('typed refusal profile: unsupported/missing evidence fields') from exc
     # Journal check IDs that never completed (opened-only or interrupted), in journal order.
     return unfinished
