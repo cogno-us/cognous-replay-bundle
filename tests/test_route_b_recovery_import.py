@@ -170,3 +170,39 @@ def test_failure_class_is_not_admitted_without_a_recovery_report():
         x["execution_result"].update(observation=None, observed_state="unknown")
         x["observations"] = []
     rejects("observe_bound_fail", plant, "unsupported typed refusal executor evidence field")
+
+
+# ---- contract conformance: undeclared members, reconciled marker, extensions (ODES lifecycle contract) -------
+
+from .test_audit_defect_detection import load as _cp_load, rejects as _cp_rejects, run as _cp_run  # noqa: E402
+
+
+def test_undeclared_member_in_execution_result_is_refused():
+    _cp_rejects(lambda cp, x: x["execution_result"].__setitem__("injected_member", 1), "unsupported member")
+
+
+def test_start_row_marked_reconciled_existing_false_is_refused():
+    def plant(cp, x):
+        cp["attempts"][0]["acknowledgement"] = {"reconciled_existing": False}
+    _cp_rejects(plant, "invalid reconciled_existing marker")
+
+
+def test_extensions_are_accepted_when_x_prefixed_and_retained_in_the_record():
+    cp, proposal, x = _cp_load()
+    x["execution_result"]["extensions"] = {"x-syn-vendor.trace": {"span": "abc"}}
+    x["extensions"] = {"x-syn-vendor.note": "n"}
+    bundle = _cp_run(cp, proposal, x)
+    result = next(r for r in bundle.records if r.record_type == "execution_result")
+    assert result.data["extensions"] == {"x-syn-vendor.trace": {"span": "abc"}}
+
+
+@pytest.mark.parametrize("where", ["top", "result"])
+@pytest.mark.parametrize("bad", [{"vendor.trace": 1}, {"x-": 1}, []])
+def test_extensions_without_x_names_or_not_an_object_are_refused(where, bad):
+    def plant(cp, x):
+        (x if where == "top" else x["execution_result"])["extensions"] = bad
+    _cp_rejects(plant, "extensions")
+
+
+def test_undeclared_member_outside_extensions_at_top_level_is_still_refused():
+    _cp_rejects(lambda cp, x: x.__setitem__("injected_member", 1), "unsupported member")

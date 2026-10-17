@@ -347,10 +347,29 @@ MOLTBOT_EXPORT_MEMBERS = frozenset({
     "execution_envelope", "execution_result", "effects", "attempts", "attempt_events",
     "producer_profile", "repository", "provenance", "attempt_identity",
     "control_plane_attempts", "observations", "control_plane_evidence",
-    "rejected_observations",
+    "rejected_observations", "extensions",
+})
+MOLTBOT_EXECUTION_RESULT_MEMBERS = frozenset({
+    "status", "decision_id", "effect_id", "attempt_id", "attempted", "acknowledged", "observed_state",
+    "newly_executed", "observation", "error", "control_plane_evidence", "extensions",
 })
 MOLTBOT_PRODUCER_PROFILE_MEMBERS = frozenset({"profile_id", "profile_version", "execution_envelope_version"})
 MOLTBOT_REPOSITORY_MEMBERS = frozenset({"repository", "revision", "revision_status"})
+
+
+def _check_extensions(obj: dict[str, Any], label: str) -> None:
+    """The reserved ``extensions`` member (ODES inter-component contracts): an object whose names all start 'x-'.
+
+    Extensions are carried, never interpreted: they stay inside the retained record (so they are digested with it)
+    and carry no authority. Undeclared members anywhere else still reject."""
+    if "extensions" not in obj:
+        return
+    ext = obj["extensions"]
+    if not isinstance(ext, dict):
+        raise ImportContractError(f"{label}.extensions must be an object")
+    bad = sorted(str(k) for k in ext if not (isinstance(k, str) and k.startswith("x-") and len(k) > 2))
+    if bad:
+        raise ImportContractError(f"{label}.extensions names must start with 'x-': " + ",".join(bad))
 
 
 def _reject_unknown_members(obj: dict[str, Any], allowed: frozenset[str], label: str) -> None:
@@ -1267,6 +1286,12 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
     # Each attempt lifecycle starts with exactly one 'attempted' record; no lifecycle record is repeated
     # verbatim. A dropped start record or a duplicated record is a defect, not repeated history.
     for attempt_id, rows in lifecycle.items():
+        # The reconciled_existing marker is valid only as the whole acknowledgement of a lone non-start record.
+        for row in rows:
+            ack = row.get('acknowledgement')
+            if isinstance(ack, dict) and 'reconciled_existing' in ack and not (
+                    len(rows) == 1 and ack == {'reconciled_existing': True} and row.get('status') != 'attempted'):
+                raise ImportContractError(f'Control Plane attempt {attempt_id} carries an invalid reconciled_existing marker')
         # Control Plane bounded.py mints a single-record attempt (no 'attempted' start) when it reconciles an
         # already-applied/partial effect; that record is marked acknowledgement={'reconciled_existing': True}.
         reconciled_only = len(rows) == 1 and rows[0].get('acknowledgement') == {'reconciled_existing': True}
@@ -1329,6 +1354,11 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                         op: dict[str, Any], effect: str) -> None:
     result = source['execution_result']
+    _reject_unknown_members(result, MOLTBOT_EXECUTION_RESULT_MEMBERS, "execution_result")
+    _check_extensions(source, "moltbot_export")
+    _check_extensions(result, "execution_result")
+    if isinstance(result.get('observation'), dict):
+        _check_extensions(result['observation'], "execution_result.observation")
     for field in ('control_plane_evidence', 'rejected_observations', 'observations'):
         if field not in source:
             raise ImportContractError('producer 2.0.0 missing ' + field)
