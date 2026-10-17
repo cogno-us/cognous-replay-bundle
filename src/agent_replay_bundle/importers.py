@@ -65,9 +65,18 @@ MANIFEST_F5B_REVISION = "2c36bcd0b620dbfe7ad924bc7196a3f0c04c5c5e"
 BOUNDED_F5B_PROFILE = "control-plane-security-runtime@a34c3dc2"
 MOLTBOT_F5B_PROFILE = "moltbot-safe-executor-producer-2.0.0@4a83b175"
 # Control Plane revisions whose bounded output uses the security-runtime semantics.
-SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION})
-SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE})
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION)
+# P4 generation (alpha decoupling, P4): the producers after the execution-attempt lifecycle contract work
+# (0.1.0-draft, not frozen). Same Control Plane / runtime semantics as F5b plus the contract's export layout, but a
+# distinct exact revision tuple, added beside (never replacing) F5b so retained F5b evidence stays accepted.
+# These constants are alpha scaffolding: they are removed with the other hard pins at end-of-alpha (P5).
+CONTROL_PLANE_P4_REVISION = "26a7e6594eb535827ccc248cbca36a7d119d613b"
+MOLTBOT_P4_REVISION = "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
+MANIFEST_P4_REVISION = MANIFEST_F5B_REVISION
+BOUNDED_P4_PROFILE = "control-plane-security-runtime@26a7e659"
+MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
+SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION})
+SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE})
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
@@ -75,7 +84,7 @@ MOLTBOT_V2_PROFILE = "moltbot-safe-executor-producer-2.0.0@177354e9"
 # Every 2.0 executor profile fails closed on a dangling/ambiguous explicit attempt reference.
 STRICT_ACK_PROFILES = frozenset({MOLTBOT_V2_PROFILE, MOLTBOT_MERGED_PROFILE, MOLTBOT_REFUSAL_PROFILE,
                                  MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE,
-                                 MOLTBOT_F5B_PROFILE})
+                                 MOLTBOT_F5B_PROFILE, MOLTBOT_P4_PROFILE})
 PRODUCER_COMPATIBILITY = {
     "1.0.0": (MOLTBOT_SAFE_REVISION, CONTROL_PLANE_REVISION, MOLTBOT_PROFILE),
     "2.0.0": (MOLTBOT_V2_REVISION, CONTROL_PLANE_V2_REVISION, MOLTBOT_V2_PROFILE),
@@ -547,6 +556,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_F5B_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_F5B_REVISION, CONTROL_PLANE_F5B_REVISION, MOLTBOT_F5B_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_F5B_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_P4_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_P4_REVISION, CONTROL_PLANE_P4_REVISION, MOLTBOT_P4_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_P4_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -598,6 +610,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION: BOUNDED_RUNTIME_AUTHORITY_PROFILE,
         CONTROL_PLANE_SECURITY_REVISION: BOUNDED_SECURITY_PROFILE,
         CONTROL_PLANE_F5B_REVISION: BOUNDED_F5B_PROFILE,
+        CONTROL_PLANE_P4_REVISION: BOUNDED_P4_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -915,7 +928,8 @@ def import_bounded_workflow(
             "moltbot_safe_revision": contract["repository_revision"] if moltbot_export else None,
             "moltbot_producer_contract": contract if moltbot_export else None,
             "manifest_revision": {CONTROL_PLANE_SECURITY_REVISION: MANIFEST_SECURITY_REVISION,
-                                  CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
+                                  CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION,
+                                  CONTROL_PLANE_P4_REVISION: MANIFEST_P4_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
