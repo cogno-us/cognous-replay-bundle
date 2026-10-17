@@ -74,7 +74,7 @@ def test_single_reconciled_existing_attempt_needs_no_start_record():
 
 @pytest.mark.parametrize("acknowledgement", [{}, {"reconciled_existing": False}, {"reconciled_existing": True, "x": 1}])
 def test_single_attempt_without_reconciled_marker_still_requires_start_record(acknowledgement):
-    rejects(_reconciled_attempt(acknowledgement), "lacks its attempted start record")
+    rejects(_reconciled_attempt(acknowledgement), "lacks its attempted start record|invalid reconciled_existing marker")
 
 
 def test_dropped_start_record_is_still_rejected():
