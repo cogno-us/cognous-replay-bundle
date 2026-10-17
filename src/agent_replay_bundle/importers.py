@@ -1536,9 +1536,11 @@ def _validate_result_contract(result: dict[str, Any], observation: Any, kind: st
                                   "executed_without_observation")
 
 
-# RP-6 (contract rule unknown_with_validated_observation). Owner decision 2026-10-17: enforced in step B, together
-# with dropping the legacy layout, after the runtime change (reconciled/partial instead of unknown) is merged and the
-# pinned runtimes advance. Until then the pinned runtimes' lost-ack exports (unknown + validated applied) must import.
+# RP-6, narrowed (contract rule unknown_with_validated_observation). Result unknown may carry a validated observation
+# whose state is absent/unknown (always accepted, observed_state must equal observation.state). Only the refusal of
+# unknown + validated applied/partial stays behind this flag: owner decision 2026-10-17, enforced in step B after the
+# runtime change (reconciled/partial instead of unknown) is merged and the pinned runtimes advance (P4). Until then
+# the pinned runtimes' lost-ack exports (unknown + validated applied) must import.
 ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = False
 
 
@@ -1558,15 +1560,21 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     _validate_result_contract(result, observation, kind)
     if kind == "recovery":
         _validate_recovery_observation(observation, result, effect, op)
-    elif kind == "validated" and result.get('status') == 'unknown' and ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION:
-        raise ImportContractError("an unknown result cannot carry a validated observation",
-                                  "unknown_with_validated_observation")
-    elif kind == "none" and result.get('status') == 'unknown' and result.get('observed_state') != 'unknown':
-        raise ImportContractError('null observation cannot establish observed state', "unknown_state_mismatch")
-    elif kind == "none" and result.get('observed_state') in {'applied', 'partial'}:
-        raise ImportContractError('null observation cannot establish observed state')
+    elif kind == "none":
+        # Strict null-observation rule (owner decision 2026-10-17, contract item 15): with no observation nothing was
+        # established, so observed_state is 'unknown' for every result status.
+        if result.get('observed_state') != 'unknown':
+            raise ImportContractError('null observation cannot establish observed state',
+                                      "null_observation_state_mismatch")
     elif kind == "validated":
+        if (result.get('status') == 'unknown' and observation.get('state') in {'applied', 'partial'}
+                and ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION):
+            raise ImportContractError("an unknown result cannot carry a validated applied/partial observation",
+                                      "unknown_with_validated_observation")
         if result.get('observed_state') != observation.get('state'):
+            if result.get('status') == 'unknown':
+                raise ImportContractError('unknown result observed-state contradiction with its validated observation',
+                                          "unknown_state_mismatch")
             raise ImportContractError('execution observed-state contradiction')
         _validate_observation_content(observation, effect, op, 'execution_result.observation')
         if observation.get('state') in {'applied', 'partial'}:
