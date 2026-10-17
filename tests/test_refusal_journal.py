@@ -26,13 +26,14 @@ from agent_replay_bundle.importers import ImportContractError, import_bounded_wo
 
 FIXTURE = Path(__file__).parent / "fixtures" / "security_runtime_valid"
 JOURNAL_REVISIONS = [I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.CONTROL_PLANE_SECURITY_REVISION,
-                     I.CONTROL_PLANE_F5B_REVISION]
+                     I.CONTROL_PLANE_F5B_REVISION, I.CONTROL_PLANE_P4_REVISION]
 PAIRS = {
     "merged": (I.CONTROL_PLANE_MERGED_REVISION, I.MOLTBOT_MERGED_REVISION),
     "refusal": (I.CONTROL_PLANE_REFUSAL_REVISION, I.MOLTBOT_REFUSAL_REVISION),
     "runtime_authority": (I.CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, I.MOLTBOT_RUNTIME_AUTHORITY_REVISION),
     "security": (I.CONTROL_PLANE_SECURITY_REVISION, I.MOLTBOT_SECURITY_REVISION),
     "f5b_security": (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_F5B_REVISION),
+    "p4_security": (I.CONTROL_PLANE_P4_REVISION, I.MOLTBOT_P4_REVISION),
 }
 EXECUTOR = dict(PAIRS.values())
 
@@ -126,6 +127,31 @@ def test_f5b_generation_is_separate_and_attributed():
     (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_RUNTIME_AUTHORITY_REVISION),
 ])
 def test_f5b_generation_rejects_cross_generation_pairs(cp_revision, executor_revision):
+    cp, proposal, executor = load(executor_revision)
+    with pytest.raises(ImportContractError, match="revision combination"):
+        run(cp, proposal, executor, cp_revision)
+
+
+def test_p4_generation_is_separate_and_attributed():
+    cp, proposal, executor = load(I.MOLTBOT_P4_REVISION)
+    bundle = run(cp, proposal, executor, I.CONTROL_PLANE_P4_REVISION)
+    assert bundle.status == "reconstruction_complete"
+    assert {p.profile_id for p in bundle.producer_profiles} >= {I.BOUNDED_P4_PROFILE, I.MOLTBOT_P4_PROFILE}
+    assert bundle.metadata["manifest_revision"] == I.MANIFEST_P4_REVISION
+    assert bundle.metadata["executor_failure_reference_verification"] == "source_asserted_not_independently_verified"
+    # The F5b generation keeps its own attribution and stays accepted beside P4.
+    cp, proposal, executor = load(I.MOLTBOT_F5B_REVISION)
+    bundle = run(cp, proposal, executor, I.CONTROL_PLANE_F5B_REVISION)
+    assert I.BOUNDED_F5B_PROFILE in {p.profile_id for p in bundle.producer_profiles}
+
+
+@pytest.mark.parametrize("cp_revision, executor_revision", [
+    (I.CONTROL_PLANE_P4_REVISION, I.MOLTBOT_F5B_REVISION),
+    (I.CONTROL_PLANE_F5B_REVISION, I.MOLTBOT_P4_REVISION),
+    (I.CONTROL_PLANE_P4_REVISION, I.MOLTBOT_SECURITY_REVISION),
+    (I.CONTROL_PLANE_SECURITY_REVISION, I.MOLTBOT_P4_REVISION),
+])
+def test_p4_generation_rejects_cross_generation_pairs(cp_revision, executor_revision):
     cp, proposal, executor = load(executor_revision)
     with pytest.raises(ImportContractError, match="revision combination"):
         run(cp, proposal, executor, cp_revision)
