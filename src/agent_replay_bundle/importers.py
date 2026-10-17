@@ -59,10 +59,10 @@ MOLTBOT_SECURITY_PROFILE = "moltbot-safe-executor-producer-2.0.0@fd6b76fa"
 # Separate exact producer generation after the F5b security repairs. The
 # 996baeb4/fd6b76fa generation above stays accepted for retained evidence.
 CONTROL_PLANE_F5B_REVISION = "a34c3dc26f84a767a55f9d5c89dc0b53e63fefa5"
-MOLTBOT_F5B_REVISION = "e20f92e104aba2ba6ad06120d8549c6170eaf63f"
+MOLTBOT_F5B_REVISION = "4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f"
 MANIFEST_F5B_REVISION = "2c36bcd0b620dbfe7ad924bc7196a3f0c04c5c5e"
 BOUNDED_F5B_PROFILE = "control-plane-security-runtime@a34c3dc2"
-MOLTBOT_F5B_PROFILE = "moltbot-safe-executor-producer-2.0.0@e20f92e1"
+MOLTBOT_F5B_PROFILE = "moltbot-safe-executor-producer-2.0.0@4a83b175"
 # Control Plane revisions whose bounded output uses the security-runtime semantics.
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE})
