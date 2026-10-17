@@ -1,14 +1,14 @@
 {
   "attempt_events": [
     {
-      "attempt_id": "38a005e9-406d-4c3d-a5bb-543a41dc2826",
+      "attempt_id": "d5782400-99e7-4617-a5fb-b6990a249094",
       "created_at": 1791388800.0,
       "error": null,
       "event_id": 1,
       "status": "attempted"
     },
     {
-      "attempt_id": "38a005e9-406d-4c3d-a5bb-543a41dc2826",
+      "attempt_id": "d5782400-99e7-4617-a5fb-b6990a249094",
       "created_at": 1791388800.0,
       "error": null,
       "event_id": 2,
@@ -16,15 +16,15 @@
     }
   ],
   "attempt_identity": {
-    "attempt_id": "38a005e9-406d-4c3d-a5bb-543a41dc2826",
+    "attempt_id": "d5782400-99e7-4617-a5fb-b6990a249094",
     "namespace": "executor",
     "owner": "cogno-us/moltbot-safe"
   },
   "attempts": [
     {
-      "attempt_id": "38a005e9-406d-4c3d-a5bb-543a41dc2826",
+      "attempt_id": "d5782400-99e7-4617-a5fb-b6990a249094",
       "created_at": 1791388800.0,
-      "decision_id": "44660e19-0eb0-4562-b306-2917b2097ae2",
+      "decision_id": "a26b55b9-8219-4c77-9a6a-8ef1f9419d8a",
       "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
       "operation_digest": "sha256:ffcad4c587ea3a81df49e9b2c5d3ee817a929d07356d8704db82c1b9c70af175"
     }
@@ -32,7 +32,7 @@
   "control_plane_attempts": [],
   "control_plane_evidence": {
     "failure_class": "dispatch_error",
-    "failure_record_id": "6e6b5fb5-0beb-4daf-9462-da026fc720ea"
+    "failure_record_id": "9364f4fa-00e6-4a5a-b4ff-6f3eb7d86100"
   },
   "effects": [
     {
@@ -48,7 +48,7 @@
   ],
   "execution_envelope": {
     "attempt_id": null,
-    "decision_id": "44660e19-0eb0-4562-b306-2917b2097ae2",
+    "decision_id": "a26b55b9-8219-4c77-9a6a-8ef1f9419d8a",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "operation": {
       "action_id": "urn:cognous:action:refund-issue-routine-v1",
@@ -83,13 +83,13 @@
   },
   "execution_result": {
     "acknowledged": false,
-    "attempt_id": "38a005e9-406d-4c3d-a5bb-543a41dc2826",
+    "attempt_id": "d5782400-99e7-4617-a5fb-b6990a249094",
     "attempted": true,
     "control_plane_evidence": {
       "failure_class": "dispatch_error",
-      "failure_record_id": "6e6b5fb5-0beb-4daf-9462-da026fc720ea"
+      "failure_record_id": "9364f4fa-00e6-4a5a-b4ff-6f3eb7d86100"
     },
-    "decision_id": "44660e19-0eb0-4562-b306-2917b2097ae2",
+    "decision_id": "a26b55b9-8219-4c77-9a6a-8ef1f9419d8a",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "error": "synthetic acknowledgement unavailable after atomic commit",
     "newly_executed": false,
@@ -101,13 +101,7 @@
     "observed_state": "unknown",
     "status": "unknown"
   },
-  "observations": [
-    {
-      "reason": "reconciliation_unavailable",
-      "retry_eligible": false,
-      "status": "unknown"
-    }
-  ],
+  "observations": [],
   "producer_profile": {
     "execution_envelope_version": "0.2.0",
     "profile_id": "urn:cognous:profiles:moltbot-safe-executor-producer",
@@ -119,13 +113,20 @@
     "source_asserted": {
       "producer_profile_id": "urn:cognous:profiles:moltbot-safe-executor-producer",
       "producer_profile_version": "2.0.0",
-      "repository_revision": "4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f"
+      "repository_revision": "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
     }
   },
+  "recovery_observations": [
+    {
+      "reason": "reconciliation_unavailable",
+      "retry_eligible": false,
+      "status": "unknown"
+    }
+  ],
   "rejected_observations": [],
   "repository": {
     "repository": "cogno-us/moltbot-safe",
-    "revision": "4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f",
+    "revision": "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9",
     "revision_status": "source_asserted"
   }
 }

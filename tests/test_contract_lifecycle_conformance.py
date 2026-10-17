@@ -55,8 +55,8 @@ DOC = HERE.parent / "docs" / "contract-conformance-execution-attempt-lifecycle.m
 CONTRACT_NAME = "execution-attempt-lifecycle"
 CONTRACT_VERSION = "0.1.0-draft"
 ODES_COMMIT = "a9db024c6f346f741a9963552e559476fdfc4189"
-REVISION = I.CONTROL_PLANE_F5B_REVISION
-EXECUTOR_REVISION = I.MOLTBOT_F5B_REVISION
+REVISION = I.CONTROL_PLANE_P4_REVISION
+EXECUTOR_REVISION = I.MOLTBOT_P4_REVISION
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -119,15 +119,15 @@ CODE_TO_REPLAY = {
     "recovery_state_mismatch": Mapped(r"recovery report observed-state contradiction"),
     "unknown_state_mismatch": Mapped(r"recovery report observed-state contradiction|unknown result observed-state contradiction"),
     "null_observation_state_mismatch": Mapped(r"null observation cannot establish observed state"),
-    "unknown_with_validated_observation": Mapped(r"unknown result cannot carry a validated observation"),
+    "unknown_with_validated_observation": Mapped(r"unknown result cannot carry a validated (applied/partial )?observation"),
     "observed_result_claims_attempt": Mapped(r"an observed result cannot claim an attempt"),
     "executed_without_observation": Mapped(r"an executed result must carry the observation"),
     # member model
     "undeclared_member": Mapped(r"has unsupported member\(s\)|recovery report has undeclared members|unsupported/missing evidence fields"),
     "invalid_extension_key": Mapped(r"extensions names must start with 'x-'"),
-    "schema_violation": Mapped(r"is required|must be an (object|array)|must be object or null",
-                               "Replay's legacy-layout tolerance means the contract's own schema_violation fixture is "
-                               "accepted (see the DIVERGES note); Replay emits this code for structural failures"),
+    "schema_violation": Mapped(r"is required|must be an (object|array)|must be object or null|not \{\}|is not a validated observation",
+                               "Replay emits this code for structural failures (since step B also for `{}` and for a "
+                               "recovery report in observations)"),
     "unknown_enum_value": Mapped(r"is not a recovery status|is not a declared value"),
     "unsupported_contract_version": Mapped(r"contract_version",
                                            "Replay exports carry no contract_version member; out of scope"),
@@ -282,7 +282,7 @@ def _make_route_c_unobserved(cp, x, table):
     return evidence
 
 
-def _make_unknown_validated(cp, x, table, observation):
+def _make_unknown_validated(cp, x, table, observation, status="executed"):
     """Result 'unknown' that carries a validated Control Plane observation (a follow-up reading after an ambiguous
     dispatch, or the pinned runtimes' lost ack with an applied reading): the reconciliation accepted that very
     observation, the destination rows agree with its state, and the lost acknowledgement is not a new effect."""
@@ -296,7 +296,7 @@ def _make_unknown_validated(cp, x, table, observation):
     cp["reconciliations"][-1] = rec
     cp["observations"] = [r["observation"] for r in cp["reconciliations"] if r["observation_accepted"]]
     attempt = copy.deepcopy(x["control_plane_attempts"][0])
-    ack = {"moltbot_safe_status": "executed", "attempt_id": table["syn-attempt-1"], "newly_executed": False}
+    ack = {"moltbot_safe_status": status, "attempt_id": table["syn-attempt-1"], "newly_executed": False}
     if state in {"applied", "partial"}:
         ack["observation"] = observation
         x["effects"] = [{**x["effects"][0], "state": state}]
@@ -351,6 +351,7 @@ def build_executor(doc, mirror_observations=False):
         x["observations"] = [copy.deepcopy(res["observation"])] if res["observation"] else []
     else:
         x.pop("observations", None)
+    x.pop("recovery_observations", None)  # the captured export carries its own; the planted document decides
     for member in ("recovery_observations", "extensions"):
         if member in planted:
             x[member] = planted[member]
@@ -360,6 +361,10 @@ def build_executor(doc, mirror_observations=False):
         res["control_plane_evidence"] = _make_route_c_unobserved(cp, x, table)
     elif res["status"] == "unknown" and not _is_recovery(res["observation"]):
         res["control_plane_evidence"] = _make_unknown_validated(cp, x, table, res["observation"])
+    elif (res["status"] in {"reconciled", "partial"} and not res["newly_executed"]
+          and (res["observation"] or {}).get("state") in {"applied", "partial"}):
+        # the repaired control of unknown + validated applied/partial: a lost ack that was then observed
+        res["control_plane_evidence"] = _make_unknown_validated(cp, x, table, res["observation"], res["status"])
     return lambda: run_import(cp, proposal, x)
 
 
@@ -401,20 +406,6 @@ NOT_EXERCISED: dict[str, str] = {}  # every vendored fixture is reachable throug
 
 # fixture id -> finding ids / note shown in the table
 NOTES = {
-    "recovery-report-in-observations-member":
-        "deliberate step A: the legacy layout (report mirrored in observations) is still tolerated until step B "
-        "(owner decision 1); the contract draft already refuses it (F-P2-RP-5)",
-    "executor-unknown-with-validated-observation":
-        "narrowed RP-6, applied/partial refusal deferred to step B (owner decision 2026-10-17): the pinned runtimes "
-        "still export a lost ack as unknown with a validated applied observation until the runtime change (draft PR "
-        "cognous-execution-runtime#105) lands and the pins advance in P4; ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION "
-        "then flips to True (the absent/unknown carry is already accepted)",
-    "executor-unknown-with-validated-partial-observation":
-        "same as executor-unknown-with-validated-observation (validated partial on result unknown): refusal behind "
-        "ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION until step B",
-    "empty-object-observation":
-        "deliberate step A: observation {} is still tolerated as no observation (a real producer exports it on a "
-        "denied result); step B refuses it (schema_violation), null only (owner decision 2026-10-17)",
     "executor-unknown-validated-unknown-after-ambiguous-dispatch":
         "waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP "
         "acceptance unreviewed",
@@ -433,11 +424,7 @@ def classify(fixture):
 
 
 DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED" for fid, fx in FIXTURES.items()}
-DECLARED["recovery-report-in-observations-member"] = "DIVERGES"  # deliberate step-A tolerance, see NOTES
-DECLARED["executor-unknown-with-validated-observation"] = "DIVERGES"  # RP-6 applied/partial refusal deferred, see NOTES
-DECLARED["executor-unknown-with-validated-partial-observation"] = "DIVERGES"  # same, see NOTES
 DECLARED["executor-unknown-validated-unknown-after-ambiguous-dispatch"] = "DIVERGES"  # CP acceptance not widened
-DECLARED["empty-object-observation"] = "DIVERGES"  # {} tolerated in step A, refused in step B, see NOTES
 
 
 def _fixture_params():
@@ -524,6 +511,13 @@ def _repair_recovery_observations(doc):
     doc["recovery_observations"] = [doc["execution_result"]["observation"]]
 
 
+def _repair_unknown_with_validated(doc):
+    """A validated applied/partial reading establishes an outcome: the result is reconciled (applied) or partial."""
+    status = "partial" if doc["execution_result"]["observed_state"] == "partial" else "reconciled"
+    doc["execution_result"]["status"] = status
+    doc["attempt_events"][-1]["status"] = status
+
+
 def _repair_cp_extension_key(doc):
     doc["control_plane_attempts"][0]["extensions"] = {"x-trace": 1}
 
@@ -572,6 +566,10 @@ REPAIRS = {
         "reason", "no_durable_effect_for_claim"),
     "recovery-retry-eligible-true": lambda d: d["execution_result"]["observation"].__setitem__("retry_eligible", False),
     "resolution-checks-sequential-reorder": lambda d: d["resolution_checks"].reverse(),
+    "recovery-report-in-observations-member": lambda d: d.__setitem__("recovery_observations", d.pop("observations")),
+    "empty-object-observation": lambda d: d["execution_result"].__setitem__("observation", None),
+    "executor-unknown-with-validated-observation": lambda d: _repair_unknown_with_validated(d),
+    "executor-unknown-with-validated-partial-observation": lambda d: _repair_unknown_with_validated(d),
     "undeclared-member-outside-extensions": _repair_undeclared,
 }
 
@@ -883,24 +881,24 @@ def test_new_layout_without_the_optional_member_still_retains_the_recovery_repor
     assert [r.source_path for r in reports] == ["moltbot.execution_result.observation"]
 
 
-def test_legacy_layout_is_still_tolerated_and_retained_as_before():
-    """Step A: the recovery report mirrored in ``observations`` is accepted until the runtime has moved (step B)."""
+def test_legacy_layout_is_refused_since_step_b():
+    """Step B: the recovery report mirrored in ``observations`` is refused (observations carries validated ones only)."""
     doc = copy.deepcopy(FIXTURES[LEGACY_PROBE]["document"])
     doc.pop("recovery_observations", None)
     doc["observations"] = [copy.deepcopy(doc["execution_result"]["observation"])]
-    assert "schema_violation" in _contract_codes(doc)  # the contract draft already refuses it
-    reports = [r for r in _import_bundle(doc).records if r.record_type == "executor_recovery_report"]
-    assert [r.source_path for r in reports] == ["moltbot.observations[0]"]
+    assert "schema_violation" in _contract_codes(doc)
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "schema_violation", outcome.message
 
 
 def test_mixed_layout_is_refused():
-    """The legacy mirror together with recovery_observations is neither layout."""
+    """The mirror together with recovery_observations is refused (a report in observations has no state)."""
     doc = copy.deepcopy(FIXTURES[LEGACY_PROBE]["document"])
     report = doc["execution_result"]["observation"]
     doc["observations"] = [copy.deepcopy(report)]
     doc["recovery_observations"] = [copy.deepcopy(report)]
     outcome = evaluate_doc(doc)
-    assert not outcome.accepted and outcome.code == "observations_mismatch"
+    assert not outcome.accepted and outcome.code == "schema_violation"
 
 
 def test_validated_observation_listed_in_recovery_observations_is_refused():
@@ -921,25 +919,24 @@ def test_observed_result_cannot_claim_an_attempt_for_any_observation_kind(observ
     assert not outcome.accepted and outcome.code == "observed_result_claims_attempt", outcome.message
 
 
-@pytest.mark.parametrize("empty", [None, {}])
-def test_executed_result_with_a_null_or_empty_observation_is_refused(empty):
+@pytest.mark.parametrize("empty,code", [(None, "executed_without_observation"), ({}, "schema_violation")])
+def test_executed_result_with_a_null_or_empty_observation_is_refused(empty, code):
     doc = copy.deepcopy(FIXTURES["executed-without-observation"]["document"])
     doc["execution_result"]["observation"] = empty
     outcome = evaluate_doc(doc)
-    assert not outcome.accepted and outcome.code == "executed_without_observation", outcome.message
+    assert not outcome.accepted and outcome.code == code, outcome.message
 
 
-def test_empty_observation_object_is_tolerated_as_no_observation_in_step_a():
-    """A real producer exports ``observation: {}`` on a denied result (examples/producer-v2/producer_v2_prior_absence.json)
-    although the contract allows only null. Step A keeps treating it as no observation; step B refuses it with
-    schema_violation (owner decision 2026-10-17: null only). Strict null rule: observed_state is still 'unknown'."""
+def test_empty_observation_object_is_refused_since_step_b():
+    """A step-A era producer exported ``observation: {}`` on a denied result; the contract allows only null. Step B refuses it
+    with schema_violation (owner decision 2026-10-17: null only)."""
     doc = copy.deepcopy(FIXTURES["executor-denied-attempt-event"]["document"])
     doc["execution_result"]["observation"] = {}
     assert "schema_violation" in _contract_codes(doc)
-    assert evaluate_doc(doc).accepted
-    doc["execution_result"]["observed_state"] = "absent"
     outcome = evaluate_doc(doc)
-    assert not outcome.accepted and outcome.code == "null_observation_state_mismatch", outcome.message
+    assert not outcome.accepted and outcome.code == "schema_violation", outcome.message
+    doc["execution_result"]["observation"] = None
+    assert evaluate_doc(doc).accepted
 
 
 @pytest.mark.parametrize("fixture,state", [("executor-denied-attempt-event", "absent"),
@@ -974,12 +971,13 @@ def test_unknown_result_carries_a_validated_absent_observation(fixture, monkeypa
 
 @pytest.mark.parametrize("fixture", ["executor-unknown-with-validated-observation",
                                      "executor-unknown-with-validated-partial-observation"])
-def test_unknown_with_validated_applied_or_partial_is_tolerated_while_the_flag_is_false(fixture):
-    """Step A: the pinned runtimes still export a lost ack as unknown with a validated applied observation."""
-    assert I.ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION is False
+def test_unknown_with_validated_applied_or_partial_is_refused_since_step_b(fixture):
+    """Step B: the pinned runtimes report a lost ack as reconciled/partial, so the refusal is enforced."""
+    assert I.ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION is True
     doc = copy.deepcopy(FIXTURES[fixture]["document"])
     assert "unknown_with_validated_observation" in _contract_codes(doc)
-    assert evaluate_doc(doc).accepted
+    outcome = evaluate_doc(doc)
+    assert not outcome.accepted and outcome.code == "unknown_with_validated_observation", outcome.message
 
 
 def test_denied_is_an_attempt_event_status_and_other_values_are_not():
@@ -1096,7 +1094,7 @@ def test_captured_exports_satisfy_the_new_result_rules():
             assert not result["attempted"] and result["attempt_id"] is None, path
         if result["status"] == "executed":
             assert result["observation"], path
-    assert seen == 4
+    assert seen == 5
 
 
 # ---- extensions on journal events/inputs, checks/check inputs and Control Plane attempt rows (decision 16) ----

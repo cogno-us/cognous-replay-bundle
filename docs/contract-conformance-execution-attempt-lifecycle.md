@@ -8,7 +8,7 @@ cogno-us/cognous-control-plane#38, steps P2 and P3; P3b applies the owner decisi
 | Contract | `execution-attempt-lifecycle` `0.1.0-draft` (draft, not frozen; any change may break) |
 | Vendored from | `cogno-us/open-decision-evidence-standard` at `a9db024c6f346f741a9963552e559476fdfc4189`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
 | Role | consumer |
-| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the five DIVERGES below (all deliberate step A tolerances). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
+| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the one DIVERGES below (a validated `unknown` observation on result `unknown`, which waits for a Control Plane that emits it). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
 | Test | `tests/test_contract_lifecycle_conformance.py`; the importer changes are in `src/agent_replay_bundle/importers.py` and `refusal_evidence.py` (P3 and P3b) |
 
 ## How it is tested
@@ -63,15 +63,15 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `control-plane-start-row-reconciled-existing-false` | refuse: invalid_reconciled_marker | REFUSED | `invalid_reconciled_marker`: Control Plane attempt <id> carries an invalid reconciled_existing marker |  |
 | `effect-free-reconcile-claims-attempt` | refuse: effect_free_reconcile_claims_attempt | REFUSED | `effect_free_reconcile_claims_attempt`: an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect |  |
 | `effect-free-reconcile-state-mismatch` | refuse: recovery_state_mismatch | REFUSED | `recovery_state_mismatch`: recovery report observed-state contradiction |  |
-| `empty-object-observation` | refuse: schema_violation | DIVERGES | accepted | deliberate step A: observation {} is still tolerated as no observation (a real producer exports it on a denied result); step B refuses it (schema_v... |
+| `empty-object-observation` | refuse: schema_violation | REFUSED | `schema_violation`: execution observation must be null or a typed observation, not {} |  |
 | `executed-without-observation` | refuse: executed_without_observation | REFUSED | `executed_without_observation`: an executed result must carry the observation that established it |  |
 | `executor-dropped-start-event` | refuse: missing_start_event | REFUSED | `missing_start_event`: executor attempt <id> events do not start with attempted |  |
 | `executor-dropped-terminal-event` | refuse: terminal_event_missing | REFUSED | `terminal_event_missing`: execution result status 'executed' contradicts the terminal attempt event 'attempted' |  |
 | `executor-terminal-failed-vs-status` | refuse: status_terminal_mismatch | REFUSED | `status_terminal_mismatch`: execution result status 'executed' contradicts the terminal attempt event 'failed' |  |
 | `executor-unknown-recovery-state-contradiction` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: recovery report observed-state contradiction |  |
 | `executor-unknown-validated-absent-state-mismatch` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: unknown result observed-state contradiction with its validated observation |  |
-| `executor-unknown-with-validated-observation` | refuse: unknown_with_validated_observation | DIVERGES | accepted | narrowed RP-6, applied/partial refusal deferred to step B (owner decision 2026-10-17): the pinned runtimes still export a lost ack as unknown with ... |
-| `executor-unknown-with-validated-partial-observation` | refuse: unknown_with_validated_observation | DIVERGES | accepted | same as executor-unknown-with-validated-observation (validated partial on result unknown): refusal behind ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATIO... |
+| `executor-unknown-with-validated-observation` | refuse: unknown_with_validated_observation | REFUSED | `unknown_with_validated_observation`: an unknown result cannot carry a validated applied/partial observation |  |
+| `executor-unknown-with-validated-partial-observation` | refuse: unknown_with_validated_observation | REFUSED | `unknown_with_validated_observation`: an unknown result cannot carry a validated applied/partial observation |  |
 | `extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: moltbot_export.extensions names must start with 'x-': trace |  |
 | `mixed-layout-observations-disagree-with-result` | refuse: observations_mismatch | REFUSED | `observations_mismatch`: accepted executor observations differ from result |  |
 | `null-observation-state-absent` | refuse: null_observation_state_mismatch | REFUSED | `null_observation_state_mismatch`: null observation cannot establish observed state |  |
@@ -80,7 +80,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `recovery-applied-missing-operation-digest` | refuse: recovery_report_incomplete | REFUSED | `recovery_report_incomplete`: execution_result.observation.operation_digest is required for an applied recovery report |  |
 | `recovery-hold-missing-reason` | refuse: recovery_report_incomplete | REFUSED | `recovery_report_incomplete`: execution_result.observation.reason is required for a hold recovery report |  |
 | `recovery-observations-differs-from-result` | refuse: recovery_observations_mismatch | REFUSED | `recovery_observations_mismatch`: recovery_observations differ from the result report |  |
-| `recovery-report-in-observations-member` | refuse: schema_violation | DIVERGES | accepted | deliberate step A: the legacy layout (report mirrored in observations) is still tolerated until step B (owner decision 1); the contract draft alrea... |
+| `recovery-report-in-observations-member` | refuse: schema_violation | REFUSED | `schema_violation`: moltbot.observations[0] is not a validated observation (it has no state) |  |
 | `recovery-retry-eligible-true` | refuse: recovery_retry_eligible | REFUSED | `recovery_retry_eligible`: unsupported retry eligibility |  |
 | `resolution-check-undeclared-member` | refuse: undeclared_member | REFUSED | `undeclared_member`: typed refusal profile: unsupported/missing evidence fields |  |
 | `resolution-checks-sequential-reorder` | refuse: resolution_checks_out_of_order | REFUSED | `resolution_checks_out_of_order`: typed refusal profile: resolution checks are out of journal order |  |
@@ -89,7 +89,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `undeclared-member-outside-extensions` | refuse: undeclared_member | REFUSED | `undeclared_member`: execution_result has unsupported member(s): injected_member |  |
 <!-- END FIXTURE TABLE -->
 
-Totals: 19 ACCEPTED, 27 REFUSED, 5 DIVERGES, 0 NOT-EXERCISED.
+Totals: 19 ACCEPTED, 31 REFUSED, 1 DIVERGES, 0 NOT-EXERCISED.
 
 ## Probes beyond the fixtures
 
@@ -149,13 +149,13 @@ Each probe is first checked against the vendored reference validator, then run t
 | `repeated_record` | `lifecycle repeats a record` | yes |  |
 | `repeated_start_event` | `executor attempt .* repeats its attempted event` | yes |  |
 | `resolution_checks_out_of_order` | `resolution checks are out of journal order` | yes |  |
-| `schema_violation` | `is required\|must be an (object\|array)\|must be object or null` | yes | Replay's legacy-layout tolerance means the contract's own schema_violation fixture is accepted (see the DIVERGES note); Replay emits this code for structural failures |
+| `schema_violation` | `is required\|must be an (object\|array)\|must be object or null\|not \{\}\|is not a validated observation` | yes | Replay emits this code for structural failures (since step B also for `{}` and for a recovery report in observations) |
 | `status_terminal_mismatch` | `execution result status .* contradicts the terminal attempt event` | yes |  |
 | `terminal_event_missing` | `execution result status .* contradicts the terminal attempt event 'attempted'` | yes |  |
 | `undeclared_member` | `has unsupported member\(s\)\|recovery report has undeclared members\|unsupported/missing evidence fields` | yes |  |
 | `unknown_enum_value` | `is not a recovery status\|is not a declared value` | yes |  |
 | `unknown_state_mismatch` | `recovery report observed-state contradiction\|unknown result observed-state contradiction` | yes |  |
-| `unknown_with_validated_observation` | `unknown result cannot carry a validated observation` | yes |  |
+| `unknown_with_validated_observation` | `unknown result cannot carry a validated (applied/partial )?observation` | yes |  |
 | `unsupported_contract_version` | `contract_version` | no | Replay exports carry no contract_version member |
 <!-- END MAPPING TABLE -->
 
@@ -169,8 +169,8 @@ except the one decision below. Evidence for the current behaviour is the tests, 
 | RP-1 `observed` with `attempted` true | The contract now says a normal execution reports `executed`; result `observed` cannot claim an attempt for any observation kind (`observed_result_claims_attempt`; recovery reports keep `effect_free_reconcile_claims_attempt`). No real captured export conflicts. |
 | RP-2 `started_at` immutable | The contract adopted it (`attempt_started_at_changed`). |
 | RP-3, RP-4 `recovery_observations`, layout | Accepted: `observations` lists the validated observation only, `recovery_observations` is optional, `execution_result.observation` carries the report. Mismatches are `observations_mismatch` / `recovery_observations_mismatch`. |
-| RP-5 legacy layout | Deliberately still tolerated (step A, owner item 17: a recovery report inside `observations` stays tolerated until step B): a report mirrored in `observations`, with no `recovery_observations`, is accepted and retained as `executor_recovery_report`. The fixture `recovery-report-in-observations-member` therefore stays a strict xfail until step B drops the legacy layout. The mixed layout (the mirror together with `recovery_observations`, or a validated observation the result does not carry) is refused today as `observations_mismatch` (fixture `mixed-layout-observations-disagree-with-result`). |
-| RP-6 unknown with a validated observation (narrowed, owner item 14) | Result `unknown` may carry a validated observation whose state is `absent` or `unknown`, with `observed_state` equal to `observation.state` (`unknown_state_mismatch` otherwise): accepted now. The refusal of `unknown` with a validated `applied`/`partial` observation (`unknown_with_validated_observation`, whatever the terminal event) is written but NOT enforced yet: the pinned runtimes still export a lost ack as `unknown` with a validated `applied` observation until the pins advance in P4, so it stays behind `ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION` (False); the fixtures `executor-unknown-with-validated-observation` and `executor-unknown-with-validated-partial-observation` are strict xfails until step B. The carry applies to a validated `absent` observation only: a validated `unknown` observation cannot be an accepted Control Plane observation in Replay, and the owner decided (2026-10-17) not to widen Control Plane acceptance unreviewed, so `executor-unknown-validated-unknown-after-ambiguous-dispatch` is a strict xfail until the Control Plane emits an `unknown` observation. |
+| RP-5 legacy layout | Refused since step B (`schema_violation`: `observations` lists validated observations only, a report has no `state`). Both the mirror alone and the mirror together with `recovery_observations` are refused (fixtures `recovery-report-in-observations-member`, `mixed-layout-observations-disagree-with-result`). |
+| RP-6 unknown with a validated observation (narrowed, owner item 14) | Result `unknown` may carry a validated observation whose state is `absent` or `unknown`, with `observed_state` equal to `observation.state` (`unknown_state_mismatch` otherwise). `unknown` with a validated `applied`/`partial` observation is refused whatever the terminal event (`unknown_with_validated_observation`): enforced since step B (`ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION` is True) now that the pinned runtime reports a lost ack that is then observed as `reconciled` (observed partial: `partial`). The carry applies to a validated `absent` observation only: a validated `unknown` observation cannot be emitted by the Control Plane today, so `executor-unknown-validated-unknown-after-ambiguous-dispatch` stays a strict xfail. |
 | RP-7 closed enumerations | Enforced (`unknown_enum_value`) for result, event and Control Plane attempt statuses, `time_source` and the validated observation state; `denied` is a valid event status. |
 | RP-8 closed members, `x-` keys | Enforced for attempt rows, events and Control Plane attempt rows as well (`undeclared_member`, `invalid_extension_key`); the extension name pattern is the contract's. P3b (owner item 16): `x-` extensions are accepted and preserved verbatim on resolution journal events and inputs, resolution checks and check inputs (the journal-to-check content binding ignores `extensions`), and on Control Plane attempt rows (closed sets, extras only via `extensions`). |
 | RP-9 reconciled marker | Valid only as the whole acknowledgement of a lone `acknowledged`/`partial` row, and exactly `true`. |
@@ -178,11 +178,11 @@ except the one decision below. Evidence for the current behaviour is the tests, 
 | RP-11 optional members | `observations`, `recovery_observations`, `control_plane_attempts`, result `decision_id`/`effect_id`, attempt `operation_digest` are no longer required; members the contract requires still are (`schema_violation`). |
 | RP-12 export-level `extensions` | Retained as the record `executor_export_extensions`. |
 
-Replay behaviour that goes beyond or differs from the contract, kept on purpose (step A):
+Replay behaviour that goes beyond the contract, kept on purpose:
 
-- `execution_result.observation: {}` (a real producer exports it on a denied result, `examples/producer-v2/producer_v2_prior_absence.json`) is still tolerated as no observation. The contract allows only null (owner item 13). Step B refuses it with `schema_violation`; the fixture `empty-object-observation` is a strict xfail until then.
-- A recovery report inside `observations` (legacy layout) is still tolerated (see RP-5).
-- `unknown` with a validated `applied`/`partial` observation is still tolerated, and a validated `unknown` observation on result `unknown` is refused (see RP-6).
+- `execution_result.observation: {}` is refused since step B with `schema_violation` (the contract allows only null, owner item 13).
+- Route B normal executions (F-28): `control_plane_evidence` of a normal atomic-local execution carries `local_authority_effect_profile`, `claim_id`, `linearized_at` and `authority_receipt`. The contract leaves `control_plane_evidence` an open object; Replay accepts exactly these four members together, only on a newly executed result, with the receipt bound to the result by attempt, effect, decision and claim identity and an active grant. They describe the destination's own authority check and establish nothing beyond the validated observation.
+- A validated `unknown` observation on result `unknown` is refused until the Control Plane emits it (see RP-6).
 
 Replay now matches the contract on the null-observation rule (owner item 15, reversing the P3 relaxation): whenever the observation is null, `observed_state` is `unknown` for every result status (`null_observation_state_mismatch`). This is also what real denied exports carry.
 

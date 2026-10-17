@@ -1,14 +1,14 @@
 {
   "attempt_events": [
     {
-      "attempt_id": "6e00f3f4-1cf1-47b1-8b72-4841e4f9b5ea",
+      "attempt_id": "ea7c0ad3-5ace-4452-a30c-d5f511bfe7b2",
       "created_at": 1791388800.0,
       "error": null,
       "event_id": 1,
       "status": "attempted"
     },
     {
-      "attempt_id": "6e00f3f4-1cf1-47b1-8b72-4841e4f9b5ea",
+      "attempt_id": "ea7c0ad3-5ace-4452-a30c-d5f511bfe7b2",
       "created_at": 1791388800.0,
       "error": null,
       "event_id": 2,
@@ -16,15 +16,15 @@
     }
   ],
   "attempt_identity": {
-    "attempt_id": "6e00f3f4-1cf1-47b1-8b72-4841e4f9b5ea",
+    "attempt_id": "ea7c0ad3-5ace-4452-a30c-d5f511bfe7b2",
     "namespace": "executor",
     "owner": "cogno-us/moltbot-safe"
   },
   "attempts": [
     {
-      "attempt_id": "6e00f3f4-1cf1-47b1-8b72-4841e4f9b5ea",
+      "attempt_id": "ea7c0ad3-5ace-4452-a30c-d5f511bfe7b2",
       "created_at": 1791388800.0,
-      "decision_id": "8c183f65-d81c-4131-a62d-bdd5e9aaed69",
+      "decision_id": "f4841858-be4e-44e5-871a-d12fd2105c53",
       "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
       "operation_digest": "sha256:ffcad4c587ea3a81df49e9b2c5d3ee817a929d07356d8704db82c1b9c70af175"
     }
@@ -32,7 +32,7 @@
   "control_plane_attempts": [],
   "control_plane_evidence": {
     "failure_class": "dispatch_error",
-    "failure_record_id": "cd5aa16b-1052-4899-b998-2bc5fd45f7ee"
+    "failure_record_id": "42be30b3-f16a-4a73-be2f-1f04bbe362c2"
   },
   "effects": [
     {
@@ -48,7 +48,7 @@
   ],
   "execution_envelope": {
     "attempt_id": null,
-    "decision_id": "8c183f65-d81c-4131-a62d-bdd5e9aaed69",
+    "decision_id": "f4841858-be4e-44e5-871a-d12fd2105c53",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "operation": {
       "action_id": "urn:cognous:action:refund-issue-routine-v1",
@@ -83,13 +83,13 @@
   },
   "execution_result": {
     "acknowledged": false,
-    "attempt_id": "6e00f3f4-1cf1-47b1-8b72-4841e4f9b5ea",
+    "attempt_id": "ea7c0ad3-5ace-4452-a30c-d5f511bfe7b2",
     "attempted": true,
     "control_plane_evidence": {
       "failure_class": "dispatch_error",
-      "failure_record_id": "cd5aa16b-1052-4899-b998-2bc5fd45f7ee"
+      "failure_record_id": "42be30b3-f16a-4a73-be2f-1f04bbe362c2"
     },
-    "decision_id": "8c183f65-d81c-4131-a62d-bdd5e9aaed69",
+    "decision_id": "f4841858-be4e-44e5-871a-d12fd2105c53",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "error": "post-commit observation unavailable after atomic commit: ConnectionError",
     "newly_executed": false,
@@ -103,15 +103,7 @@
     "observed_state": "applied",
     "status": "unknown"
   },
-  "observations": [
-    {
-      "claim_state": "consumed",
-      "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
-      "operation_digest": "sha256:ffcad4c587ea3a81df49e9b2c5d3ee817a929d07356d8704db82c1b9c70af175",
-      "retry_eligible": false,
-      "status": "applied"
-    }
-  ],
+  "observations": [],
   "producer_profile": {
     "execution_envelope_version": "0.2.0",
     "profile_id": "urn:cognous:profiles:moltbot-safe-executor-producer",
@@ -123,13 +115,22 @@
     "source_asserted": {
       "producer_profile_id": "urn:cognous:profiles:moltbot-safe-executor-producer",
       "producer_profile_version": "2.0.0",
-      "repository_revision": "4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f"
+      "repository_revision": "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
     }
   },
+  "recovery_observations": [
+    {
+      "claim_state": "consumed",
+      "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
+      "operation_digest": "sha256:ffcad4c587ea3a81df49e9b2c5d3ee817a929d07356d8704db82c1b9c70af175",
+      "retry_eligible": false,
+      "status": "applied"
+    }
+  ],
   "rejected_observations": [],
   "repository": {
     "repository": "cogno-us/moltbot-safe",
-    "revision": "4a83b175d2ef0e65a7ee22a0513bb94a5fdf3a6f",
+    "revision": "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9",
     "revision_status": "source_asserted"
   }
 }
