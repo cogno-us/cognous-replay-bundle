@@ -295,6 +295,24 @@ def import_legacy_control_plane_replay(source: dict[str, Any]) -> Reconstruction
 
 
 
+MOLTBOT_EXPORT_MEMBERS = frozenset({
+    "execution_envelope", "execution_result", "effects", "attempts", "attempt_events",
+    "producer_profile", "repository", "provenance", "attempt_identity",
+    "control_plane_attempts", "observations", "control_plane_evidence",
+    "rejected_observations",
+})
+MOLTBOT_PRODUCER_PROFILE_MEMBERS = frozenset({"profile_id", "profile_version", "execution_envelope_version"})
+MOLTBOT_REPOSITORY_MEMBERS = frozenset({"repository", "revision", "revision_status"})
+
+
+def _reject_unknown_members(obj: dict[str, Any], allowed: frozenset[str], label: str) -> None:
+    """Unsupported fields in typed records reject rather than disappear
+    (docs/runtime-authority-profile.md)."""
+    unknown = sorted(str(k) for k in set(obj) - allowed)
+    if unknown:
+        raise ImportContractError(f"{label} has unsupported member(s): " + ",".join(unknown))
+
+
 def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     declared = source.get("producer_profile")
     if declared is None:
@@ -724,6 +742,13 @@ def _import_moltbot(
     missing = sorted(required - set(source))
     if missing:
         raise ImportContractError("Moltbot export missing: " + ",".join(missing))
+    _reject_unknown_members(source, MOLTBOT_EXPORT_MEMBERS, "moltbot_export")
+    if isinstance(source.get("producer_profile"), dict):
+        _reject_unknown_members(source["producer_profile"], MOLTBOT_PRODUCER_PROFILE_MEMBERS,
+                                "moltbot_export.producer_profile")
+    if isinstance(source.get("repository"), dict):
+        _reject_unknown_members(source["repository"], MOLTBOT_REPOSITORY_MEMBERS,
+                                "moltbot_export.repository")
 
     envelope = _obj(source["execution_envelope"], "execution_envelope")
     if envelope.get("version") != "0.2.0":

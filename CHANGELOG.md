@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Executor (Moltbot) export import now rejects unknown members at the export top level, in `producer_profile` and in `repository` with `ImportContractError`, instead of silently dropping them (runtime issue #98, V1 scenario C12). Follows the documented rule that unsupported fields in typed records reject. Behaviour change: exports carrying extra members that previously imported now fail closed.
 - Runtime-authority and security-runtime imports now mark opened-only or interrupted resolution journal checks with a B006 warning and `reconstruction_partial`.
 - A completed journal check is matched to a separately recorded resolution check by content; one resolution check can no longer substantiate two completed journals.
 - A dangling or ambiguous explicit executor attempt reference now fails closed for every producer 2.0.0 profile (merged, refusal, runtime-authority and security), as it already did for the original 2.0.0 profile.

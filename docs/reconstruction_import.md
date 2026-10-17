@@ -63,6 +63,20 @@ A link is created only when producer evidence explicitly supplies the Moltbot
 attempt ID, such as the pinned adapter acknowledgement. Shared decision/effect
 identifiers can support lineage but do not establish attempt identity.
 
+### Unknown members in the executor export
+
+Following the runtime rule that "unsupported fields in typed records reject
+rather than disappear" (`docs/runtime-authority-profile.md`), the executor
+(Moltbot) export importer rejects, with `ImportContractError`, any member not
+in the supported set at three levels: the export top level
+(`execution_envelope`, `execution_result`, `effects`, `attempts`,
+`attempt_events`, `producer_profile`, `repository`, `provenance`,
+`attempt_identity`, `control_plane_attempts`, `observations`,
+`control_plane_evidence`, `rejected_observations`), `producer_profile`
+(`profile_id`, `profile_version`, `execution_envelope_version`) and
+`repository` (`repository`, `revision`, `revision_status`). Such members are
+never silently dropped. This applies to legacy and versioned exports alike.
+
 ## Authority Context identifiers
 
 Two different values are intentionally retained:
