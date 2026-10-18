@@ -16,6 +16,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .signing import is_hex_digest
+
 
 RECONSTRUCTION_BUNDLE_VERSION = "0.2.0"
 CANONICAL_JSON_PROFILE = "json-sort-keys-compact-utf8-no-nan"
@@ -237,11 +239,17 @@ def verify_reconstruction_hmac(bundle: ReconstructionBundle, secret: str) -> boo
         return False
     if signature.verification_claim != HMAC_VERIFICATION_CLAIM:
         return False
+    try:
+        key = secret.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
     expected = hmac.new(
-        secret.encode("utf-8"),
+        key,
         canonical_bytes(_hmac_payload(bundle)),
         hashlib.sha256,
     ).hexdigest()
+    if not is_hex_digest(signature.value):
+        return False
     return hmac.compare_digest(signature.value, expected)
 
 
