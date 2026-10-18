@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from .instants import parse_instant
 from .programme2_profiles import freshness_on
 from .reconstruction import (
     CANONICAL_JSON_PROFILE,
@@ -1477,13 +1478,10 @@ def _accepted_repaired_observation(observation: dict[str, Any], effect: str) -> 
 
 
 def _aware_time(value: Any) -> datetime:
-    try:
-        result = datetime.fromisoformat(value.replace('Z', '+00:00'))
-        if result.tzinfo is None or result.utcoffset() is None:
-            raise ValueError('timezone missing')
-        return result
-    except (ValueError, AttributeError, TypeError) as exc:
-        raise ImportContractError('accepted observation requires timezone-aware times') from exc
+    result = parse_instant(value)
+    if result is None:
+        raise ImportContractError('accepted observation requires timezone-aware times')
+    return result
 
 
 def _validate_programme2_members(cp: dict[str, Any]) -> None:
@@ -1708,10 +1706,8 @@ def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[
     linearized = evidence["linearized_at"]
     if not isinstance(linearized, str) or not linearized:
         raise ImportContractError("invalid route B linearized_at")
-    try:
-        datetime.fromisoformat(linearized)
-    except ValueError as exc:
-        raise ImportContractError("invalid route B linearized_at") from exc
+    if parse_instant(linearized) is None:
+        raise ImportContractError("invalid route B linearized_at")
     if (result.get("status") not in {"executed", "partial"} or not result.get("attempted")
             or not result.get("acknowledged") or not result.get("newly_executed")):
         raise ImportContractError("route B authority receipt is only carried by a newly executed result")
