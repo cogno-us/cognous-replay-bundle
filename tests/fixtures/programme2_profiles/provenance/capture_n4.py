@@ -1,6 +1,6 @@
 """Capture real programme-2 N4 profile-on run records (merge-record/0.1, reversibility/0.1, dedupe-ttl/0.1, terminal-revocation/0.1) for the Replay fixtures.
 
-Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 3cd17ead
+Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 6093aca7
 (`pip install -e .[dev]`), with this file outside the checkout:
 
     PYTHONPATH=src:. python capture_n4.py <out-dir>

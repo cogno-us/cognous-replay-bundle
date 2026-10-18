@@ -1,10 +1,10 @@
 {
  "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
  "producer": {
-  "control_plane": "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb",
-  "runtime": "11de097c450d3ad4d89f9add41b00e38e7cc2c7c",
+  "control_plane": "6093aca7b945698e89c0d8ac7c75306375e1a298",
+  "runtime": "62a5cc156ecb439b4103b757fd265f276bb30374",
   "python": "3.13",
-  "note": "runtime main after #116 (atomic route: grant status monotonicity, envelope binding, strict instants, exception class names only in attempt events); the export shape is unchanged since fc034d14 (shape of every exported member identical to the 7170da59 captures, checked by diffing the exports); control plane main after #59 (strict instant parsing). Re-captured by P6 with the unchanged capture script; the previous pairings fc034d14 and 7170da59 are replaced, not kept"
+  "note": "runtime main after #121 (profile composition, amount exactness, producer export and closeout identity hardening; the atomic route still binds the claim's max_effects to the envelope's effective_max_effects); control plane main after #60 (strict writers, redaction, freshness hardening). The export shape of every member is identical to the 11de097c captures (checked by comparing the member sets of every exported document). Re-captured by the final pin round with the unchanged capture script; the previous pairings fc034d14, 7170da59 and 11de097c are replaced, not kept"
  },
  "captured_on": "2026-10-18",
  "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
@@ -16,19 +16,19 @@
  },
  "atomic_record_note": "For the atomic scenarios the Control Plane run record is the one taken after the decision and before claim issuance. The Control Plane's own claim issuance (provision_local_execution_claim) opens a decision-stage journal check next to a claim-stage resolution check, and Replay refuses that record at P4 and at this generation alike (journal_check_reused); that is a finding, not changed here.",
  "sha256": {
-  "adapter-default/control_plane_run.json": "4a78e6b48d06bc9e4e33c134236ea951f49ecbadad6a323a7792a7642ac32559",
+  "adapter-default/control_plane_run.json": "db03b37e8e7966c565552ee42c9864acf5a0145369619afa51bec713a5a36e26",
   "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-default/executor.json": "b15d3dfe7f25eaf0d5e785a4072a552d48ca542d8cb7133e1357858632e0b6c9",
-  "adapter-operation-identity/control_plane_run.json": "8598799e7e4340d2b253fe1b364afec2961b077fd04cc2f893905c2472480711",
+  "adapter-default/executor.json": "2ceef72326e359272aa81f9bb3158c287a57eaf55c38a59c1723d93223b956f8",
+  "adapter-operation-identity/control_plane_run.json": "eb60f4b5ccdc64b0af4f3c08ef5b5bf4b2ca93422871ac38e35a6f2e41106517",
   "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-operation-identity/executor.json": "808f39d713005b0561b00f964c6fb90a4a517d3eb5fadbbf8769ddd0a39582d4",
-  "atomic-default/control_plane_run.json": "a6b1af790b4af56ee66f35023c2c97e420e690391f9fee6f35b79060796b0bf5",
+  "adapter-operation-identity/executor.json": "bd8428372e275c6c8ba12f9b6399e6b80d4bcd79b5cb05266398c1b749e70671",
+  "atomic-default/control_plane_run.json": "218469344ece84190897479d6531b61020020d10fc6e59971aafd6c3e864aff1",
   "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-default/executor.json": "bfb5b782f067385409c4ed09dac094ce6c0a8a58cc840d7d92bf6b04fae02f13",
-  "atomic-operation-key/control_plane_run.json": "f4d2ef56a0266a35dd2ffe5541ee7e515e93530934c272184376fba897ab7059",
+  "atomic-default/executor.json": "f5eb868b1bbab29dcce207367a2fa40969309086b786e735e69e7fd953810df8",
+  "atomic-operation-key/control_plane_run.json": "359d9e57f848054acf364e85cee75916f8679be416f8868832978265a4408452",
   "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-operation-key/executor.json": "5bdf8e2a3d5930e13bd53e04b67feacc767b93846b817d787d138def01b37fb7"
+  "atomic-operation-key/executor.json": "8c1f6ecaefe39a73d8bca252c328a7dd70353867ec9248a15cdbd8ad36724565"
  },
- "script_sha256": "c408dec768860d362fe4e30c9884a3872a744df79c73ee5361b376dddf6df4c0",
+ "script_sha256": "8f93066e8cd6bc68c9fdead16b44ca7e89a2cb80db7812b8b0fe4748dd72304c",
  "script_note": "capture_paired.py code unchanged since the fc034d14 capture; only its docstring revision text moved"
 }
