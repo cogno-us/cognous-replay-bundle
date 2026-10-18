@@ -1,0 +1,81 @@
+{
+ "scenario": "freshness-reaper-recovery-runs",
+ "profiles": [
+  "freshness/0.1"
+ ],
+ "run": {
+  "run_id": "run-1",
+  "input_time_floors": {},
+  "resolution_checks": [],
+  "closeouts": [],
+  "decisions": [],
+  "refusals": [],
+  "attempts": [],
+  "observations": [],
+  "reconciliations": [],
+  "check_events": [
+   {
+    "check_id": "orphan",
+    "phase": "opened",
+    "stage": "decision",
+    "recorded_at": "2026-10-05T19:00:00+00:00",
+    "deadline": "2026-10-05T19:01:00+00:00",
+    "age_bound_seconds": 60,
+    "owner": {
+     "pid": "31869",
+     "token": "8290ada2-2b3a-4374-b8e1-e24f4960449b"
+    },
+    "proposal_commitment": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "decision_id": null,
+    "effect_id": null,
+    "action_class": {},
+    "input": null,
+    "reasons": [],
+    "reason_vocabulary_version": "runtime-authority-reasons/0.1"
+   },
+   {
+    "check_id": "orphan",
+    "phase": "interrupted",
+    "stage": "decision",
+    "recorded_at": "2026-10-05T19:00:00+00:00",
+    "deadline": "2026-10-05T19:01:00+00:00",
+    "age_bound_seconds": 60,
+    "owner": {
+     "pid": "31869",
+     "token": "8290ada2-2b3a-4374-b8e1-e24f4960449b"
+    },
+    "proposal_commitment": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "decision_id": null,
+    "effect_id": null,
+    "action_class": {},
+    "input": null,
+    "reasons": [
+     "check_interrupted"
+    ],
+    "reason_vocabulary_version": "runtime-authority-reasons/0.1"
+   }
+  ],
+  "recovery_runs": [
+   {
+    "run_id": "b472ec2f-6a58-4e40-bf9b-508bf56eff6c",
+    "trigger": "startup",
+    "recorded_at": "2026-10-05T19:00:00+00:00",
+    "interrupted": [
+     "orphan"
+    ],
+    "overdue": [],
+    "open_count": 0,
+    "oldest_open_age_seconds": null
+   },
+   {
+    "run_id": "3b526e0b-8017-49cc-aec4-8cf7bf7cf8c9",
+    "trigger": "interval",
+    "recorded_at": "2026-10-05T19:00:35+00:00",
+    "interrupted": [],
+    "overdue": [],
+    "open_count": 0,
+    "oldest_open_age_seconds": null
+   }
+  ]
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "source": "real run records written by the Control Plane's own flows (tests/test_freshness.py, tests/test_operation_identity.py, tests/test_rule_revision.py helpers: synthetic proposals, a settable service clock, throwaway stores); nothing hand-edited",
+ "producer": {
+  "repository": "cogno-us/cognous-control-plane",
+  "revision": "128eaa5e36fdff772fdc709581712dbeac046db3",
+  "python": "3.13",
+  "note": "main after N5 (#49); contains N1 #45, N2 #44, N2b #48, N3 #47, `acp run` #46"
+ },
+ "captured_on": "2026-10-18",
+ "script": "provenance/capture_programme2.py (run from a control plane checkout at the revision above: PYTHONPATH=src:. python capture_programme2.py <out-dir>)",
+ "randomness": "decision, attempt, check, join, renewal, refusal and run ids and nonces are random uuids; a re-capture differs in those and nowhere else (the clock is fixed)",
+ "not_captured": "executor (runtime) exports: the programme-2 generation is accepted for the Control Plane record only",
+ "sha256": {
+  "all-three-applied-renewed.json": "fc872fc68aeb478c5dce28cc6707d3d1de80724b059e5b640e4afafdb1b55f26",
+  "all-three-expired-before-dispatch.json": "bb62c561637a83f1eadbddf2557b1441b7a778318d9d614235ef9dc813f18c75",
+  "all-three-lost-ack-reconciled.json": "31eb8fab1f5fcfdb4f4346f1f029a536b10d1ea8ceb8695790e7959c72fa46a2",
+  "default-path.json": "23c5d4dd67120b5d8bad75f3a66b07ee8f8b93c0ccd869ea2d5f9b45826b8a28",
+  "freshness-applied.json": "bc55e473a49e36c1c2c154974f29c17c272b7cafaabd9920391b11b0f8e7b0b4",
+  "freshness-expired-before-dispatch.json": "63bc409dcfade65ba0b711478089c13eeb4de38279608bfb029e86dfc9cc219b",
+  "freshness-expired-observation-after-pass.json": "4cc8b3019e293595c313c09f3bfc269c6c4fa80c4709ee6393c35344e538c09c",
+  "freshness-extension-accepted-and-refused.json": "e6d5181c31c297c63427c17bb52685ef36e0c1cd1fea25b78131d0c22bb40d30",
+  "freshness-live-overdue-check.json": "8fd487dca07e8f7240d6112b103f36294f0873e9769e5353f6ea1188985f825e",
+  "freshness-nonce-bound.json": "bebcd07353b99d385d5a9ef8c2904b407285e0048e395a94e674645d5d39370f",
+  "freshness-nonce-replay-refused.json": "c899a0d148ffb535674bf1b5ce03e2fd19982c5fc3fa10dd583ec0fe7e338868",
+  "freshness-overdue-recovery-run.json": "f30372cac1c54d710a5f0545b129d79b867f5a626196623cdd75bf9f3d060da8",
+  "freshness-reaper-after-decision.json": "65e8d9a07c7282b5895b38bb3858eba6c477ab65ad6bc508a66b524db461d406",
+  "freshness-reaper-recovery-runs.json": "9e848f7d1a4c09fc4213d38e9bc711d38e9649171cd202d6f385616154581c4b",
+  "freshness-slow-reads-applied.json": "fd314079cffea9eddf8695f48faa14ca795a52d59a25fcf3c1550393ad4b0066",
+  "identity-applied-renewed.json": "6127e9fe40376b71a0a747aa898c87f1b8f798d8e3e82658f1692c1c3cf76efa",
+  "identity-effect-time-refusal.json": "ca7b650cc70570792a58bc4e52e86788c745ae26076cd8634a833067544ce080",
+  "identity-lost-ack-reconciled.json": "2bc6a7f34f955672fbbd5512424be7e8f1124a9de08dc7658b1834d91ee671c9",
+  "rules-adopted-applied.json": "ea0821aa8ee70865b7ff33b80460ff12276555115b0105ed6aabedd32cdcf261",
+  "rules-self-signed-revision-refused.json": "9aa45e848a4e068803de31dc583c992d48ffaa70b28bf20128aafbc9f880771e"
+ },
+ "script_sha256": "ea37c91d0b14d28df1f7033d8c8e1d0a7c59715d8151ff9369c1eb415fee872b",
+ "captures": "Two capture runs of the same script on the same revision: 16 scenarios in the first, freshness-live-overdue-check and freshness-reaper-after-decision in the second (added when the end-to-end check against the Evidence Pack needed an open overdue check and an abandoned one next to a decision)."
+}

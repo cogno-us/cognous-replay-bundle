@@ -113,6 +113,38 @@ class JournalEvent(Extensible):
     reason_vocabulary_version: Literal['runtime-authority-reasons/0.1']
 
 
+class P2Input(AuthorityInput):
+    """Programme-2 (freshness/0.1): a resolution input also carries how the age of its read is known, and a read can be a
+    nonce mismatch."""
+    read_state: Literal['unreadable','cached_positive','nonce_mismatch'] | None = None
+    age_basis: Literal['nonce_bound','source_asserted'] | None = None
+
+
+class P2Refusal(AuthorityRefusal):
+    """Programme-2: an effect-time refusal also names its journal check (operation identity), the evaluation time and the
+    deadline it was refused past (freshness), and the rule identity it was decided under (rule revision)."""
+    resolution_inputs: list[P2Input]
+    check_id: str | None = None
+    evaluated_at: str | None = None
+    deadline: str | None = None
+    rule_identity: dict | None = None
+
+
+class P2Check(AuthorityCheck):
+    inputs: list[P2Input]
+    recorded_at: str | None = None
+
+
+class P2Event(JournalEvent):
+    phase: Literal['opened','input','completed','interrupted','overdue','expired']
+    input: P2Input | None
+    evaluated_at: str | None = None
+    deadline: str | None = None
+    age_bound_seconds: int | None = None
+    extension_id: str | None = None
+    nonce: str | None = None
+
+
 AUTHORITY_EXTENDED = {'check_events':'resolution_check_event', 'vocabulary_changes':'reason_vocabulary_change'}
 
 
@@ -129,7 +161,7 @@ def _structure_code(exc):
     return 'schema_violation'
 
 
-def validate_run(cp, proposal, *, runtime_authority=False):
+def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
         if not ok: raise ImportContractError('typed refusal profile: '+reason, code)
@@ -149,9 +181,10 @@ def validate_run(cp, proposal, *, runtime_authority=False):
         if isinstance(binding, dict):
             require(x.proposal_commitment==binding.get('proposal_commitment'), 'original horizon commitment differs from original binding')
         return x
-    InputModel = AuthorityInput if runtime_authority else Input
-    RefusalModel = AuthorityRefusal if runtime_authority else Refusal
-    CheckModel = AuthorityCheck if runtime_authority else Check
+    InputModel = (P2Input if profiles else AuthorityInput) if runtime_authority else Input
+    RefusalModel = (P2Refusal if profiles else AuthorityRefusal) if runtime_authority else Refusal
+    CheckModel = (P2Check if profiles else AuthorityCheck) if runtime_authority else Check
+    EventModel = P2Event if profiles else JournalEvent
     unfinished=[]
     try:
         require(set(EXTENDED) <= cp.keys(), 'required evidence collection missing')
@@ -195,17 +228,32 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                     if a['effect_id']==r['effect_id'] and a['status'] in ('attempted','unknown','failed'):
                         require((aid,state) in closeout_keys,'uncertain attempt lacks closeout for accepted observation')
         if runtime_authority:
-            require(isinstance(cp.get('check_events'),list) and bool(cp['check_events']), 'resolution journal missing')
-            checks={};completions=[];open_at={};close_at={}
+            # freshness/0.1: a decision held for check_lease_unavailable is written before the check is journalled, so a run whose
+            # only decisions are such holds has no journal events (programme-2 generation only).
+            lease_only=profiles and bool(cp['decisions']) and all(
+                d.get('result')=='hold' and d.get('reasons')==['check_lease_unavailable'] and d.get('binding') is None for d in cp['decisions'])
+            require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
+            checks={};completions=[];open_at={};close_at={};terminal=set()
             def normalize(values):
                 return [{k:v for k,v in x.items() if k not in ('previous_observed_at','extensions')} for x in values]
-            for seq,raw in enumerate(cp['check_events']):
-                event=JournalEvent.model_validate(raw);_aware_time(event.recorded_at)
+            for seq,raw in enumerate(cp.get('check_events',[])):
+                event=EventModel.model_validate(raw);_aware_time(event.recorded_at)
                 check_extensions(raw,'check_events');check_extensions(raw.get('input'),'check_events.input')
                 require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
                 if event.phase=='opened':
                     require(event.check_id not in checks,'duplicate journal opening','journal_protocol')
                     checks[event.check_id]=[event,False,[]];open_at[event.check_id]=seq
+                elif profiles and event.phase in ('overdue','expired'):
+                    # freshness/0.1: 'overdue' reports a live check and closes nothing; 'expired' is the terminal dispatch-gate
+                    # event, allowed after 'completed' but never after 'interrupted' or 'expired'.
+                    require(event.check_id in checks,'journal missing opening','journal_protocol')
+                    opening=checks[event.check_id][0]
+                    require(all(getattr(event,k)==getattr(opening,k) for k in ['owner','stage','proposal_commitment','decision_id','effect_id','action_class']),'journal binding changed','journal_protocol')
+                    if event.phase=='overdue':
+                        require(not checks[event.check_id][1],'journal check already closed','journal_protocol')
+                    else:
+                        require(event.check_id not in terminal,'journal check already terminal','journal_protocol')
+                        terminal.add(event.check_id);checks[event.check_id][1]=True;close_at.setdefault(event.check_id,seq)
                 else:
                     require(event.check_id in checks and not checks[event.check_id][1],'journal missing opening or already closed','journal_protocol')
                     opening=checks[event.check_id][0]
@@ -216,7 +264,7 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                     else:
                         checks[event.check_id][1]=True
                         if event.phase=='interrupted':
-                            unfinished.append(event.check_id)
+                            unfinished.append(event.check_id);terminal.add(event.check_id)
                         if event.phase=='completed':
                             # Journal and resolution-check IDs are separate producer UUIDs; bind by content.
                             candidates=[i for i,x in enumerate(cp['resolution_checks']) if x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
@@ -253,8 +301,11 @@ def validate_run(cp, proposal, *, runtime_authority=False):
                 if binding:
                     authority=binding.get('runtime_authority')
                     require(isinstance(authority,dict) and authority.get('profile')=='runtime-authority/0.1','runtime authority binding missing')
-                    require(set(authority)=={'profile','approval_commitment','required_inputs_digest','catalogue_digest',
-                        'expected_effective_grant_digest','effective_grant_derivation_version'},'runtime authority fields unsupported')
+                    base_fields={'profile','approval_commitment','required_inputs_digest','catalogue_digest',
+                        'expected_effective_grant_digest','effective_grant_derivation_version'}
+                    # operation-identity/0.1: issuer-supplied identity, always as a pair.
+                    fields=base_fields|({'operation_id','operation_issuer'}&set(authority) if profiles else set())
+                    require(set(authority)==fields,'runtime authority fields unsupported','undeclared_member')
                     for field in ['approval_commitment','required_inputs_digest','catalogue_digest']:
                         require(isinstance(authority.get(field),str) and re.fullmatch(r'sha256:[a-f0-9]{64}',authority[field]),'runtime authority commitment invalid')
             require(isinstance(cp.get('vocabulary_changes',[]),list),'vocabulary changes malformed')
@@ -282,4 +333,9 @@ def extend_retained_inputs(cp, bundle):
             if len(rows)!=1:raise ImportContractError('typed refusal profile requires one time-floor record')
             result[field]=rows[0]
         else: result[field]=rows
+    # Programme-2 profile lists (opt-in; present only in a bundle that retained them, so every earlier bundle rebuilds as before).
+    from .programme2_profiles import PROFILE_LISTS
+    for field,kind in PROFILE_LISTS.items():
+        rows=[deepcopy(r['data']) for r in sorted(bundle['records'],key=lambda r:r.get('source_sequence',0)) if r.get('record_type')==kind]
+        if rows: result[field]=rows
     return result

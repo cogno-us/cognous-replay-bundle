@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from .programme2_profiles import freshness_on
 from .reconstruction import (
     CANONICAL_JSON_PROFILE,
     CommitmentRecord,
@@ -74,9 +75,18 @@ MOLTBOT_P4_REVISION = "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
 MANIFEST_P4_REVISION = MANIFEST_F5B_REVISION
 BOUNDED_P4_PROFILE = "control-plane-security-runtime@26a7e659"
 MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
-SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION})
-SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE})
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION)
+# Programme-2 generation (opt-in profiles): Control Plane 128eaa5e (main after operation identity N1, rule revision N2, freshness
+# N3 and the N5 witness/holder inventory). Same import semantics as P4 for a profile-off run (byte-identical records), plus the
+# members of the three opt-in profiles when a run carries them (see programme2_profiles.py). Only the Control Plane record is
+# accepted for this generation: there is no executor pairing (no exact runtime revision is selected), so an executor export
+# is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with them at end-of-alpha (P5).
+CONTROL_PLANE_P2_REVISION = "128eaa5e36fdff772fdc709581712dbeac046db3"
+MANIFEST_P2_REVISION = MANIFEST_F5B_REVISION
+BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@128eaa5e"
+PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
+SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
+SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
@@ -501,9 +511,12 @@ def _validate_export_structure(source: dict[str, Any], result: dict[str, Any]) -
         _closed_enum(item["state"], VALIDATED_OBSERVATION_STATES, f"moltbot.observations[{i}].state")
 
 
-def _validate_control_plane_attempt_row(raw: Any, label: str) -> None:
+_P2_ATTEMPT_MEMBERS = frozenset({"evaluated_at", "recorded_at"})  # freshness/0.1 clocks, programme-2 generation only
+
+
+def _validate_control_plane_attempt_row(raw: Any, label: str, extra: frozenset[str] = frozenset()) -> None:
     row = _obj(raw, label)
-    _reject_unknown_members(row, CONTROL_PLANE_ATTEMPT_MEMBERS, label)
+    _reject_unknown_members(row, CONTROL_PLANE_ATTEMPT_MEMBERS | extra, label)
     _check_extensions(row, label)
     _require_members(row, ("attempt_id", "effect_id", "decision_id", "started_at", "status", "acknowledgement"), label)
     _closed_enum(row["status"], CONTROL_PLANE_ATTEMPT_STATUSES, label + ".status")
@@ -617,6 +630,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_SECURITY_REVISION: BOUNDED_SECURITY_PROFILE,
         CONTROL_PLANE_F5B_REVISION: BOUNDED_F5B_PROFILE,
         CONTROL_PLANE_P4_REVISION: BOUNDED_P4_PROFILE,
+        CONTROL_PLANE_P2_REVISION: BOUNDED_P2_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -628,8 +642,9 @@ def import_bounded_workflow(
             raise ImportContractError("unsupported executor/Control Plane revision combination")
         contract["control_plane_revision"] = control_plane_revision
     cp = _obj(control_plane_record, "control_plane_record")
+    programme2 = control_plane_revision in PROGRAMME2_CP_REVISIONS
     if repaired:
-        _validate_repaired_run(cp)
+        _validate_repaired_run(cp, profiles=programme2)
     required = {"run_id", "decisions", "attempts", "observations", "reconciliations"}
     missing = sorted(required - set(cp))
     if missing:
@@ -657,7 +672,13 @@ def import_bounded_workflow(
         if authority:
             cp = dict(cp)
             cp.setdefault("vocabulary_changes", [])
-        unfinished = validate_run(cp, proposal, runtime_authority=authority)
+            if programme2:
+                cp.setdefault("check_events", [])  # a run of check_lease_unavailable holds has no journal events (freshness/0.1)
+        unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2)
+        if programme2:
+            _validate_programme2_members(cp)
+            from .programme2_profiles import PROFILE_LISTS
+            report.field_mappings.update({field: "records[" + kind + "]" for field, kind in PROFILE_LISTS.items() if cp.get(field)})
         report.field_mappings.update({field: "records["+kind+"]" for field,kind in EXTENDED.items()})
         for check_id in unfinished:
             report.complete = False
@@ -666,7 +687,9 @@ def import_bounded_workflow(
                 message=f"Resolution journal check {check_id} is opened-only or interrupted; its authority evaluation did not complete.",
                 value_state="unknown",
             ))
-    for field in sorted(set(cp) - required - (set(EXTENDED) if extended else set())):
+    if programme2:
+        from .programme2_profiles import PROFILE_LISTS as _P2_LISTS
+    for field in sorted(set(cp) - required - (set(EXTENDED) if extended else set()) - (set(_P2_LISTS) if programme2 else set())):
         report.complete = False
         report.findings.append(ImportFinding(
             code="B001", category="unmapped_field", severity="warning", path=field,
@@ -845,6 +868,18 @@ def import_bounded_workflow(
                     at=raw.get("recorded_at",raw.get("evaluated_at",raw.get("reconciled_at"))) if field != "input_time_floors" else None))
                 seq += 1
 
+    if programme2:
+        _P2_IDS = {"operations": ("operation_id",), "operation_renewals": ("renewal_id", "operation_id"),
+                   "attempt_joins": ("join_id", "operation_id", "attempt_id", "effect_id", "decision_id", "check_id"),
+                   "rule_revisions": ("revision_id", "rule_ref"), "rule_revision_refusals": ("refusal_id",),
+                   "age_extensions": ("extension_id",), "age_extension_refusals": ("refusal_id",), "recovery_runs": ("run_id",)}
+        for field, kind in _P2_LISTS.items():
+            for i, raw in enumerate(cp.get(field) or []):
+                records.append(_record(bounded_profile, kind, seq, f"{field}[{i}]", raw,
+                                       ids={"run_id": run_id, **{k: raw.get(k) for k in _P2_IDS[field]}},
+                                       at=raw.get("recorded_at", raw.get("admitted_at"))))
+                seq += 1
+
     if proposal is not None:
         profile_ref = proposal.get("authority_context_ref")
         instances = {
@@ -935,7 +970,8 @@ def import_bounded_workflow(
             "moltbot_producer_contract": contract if moltbot_export else None,
             "manifest_revision": {CONTROL_PLANE_SECURITY_REVISION: MANIFEST_SECURITY_REVISION,
                                   CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION,
-                                  CONTROL_PLANE_P4_REVISION: MANIFEST_P4_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
+                                  CONTROL_PLANE_P4_REVISION: MANIFEST_P4_REVISION,
+                                  CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
@@ -1404,7 +1440,17 @@ def _aware_time(value: Any) -> datetime:
         raise ImportContractError('accepted observation requires timezone-aware times') from exc
 
 
-def _validate_repaired_run(cp: dict[str, Any]) -> None:
+def _validate_programme2_members(cp: dict[str, Any]) -> None:
+    """Programme-2 opt-in profile members (see programme2_profiles): structure, then cross-row couplings."""
+    from . import programme2_profiles as p2
+    try:
+        p2.validate_rows(cp)
+        p2.validate_cross_rows(cp)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ImportContractError("programme-2 profile: malformed profile member: " + repr(exc), "schema_violation") from exc
+
+
+def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> None:
     """Check recorded contract consistency; no authority evaluation or new observation."""
     accepted = []
     for raw in cp.get('reconciliations', []):
@@ -1433,8 +1479,16 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
         tolerance = rec.get('observation_clock_tolerance_seconds')
         if type(maximum) is not int or maximum <= 0 or type(tolerance) is not int or tolerance < 0:
             raise ImportContractError('accepted reconciliation requires explicit observation policy')
-        age = (_aware_time(rec.get('evaluation_time')) - _aware_time(observation.get('observed_at'))).total_seconds()
-        if age > maximum or age < -tolerance:
+        evaluation = _aware_time(rec.get('evaluation_time'))
+        observed = _aware_time(observation.get('observed_at'))
+        age = (evaluation - observed).total_seconds()
+        # freshness/0.1 judges "future" against the service clock re-read at reconciliation, not the evaluation pass (an
+        # observation the checked party stamped after the pass began is not future); staleness stays relative to the
+        # evaluation. The row's reconciled_at is that clock, so it is the reference when the run carries the clocks.
+        reference = evaluation
+        if profiles and freshness_on(cp):
+            reference = max(evaluation, _aware_time(rec.get('reconciled_at')))
+        if age > maximum or (reference - observed).total_seconds() < -tolerance:
             raise ImportContractError('accepted observation violates recorded temporal policy')
         expected = {'applied': 'applied', 'absent': 'observed_absent', 'partial': 'hold'}[observation['state']]
         if rec.get('result') != expected:
@@ -1446,7 +1500,7 @@ def _validate_repaired_run(cp: dict[str, Any]) -> None:
     lifecycle: dict[Any, list[dict[str, Any]]] = {}
     for i, attempt in enumerate(cp.get('attempts', [])):
         attempt = _obj(attempt, 'attempt')
-        _validate_control_plane_attempt_row(attempt, f'attempts[{i}]')
+        _validate_control_plane_attempt_row(attempt, f'attempts[{i}]', extra=_P2_ATTEMPT_MEMBERS if profiles else frozenset())
         if attempt.get('status') != 'attempted':
             _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt')
         lifecycle.setdefault(attempt.get('attempt_id'), []).append(attempt)
