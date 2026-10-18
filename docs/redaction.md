@@ -28,6 +28,11 @@ These fields are essential for governance review and must not be removed.
 | `redact_targets` | `False` | `ActionProposal.target` → replacement string |
 | `redact_final_output` | `False` | `final_output` → replacement string |
 | `redact_reasons` | `False` | `ActionProposal.reason`, `PolicyDecision.reason`, `PolicyRuleEvaluation.reason`, `BlockedAction.reason` → replacement string |
+| `redact_task` | `False` | `RunFrame.task` → replacement string |
+| `redact_scope` | `False` | `RelianceRecord.scope` → replacement string; each `AuthorityRecord.scope` list → a one-item list holding the replacement |
+| `clear_signature_metadata` | `False` | the embedded `signature_metadata` is dropped (it describes a signature over the content before redaction) |
+
+With the defaults, the task text, the scope fields and any embedded `signature_metadata` are left as they were: a redacted bundle can still show the original task, the scope of each reliance and authority record, and `signed: true` with a signature over the earlier content. Turn the three options on (CLI: `--task`, `--scope`, `--drop-signature`) when those must not leave with the bundle, and re-sign the derivative if a signature is needed.
 
 ## Usage
 
@@ -43,6 +48,9 @@ redacted = redact_replay_bundle(
     redact_targets=True,
     redact_final_output=True,
     redact_reasons=False,
+    redact_task=False,
+    redact_scope=False,
+    clear_signature_metadata=False,
     replacement="[REDACTED]",
     redaction_policy="public-review",
 )

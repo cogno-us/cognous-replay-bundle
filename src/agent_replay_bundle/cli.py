@@ -106,6 +106,9 @@ def cmd_redact(args: argparse.Namespace) -> int:
         redact_targets=args.targets,
         redact_final_output=args.final_output,
         redact_reasons=args.reasons,
+        redact_task=args.task,
+        redact_scope=args.scope,
+        clear_signature_metadata=args.drop_signature,
         replacement=args.replacement,
         redaction_policy=args.policy,
     )
@@ -141,7 +144,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
         InputBoundsError,
         load_json_bounded,
     )
-    from .signing import verify_signed_replay_bundle
+    from .signing import signature_coverage
     from .models import SignedReplayBundle
 
     try:
@@ -165,12 +168,20 @@ def cmd_verify(args: argparse.Namespace) -> int:
         print(f"Error: Invalid signed bundle: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
 
-    if verify_signed_replay_bundle(signed_bundle, args.secret):
+    coverage = signature_coverage(signed_bundle, args.secret)
+    if coverage == "bundle_only":
+        if args.require_bound_envelope:
+            print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered")
+            return 1
+        print("Signature VALID")
+        print("Note: this signature covers the inner bundle only; signed_bundle_id and the signature metadata are not covered.",
+              file=sys.stderr)
+        return 0
+    if coverage == "envelope_and_bundle":
         print("Signature VALID")
         return 0
-    else:
-        print("Signature INVALID")
-        return 1
+    print("Signature INVALID")
+    return 1
 
 
 def cmd_check_examples(args: argparse.Namespace) -> int:
@@ -266,6 +277,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_redact.add_argument("--targets", action="store_true", default=False, help="Redact action targets.")
     p_redact.add_argument("--final-output", dest="final_output", action="store_true", default=False, help="Redact the final output.")
     p_redact.add_argument("--reasons", action="store_true", default=False, help="Redact reason fields.")
+    p_redact.add_argument("--task", action="store_true", default=False, help="Redact the task text of the run frame.")
+    p_redact.add_argument("--scope", action="store_true", default=False, help="Redact reliance and authority scope fields.")
+    p_redact.add_argument("--drop-signature", dest="drop_signature", action="store_true", default=False,
+                          help="Drop the embedded signature metadata (it no longer matches the redacted content).")
     p_redact.add_argument("--replacement", default="[REDACTED]", help="Replacement string for redacted values.")
     p_redact.add_argument("--policy", default=None, help="Redaction policy name.")
 
@@ -280,6 +295,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify = sub.add_parser("verify", help="Verify a signed replay bundle.")
     p_verify.add_argument("path", help="Path to the signed bundle JSON file.")
     p_verify.add_argument("--secret", required=True, help="HMAC secret key.")
+    p_verify.add_argument("--require-bound-envelope", dest="require_bound_envelope", action="store_true", default=False,
+                          help="Refuse a signature that covers the inner bundle only (written before the envelope was covered).")
 
     # check-examples
     sub.add_parser("check-examples", help="Validate all example bundles.")
