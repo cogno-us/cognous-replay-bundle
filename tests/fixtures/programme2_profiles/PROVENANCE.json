@@ -2,14 +2,14 @@
  "source": "real run records written by the Control Plane's own flows (tests/test_freshness.py, tests/test_operation_identity.py, tests/test_rule_revision.py, tests/test_merge_record.py, tests/test_reversibility.py and tests/test_dedupe.py helpers: synthetic proposals, a settable service clock, throwaway stores); nothing hand-edited",
  "producer": {
   "repository": "cogno-us/cognous-control-plane",
-  "revision": "3755c71a20eab1a41135967b682342c809929572",
+  "revision": "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb",
   "python": "3.13",
-  "note": "main after N4 (#54: merge-record, reversibility, dedupe-ttl), the 0.1/0.2 reason registry split (#55), F1 (#50-#53) and strict JSON J3 (#56); contains everything the earlier capture at 128eaa5e had"
+  "note": "main after N4 (#54), the 0.1/0.2 reason registry split (#55), F1 (#50-#53), strict JSON J3 (#56), input validation hardening with the opt-in terminal-revocation/0.1 profile and registry 0.2 code grant_revocation_recorded (#58), and strict instant parsing (#59); contains everything the earlier captures at 3755c71a and 128eaa5e had"
  },
  "captured_on": "2026-10-18",
  "scripts": {
   "provenance/capture_programme2.py": "the N1/N2/N3 scenarios (the 20 scenarios of the earlier capture, re-run unchanged at the new revision)",
-  "provenance/capture_n4.py": "the N4 scenarios (merge, reversibility, dedupe)"
+  "provenance/capture_n4.py": "the N4 scenarios (merge, reversibility, dedupe) and the terminal-revocation scenario; the dedupe escalation pass is taken at 301 s, not 300 s, because the escalation deadline is inclusive since 3cd17ead (the only change to a script's behaviour since 3755c71a)"
  },
  "run": "from a control plane checkout at the revision above: PYTHONPATH=src:. python <script> <out-dir>",
  "randomness": "decision, attempt, check, join, renewal, refusal and run ids and nonces are random uuids; a re-capture differs in those and nowhere else (the clock is fixed)",
@@ -24,43 +24,46 @@
   "merge-held-and-unknown-no-effect.json",
   "reversibility-cached-snapshot-accepted.json",
   "reversibility-cached-snapshot-stale-refused.json",
-  "reversibility-irreversible-class-refused.json"
+  "reversibility-irreversible-class-refused.json",
+  "terminal-revocation-recorded-refused.json"
  ],
  "sha256": {
-  "all-three-applied-renewed.json": "aaed15ab9f8136ba7c8de2ee7147fc22dd6e0726c167767bf599012409d2552d",
-  "all-three-expired-before-dispatch.json": "514476ee02a9315648860f593d8a7f06ebb8af105d54a090b3364a7938b301c6",
-  "all-three-lost-ack-reconciled.json": "b222ad626570f09b1bb8a1ece35bc2677c9cf42face16038c2fc573f3b86c8ca",
-  "dedupe-expired-key-not-fresh.json": "2873476c3f09731886faa7e9b344d2246baa0dd6d23579f72b3c9dc455d28409",
-  "dedupe-in-progress-blocks-new-key.json": "fd0143d1fb4ed480029f9226c8707e73f5e1c83093014c272ff99ed1116cbf5d",
-  "dedupe-unknown-attempt-escalated.json": "3199890574139c33a72f4895a99124a2a71bf4bf5352b1b3505a52701a9ba9c6",
-  "default-path.json": "7bf2968621444fc817a9a16a18471a1a868ec25f119f80036ae116d3a5a5b305",
-  "freshness-applied.json": "4ecb031388f12f6c87d58602526d5f2f1d129db30890bfe73b9b72b9ecfa2ac5",
-  "freshness-expired-before-dispatch.json": "84f7ae98ca3ecafe1cbf805a38f295cfab18a4baa23d1f647ed7c7bc0aab3d33",
-  "freshness-expired-observation-after-pass.json": "5b3ec28f9c57460ff5e78c6983e6cb53c864025e3d4e6332a2b9f1916677cba9",
-  "freshness-extension-accepted-and-refused.json": "53c5948903627f36f9a7b4ed0e9332909da330a62c20adee4304451106feba69",
-  "freshness-live-overdue-check.json": "8bfea13f83f4bdbcc42d9c8d8e43dab01a176471edb5eb6248b75ff8705dbc7b",
-  "freshness-nonce-bound.json": "3f4cec69e50b83455052db8984c614972016feb23f5f6da8eebe4b92e829dd6c",
-  "freshness-nonce-replay-refused.json": "9c437892a8a59d757dbff8a85fc3435868e0fdd99bb342509d209bedb243f967",
-  "freshness-overdue-recovery-run.json": "a9c9aed065074f23eb2f290a49f9a0d38302309e9b58338965d92dca2622b528",
-  "freshness-reaper-after-decision.json": "02a24dd765111bc8e7cb164f95f84385df76723dd47ba3b004c4230b32fd79e6",
-  "freshness-reaper-recovery-runs.json": "fd7876bef25d16349a2aeb512ce5582f5da56e9d9651e8f26ceaa93f85d025f1",
-  "freshness-slow-reads-applied.json": "6abeb52611e30b174f0fc9750ccbdff84290cf4abf613de768a96dd3c64529e6",
-  "identity-applied-renewed.json": "1f76d87d0f9a1957d39f0f9dcb4ad832508e3055225e440eec7cd9e1050db66c",
-  "identity-effect-time-refusal.json": "91a1663300d131e2fd7a1e8a5fc7761331e438ce64755cc78a50c300e38e6a33",
-  "identity-lost-ack-reconciled.json": "1a7e0b8d7e1c4e93376de3d5c1a5fb4a7e1af5865f5a9101684fff48bfb546a8",
-  "merge-after-both-applied-obligation.json": "d15166b9641af148c19bf1eafaac57a84be9e55b6f1e030a79f4f6f59c7f4f62",
-  "merge-before-second-effect.json": "651b1d0cdf1364a8f8764901deb1fcfcac36253f69aaddfcf3ae7032b49751d6",
-  "merge-folded-operation-dispatches-under-survivor.json": "afe87dacc8f8863e311e46c3edfe1bad7681ed2a06284ea18f2977b090b1798a",
-  "merge-held-and-unknown-no-effect.json": "004827a71387b14602b095bb307d0866dbca953f2118c27616e9d03d86ef5e3b",
-  "reversibility-cached-snapshot-accepted.json": "956e197d9c68bac58642aa0c99b04b9d65f2ab3a9b484ffd56dd3d7a7417e619",
-  "reversibility-cached-snapshot-stale-refused.json": "5112e43e5b7b58d8dc2639ea7b0deaa21c1b07c3c6c9e279abc0a043e4224606",
-  "reversibility-irreversible-class-refused.json": "d165e261e9e65555a636afe4c604dff66af4af33c5b41ecf2a3ead538c4450f4",
-  "rules-adopted-applied.json": "589148658bf72efb1accb6293746cf30e02b7cc9dfa62bdc152720553750ef0e",
-  "rules-self-signed-revision-refused.json": "9f6e007cee63f022dc4decdb157f942437a27c7a8a0b7b7257c8487ae0f072fc"
+  "all-three-applied-renewed.json": "fe8e5023d370997a1de93e673413d7cb6f57de9765c8665577205be1cd0a25db",
+  "all-three-expired-before-dispatch.json": "971424fdef9a4aaec804a4a186a807d943f23bb2708e999d297226a4f81590e7",
+  "all-three-lost-ack-reconciled.json": "9182800336867659a61a0aa345e3a6c951ad06b48f065b7c80019b4804ad1446",
+  "dedupe-expired-key-not-fresh.json": "2cb54a08ab908368b0ac8cde5f2c5a2e8d6e376854123c7d6f16f57958a4b435",
+  "dedupe-in-progress-blocks-new-key.json": "f6a5eb11df2bb642f0ac900425ca8f8a919fc0034a0ae5777fa906091ea7ee07",
+  "dedupe-unknown-attempt-escalated.json": "4b6bf3c396d944fb46dcb866478dda494dae22ff2dda8222d170097b8f473a52",
+  "default-path.json": "a0f483a594b96a91879592f7389c3a3a3dd57c84fb3ac65bf9c1c487b293ee7b",
+  "freshness-applied.json": "4a5515ecc59ec62899c7f047ae5013341926263158e836fe7f7288d4ee51ab98",
+  "freshness-expired-before-dispatch.json": "a1308fc40263c34a97c6625189a981c733bde62328d0c50227e2ce4d4f0a01fe",
+  "freshness-expired-observation-after-pass.json": "d0bd2fcf963075da2861e770b7b5b0fbd4bf4c466ee7fd12bb35e1b659eb68ab",
+  "freshness-extension-accepted-and-refused.json": "6fc971880243303a361fd2dc2379ea6c1d52438d2e1e576d5cd48cf17849996f",
+  "freshness-live-overdue-check.json": "f786ef37d287c1aea24fe30f60f84d0c08447e7ec4a6e864c61eb5e563baae72",
+  "freshness-nonce-bound.json": "7f93c4db8f2514abc871b524b80a78cbdc39e878c22d0452b9091db7e5c58ac9",
+  "freshness-nonce-replay-refused.json": "777dad5351f45a1ddc0500d8dec84001292ddaf8dd72b795cdb3680066a90986",
+  "freshness-overdue-recovery-run.json": "7f88551fa5f7fea0f079a58d136677fcae96d4db3101d9127c2d845caf866e28",
+  "freshness-reaper-after-decision.json": "f0c2144e32a9dbd33ad62cb114dbbea88bb97bd1112d120c270f4092889bf95e",
+  "freshness-reaper-recovery-runs.json": "b3370ca6f0625a9332900ebcd5b80d60e3262658efb5e67b4e4ae1177990f860",
+  "freshness-slow-reads-applied.json": "6e15eefd69ed4c41cb28be7c4abeb7157bdb81702127a3414f4c40d4f14699ff",
+  "identity-applied-renewed.json": "9a641322ca5fb7b3e3db026b5116203a8b921b21fe3e712fc60c5e512c634d18",
+  "identity-effect-time-refusal.json": "783fd0de296c1074fdde1b7323885e53d298e51dc571304025b8438e8ce04f54",
+  "identity-lost-ack-reconciled.json": "a4e2ea99e7f191b2c3e47036bc0c1a4f56f266cebf6724bd670196db96b9d126",
+  "merge-after-both-applied-obligation.json": "d65b6c0c852f8bc990d4d52b55522a935ae37d8d06e16a55955aacf25fa1e94b",
+  "merge-before-second-effect.json": "3a0347921e8ed4e22279103248ec2f4ad71da190a57228c52d23a411787b220a",
+  "merge-folded-operation-dispatches-under-survivor.json": "1e20931b94a8cffdaf76660a9b97af7297b970392161adbf151c74a011dcf0de",
+  "merge-held-and-unknown-no-effect.json": "538468161b1e7dbb7b2a2529b94bdf980669841917d61d59e4fd82af9873517f",
+  "reversibility-cached-snapshot-accepted.json": "798fcd7de0d4231fa01d7077f0fc93b65755208751f55dc20f69fa803fccb71f",
+  "reversibility-cached-snapshot-stale-refused.json": "37203c5ee8c3f14bd87f47d7d86b0baa4a2cb8a74c519f602f52a66fc9472a75",
+  "reversibility-irreversible-class-refused.json": "7fc4948ab79d94e74afd3629269d18351b82cca5d1744d772f20b87d62ca10a1",
+  "rules-adopted-applied.json": "f76e39d8791c88bfea64fbe8811e8f5c37a4a0cebe822b0b58f6ad9d7ea7acb9",
+  "rules-self-signed-revision-refused.json": "e41dfda7d695386386238c4f5ce4be8925a13893e5ea5b2bb1b5611f2b323902",
+  "terminal-revocation-recorded-refused.json": "a45865703631c34bb7fbb51773e8490f3bb29d76798ea4fa4283a764d290a2ba"
  },
  "script_sha256": {
   "capture_programme2.py": "d83dd2627f3bfbdd4959ce5b654d241d7b70c50a952a7f4b2e80ea2007e301f9",
-  "capture_n4.py": "9660bc89c2ea38f200221cb4128c81dac9be2aed6978fa48ac15c9bba05555af"
+  "capture_n4.py": "309f47a01be421ad4a5cd451485e7a91fc94eefafb9de926f4b3533bcffe0680"
  },
- "earlier_capture": "The 20 N1/N2/N3 fixtures were first captured at 128eaa5e (Replay 8e32975d). At 3755c71a six of them carry the reason registry label runtime-authority-reasons/0.2 (rows with a freshness code); the rest differ from the earlier capture only in random ids."
+ "earlier_capture": "The 20 N1/N2/N3 fixtures were first captured at 128eaa5e (Replay 8e32975d), re-captured at 3755c71a (Replay 3c056cf8) and now at 3cd17ead. Documents differ from the 3755c71a capture only in random ids, nonces and commit strings; the registry labels are unchanged (six freshness fixtures carry runtime-authority-reasons/0.2).",
+ "script_note": "capture_programme2.py code unchanged since 128eaa5e (only its docstring revision text moved). capture_n4.py: dedupe escalation pass at 301 s (was 300 s) and the terminal-revocation scenario added (it must run first: a later scenario leaves module state that makes the terminal flow's manifest digest mismatch); the other scenarios are unchanged."
 }

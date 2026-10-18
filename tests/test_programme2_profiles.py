@@ -1,6 +1,6 @@
 """Programme-2 opt-in profiles: Replay accepts and retains the members of operation identity (N1), rule revision (N2) and
-freshness (N3), and (since the 3755c71a re-capture) merge-record, reversibility and dedupe-ttl (N4, see
-test_programme2_n4_and_pairing.py) for the exact Control Plane revision 3755c71a, refuses damaged ones with stable codes, and changes nothing with
+freshness (N3), and (since the 3cd17ead re-capture) merge-record, reversibility and dedupe-ttl (N4, see
+test_programme2_n4_and_pairing.py) for the exact Control Plane revision 3cd17ead, refuses damaged ones with stable codes, and changes nothing with
 the profiles off.
 
 The valid cases are REAL run records written by the Control Plane's own flows (``tests/fixtures/programme2_profiles``, provenance
@@ -32,6 +32,7 @@ SCENARIOS = sorted(p.stem for p in FIX.glob("*.json") if p.name != "PROVENANCE.j
 
 OP, RULES, FRESH = "operation-identity/0.1", "rule-revision/0.1", "freshness/0.1"
 MERGE, REVERSIBLE, DEDUPE = "merge-record/0.1", "reversibility/0.1", "dedupe-ttl/0.1"
+TERMINAL = "terminal-revocation/0.1"  # a host profile with no run-record member of its own: its rows are a reason code and a reopen condition
 
 
 def load(name):
@@ -77,13 +78,38 @@ def test_fixtures_are_unchanged_real_captures():
 
 def test_profiles_the_fixtures_cover():
     covered = {p for s in SCENARIOS for p in load(s)[1]}
-    assert covered == {OP, RULES, FRESH, MERGE, REVERSIBLE, DEDUPE}
+    assert covered == {OP, RULES, FRESH, MERGE, REVERSIBLE, DEDUPE, TERMINAL}
     assert any(set(load(s)[1]) == {OP, RULES, FRESH} for s in SCENARIOS), "a run with all three profiles on is captured"
     members = {f for s in SCENARIOS for f in PROFILE_LISTS if run(s).get(f)}
     assert members == set(PROFILE_LISTS), "every profile list appears in at least one real record"
 
 
 # ---------------------------------------------------------------------------------------------------- acceptance
+def test_terminal_revocation_rows_are_accepted_and_kept_verbatim():
+    """3cd17ead: the opt-in terminal-revocation profile adds no run-record member; its rows carry the registry-0.2-only reason
+    ``grant_revocation_recorded`` (label 0.2) and a ``successor_grant_revision`` reopen condition. Replay accepts the real record and
+    retains the decision and refusal rows whole (same retention test as every other real capture)."""
+    cp = run("terminal-revocation-recorded-refused")
+    assert [d["reasons"] for d in cp["decisions"]] == [[], ["grant_revocation_recorded"]]
+    assert cp["decisions"][1]["reason_vocabulary_version"] == "runtime-authority-reasons/0.2"
+    refusal = cp["refusals"][-1]
+    assert refusal["reasons"] == ["grant_revocation_recorded"] and refusal["reason_vocabulary_version"] == "runtime-authority-reasons/0.2"
+    assert refusal["reopen_conditions"][0]["kind"] == "successor_grant_revision"
+    bundle = do_import(cp)
+    assert [r.data for r in bundle.records if r.record_type == "effect_time_refusal"] == cp["refusals"]
+    assert [r.data for r in bundle.records if r.record_type == "runtime_decision"] == cp["decisions"]
+
+
+def test_a_terminal_revocation_row_under_the_wrong_label_is_still_a_label_question_for_the_verifier():
+    """Replay accepts label 0.1 or 0.2 for this generation and does not match a label to its codes (documented limit)."""
+    cp = copy.deepcopy(run("terminal-revocation-recorded-refused"))
+    cp["decisions"][1]["reason_vocabulary_version"] = "runtime-authority-reasons/0.1"
+    do_import(cp)
+    cp["decisions"][1]["reason_vocabulary_version"] = "runtime-authority-reasons/0.3"
+    with pytest.raises(ImportContractError):
+        do_import(cp)
+
+
 @pytest.mark.parametrize("name", SCENARIOS)
 def test_real_profile_run_is_accepted_and_every_profile_member_is_retained(name):
     cp = run(name)

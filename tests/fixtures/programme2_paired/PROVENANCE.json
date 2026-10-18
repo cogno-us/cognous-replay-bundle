@@ -1,10 +1,10 @@
 {
  "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
  "producer": {
-  "control_plane": "3755c71a20eab1a41135967b682342c809929572",
-  "runtime": "7170da59e04854a3dbe13f151400d0ac368b8dcb",
+  "control_plane": "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb",
+  "runtime": "11de097c450d3ad4d89f9add41b00e38e7cc2c7c",
   "python": "3.13",
-  "note": "runtime main after N4 (#113, opt-in dedupe-ttl/0.1 destination; the export shape is unchanged since fc034d14, diff fc034d14..7170da59 touches control_plane_adapter.py, a new dedupe_destination.py, tests and CHANGELOG only); control plane main after J3 (#56). Re-captured by P5 with the unchanged capture script; the previous pairing fc034d14 is replaced, not kept"
+  "note": "runtime main after #116 (atomic route: grant status monotonicity, envelope binding, strict instants, exception class names only in attempt events); the export shape is unchanged since fc034d14 (shape of every exported member identical to the 7170da59 captures, checked by diffing the exports); control plane main after #59 (strict instant parsing). Re-captured by P6 with the unchanged capture script; the previous pairings fc034d14 and 7170da59 are replaced, not kept"
  },
  "captured_on": "2026-10-18",
  "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
@@ -16,19 +16,19 @@
  },
  "atomic_record_note": "For the atomic scenarios the Control Plane run record is the one taken after the decision and before claim issuance. The Control Plane's own claim issuance (provision_local_execution_claim) opens a decision-stage journal check next to a claim-stage resolution check, and Replay refuses that record at P4 and at this generation alike (journal_check_reused); that is a finding, not changed here.",
  "sha256": {
-  "adapter-default/control_plane_run.json": "e492ae97d88959a01dbb6decf8a20eb329deed90fdd9db88f05c500eaecaabc3",
+  "adapter-default/control_plane_run.json": "4a78e6b48d06bc9e4e33c134236ea951f49ecbadad6a323a7792a7642ac32559",
   "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-default/executor.json": "f0ed0a8a91e21b939a0ac662823bd2c361ba3c8583d481ed1aa5382d75a876f8",
-  "adapter-operation-identity/control_plane_run.json": "82c8792d3660e61d1514d6cfa8b49db757327414533810f90e126a2d4145dfc5",
+  "adapter-default/executor.json": "b15d3dfe7f25eaf0d5e785a4072a552d48ca542d8cb7133e1357858632e0b6c9",
+  "adapter-operation-identity/control_plane_run.json": "8598799e7e4340d2b253fe1b364afec2961b077fd04cc2f893905c2472480711",
   "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-operation-identity/executor.json": "6288ca1e22aa24d9e9ac538968281785a8f701d8ceb59e8f67e3444a065a97d5",
-  "atomic-default/control_plane_run.json": "1cf98af87eb52edc8d000e6f24c5bffe263d1c0978a64a5b7be4b3afab7618c8",
+  "adapter-operation-identity/executor.json": "808f39d713005b0561b00f964c6fb90a4a517d3eb5fadbbf8769ddd0a39582d4",
+  "atomic-default/control_plane_run.json": "a6b1af790b4af56ee66f35023c2c97e420e690391f9fee6f35b79060796b0bf5",
   "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-default/executor.json": "04bbbd22d1f0460445d42aa82fe2c01acca4f10cef32b1eb2eb41c89133b27d6",
-  "atomic-operation-key/control_plane_run.json": "9188fd6bf661845ffe044b7ea2198dd64dcce9a0074b77034a744b9587a8662a",
+  "atomic-default/executor.json": "bfb5b782f067385409c4ed09dac094ce6c0a8a58cc840d7d92bf6b04fae02f13",
+  "atomic-operation-key/control_plane_run.json": "f4d2ef56a0266a35dd2ffe5541ee7e515e93530934c272184376fba897ab7059",
   "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-operation-key/executor.json": "28427c88244bb54378bbc854d004a6a1ab1fe720b5d7705083b7dfb20c119bdc"
+  "atomic-operation-key/executor.json": "5bdf8e2a3d5930e13bd53e04b67feacc767b93846b817d787d138def01b37fb7"
  },
- "script_sha256": "72b3b2a6f86da3e03654dd68eb95d976264eec2a9735c0ebdf57ed3e35b0815e",
+ "script_sha256": "c408dec768860d362fe4e30c9884a3872a744df79c73ee5361b376dddf6df4c0",
  "script_note": "capture_paired.py code unchanged since the fc034d14 capture; only its docstring revision text moved"
 }
