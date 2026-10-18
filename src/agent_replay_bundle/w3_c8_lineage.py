@@ -34,8 +34,10 @@ def import_c8_source(*, authority:dict,stop:dict|None=None) -> ReconstructionBun
     if claims:
         try:
             import json
+            from .ingress import check_depth,MAX_NESTING_DEPTH
+            check_depth(claims[0]["claim_json"],MAX_NESTING_DEPTH)
             raw=json.loads(claims[0]["claim_json"])
-        except (KeyError,TypeError,ValueError):
+        except (KeyError,TypeError,ValueError,RecursionError):
             raise C8LineageError("retained claim JSON unavailable or corrupt")
         if raw.get("claim_id")!=authority["claim_id"] or raw.get("tenant_id")!=tenant:
             raise C8LineageError("retained claim JSON identity contradiction")

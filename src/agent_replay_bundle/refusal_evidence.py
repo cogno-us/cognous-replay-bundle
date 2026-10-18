@@ -172,6 +172,12 @@ def _freeze(value):
     return value
 
 
+#: Work budget of the journal-to-check matcher: candidate entries built, search steps taken and ordering comparisons made.
+#: A run past it is refused (``input_too_large``) rather than left to run for an unbounded time. About 1,200 completed
+#: journals with identical content fit; a real run holds a few dozen.
+MAX_MATCH_WORK = 4_000_000
+
+
 def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
@@ -246,6 +252,10 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
             require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
             checks={};completions=[];open_at={};close_at={};terminal=set()
             resolution_index=None;resolution_reasons=[]
+            work=[0]
+            def charge(units):
+                work[0]+=units
+                require(work[0]<=MAX_MATCH_WORK,'journal matching exceeds the work limit','input_too_large')
             def normalize(values):
                 return [{k:v for k,v in x.items() if k not in ('previous_observed_at','extensions')} for x in values]
             for seq,raw in enumerate(cp.get('check_events',[])):
@@ -286,8 +296,9 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
                                     resolution_index.setdefault((x['stage'],_freeze(normalize(x['inputs']))),[]).append(i)
                                     resolution_reasons.append(set(x['reasons']))
                             wanted=set(event.reasons)
-                            candidates=[i for i in resolution_index.get((event.stage,_freeze(normalize(checks[event.check_id][2]))),[])
-                                        if wanted<=resolution_reasons[i]]
+                            bucket=resolution_index.get((event.stage,_freeze(normalize(checks[event.check_id][2]))),[])
+                            charge(len(bucket)+1)
+                            candidates=[i for i in bucket if wanted<=resolution_reasons[i]]
                             require(bool(candidates),'completed journal differs from actual resolution check','journal_unbound_completion')
                             completions.append((event.check_id,candidates));close_at[event.check_id]=seq
                 if event.decision_id is not None:
@@ -296,6 +307,11 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
             owner={}
             def assign(start):
                 # Iterative augmenting-path search (no recursion, so the number of completed journals cannot exhaust the stack).
+                for i in completions[start][1]:
+                    charge(1)
+                    if i not in owner:  # a free check needs no search
+                        owner[i]=start
+                        return True
                 seen=set()
                 stack=[(start,iter(completions[start][1]))]
                 chosen=[]  # chosen[k] is the actual check frame k moved to while looking for a free one
@@ -303,6 +319,7 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
                     j,candidates=stack[-1]
                     descended=False
                     for i in candidates:
+                        charge(1)
                         if i in seen:
                             continue
                         seen.add(i)
@@ -326,6 +343,7 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
             # checks may complete in either order.
             chosen={}
             for cid,candidates in completions:
+                charge(len(chosen)+len(candidates)+1)
                 previous=max([chosen[o] for o in chosen if close_at[o]<open_at[cid]],default=-1)
                 later=[i for i in candidates if i>previous]
                 require(bool(later),'resolution checks are out of journal order','resolution_checks_out_of_order')

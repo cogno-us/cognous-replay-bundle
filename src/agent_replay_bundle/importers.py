@@ -206,9 +206,13 @@ def _validate_envelope_chain(
 def _decode_payload_json(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, str):
         raise ImportContractError(f"{path} must be canonical JSON text")
+    from .ingress import InputBoundsError, check_depth
     try:
+        check_depth(value, MAX_RECORD_DEPTH)  # the text is decoded here, after the in-memory record walk has passed
         decoded = __import__("json").loads(value)
-    except (TypeError, ValueError) as exc:
+    except InputBoundsError as exc:
+        raise ImportContractError(f"{path} exceeds the nesting limit", code="input_too_deep") from exc
+    except (TypeError, ValueError, RecursionError) as exc:
         raise ImportContractError(f"{path} is invalid JSON") from exc
     if not isinstance(decoded, dict):
         raise ImportContractError(f"{path} must decode to an object")
