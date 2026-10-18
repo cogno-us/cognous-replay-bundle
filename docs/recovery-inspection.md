@@ -60,7 +60,7 @@ When an event ID was reused with changed content, Runtime can retain only its `c
 
 ## Qualification
 
-From this repository with Python 3.12, install its existing dev dependencies and provide a checkout of the exact Runtime above:
+The qualification file is not in this repository; it lives in the qualification repository (see `CROSS_COMPONENT_TESTS.md`). From a checkout of that repository's `suites/cognous-replay-bundle` with Python 3.12, install the existing dev dependencies and provide a checkout of the exact Runtime above:
 
 ```bash
 COGNOUS_RUNTIME_SOURCE=/absolute/path/to/pinned-runtime python -m pytest -q tests/recovery_inspection_checks.py
