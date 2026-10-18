@@ -72,7 +72,31 @@ def test_control_a_join_may_name_the_survivor_or_the_root_of_a_chain():
         do_import(cp)
 
 
+def test_control_records_with_one_timestamp_are_accepted_in_any_row_order_that_has_a_valid_history():
+    """Equal timestamps carry no order: refund-3 into refund-2 and refund-2 into refund-1, listed in either order."""
+    for survivor_first in (True, False):
+        cp = record()
+        admit(cp, O3)
+        merge(cp, "merge-tied", O2, [O3])  # same recorded_at as the captured row
+        if survivor_first:
+            cp["merge_records"].reverse()
+        do_import(cp)
+
+
 # ----------------------------------------------------------------------------------------------------- refused
+def test_a_cycle_among_records_with_one_timestamp_is_refused():
+    cp = record()
+    merge(cp, "merge-tied-cycle", O2, [O1])  # same recorded_at as the captured row
+    refused(cp, "merge_survivor_already_folded")
+
+
+def test_an_operation_folded_twice_by_records_with_one_timestamp_is_refused():
+    cp = record()
+    admit(cp, O3)
+    merge(cp, "merge-tied-second-fold", O3, [O2])
+    refused(cp, "merge_operation_already_folded")
+
+
 def test_a_fold_cycle_is_refused():
     cp = record()
     merge(cp, "merge-cycle", O2, [O1], T2)

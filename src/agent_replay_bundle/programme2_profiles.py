@@ -626,16 +626,31 @@ def _validate_merges(cp: dict[str, Any]) -> None:
     for m in merges:
         if m["outcome"] == "merged" and "compensation_obligation_id" in m and m["merge_id"] not in owned:
             raise _error(f"merge {m['merge_id']} names an obligation that no row records", "obligation_merge_mismatch")
-    # Merged records are read in time order (ties keep row order), as the producer wrote them: a folded operation is folded
-    # once, and a survivor is not already folded away (which also rules out a cycle). A chain of folds is accepted.
+    # Merged records are read in time order. A history is accepted when some order consistent with the timestamps follows the
+    # producer's rules: an operation is folded once, and a survivor is not already folded away (which also rules out a cycle).
+    # Equal timestamps carry no order, so records sharing one are placed after the record whose survivor they fold.
     folded_to: dict[str, str] = {}
-    for m in sorted((m for m in merges if m["outcome"] == "merged"), key=lambda m: instant(m["recorded_at"], f"merge {m['merge_id']}")):
-        if m["survivor_operation_id"] in folded_to:
-            raise _error(f"merge {m['merge_id']} names a survivor that an earlier merged record already folded", "merge_survivor_already_folded")
-        for f in m["folded_operation_ids"]:
-            if f in folded_to:
-                raise _error(f"merge {m['merge_id']} folds an operation that an earlier merged record already folded", "merge_operation_already_folded")
-            folded_to[f] = m["survivor_operation_id"]
+    merged = [m for m in merges if m["outcome"] == "merged"]
+    times = {m["merge_id"]: instant(m["recorded_at"], f"merge {m['merge_id']}") for m in merged}
+    for moment in sorted(set(times.values())):
+        group = [m for m in merged if times[m["merge_id"]] == moment]
+        placed: set[str] = set()
+        for m in group:
+            if m["survivor_operation_id"] in folded_to:
+                raise _error(f"merge {m['merge_id']} names a survivor that an earlier merged record already folded", "merge_survivor_already_folded")
+            for f in m["folded_operation_ids"]:
+                if f in folded_to or f in placed:
+                    raise _error(f"merge {m['merge_id']} folds an operation that another merged record already folded", "merge_operation_already_folded")
+                placed.add(f)
+        waiting = list(group)
+        while waiting:
+            ready = [m for m in waiting if not any(o["survivor_operation_id"] in m["folded_operation_ids"] for o in waiting if o is not m)]
+            if not ready:
+                raise _error("merged records with one timestamp fold each other's survivors", "merge_survivor_already_folded")
+            for m in ready:
+                for f in m["folded_operation_ids"]:
+                    folded_to[f] = m["survivor_operation_id"]
+                waiting.remove(m)
     # A join's merged_into is the survivor of the merged record that folded its operation, or a later survivor along the chain
     # of folds (the producer follows later merges to the root); a fold into any other operation is refused.
     for j in joins:
