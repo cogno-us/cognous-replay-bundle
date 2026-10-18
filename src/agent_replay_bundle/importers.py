@@ -978,6 +978,20 @@ def import_bounded_workflow(
             path="moltbot_export", message="Executor/destination evidence absent.",
             value_state="absent",
         ))
+        if proposal is not None:
+            # No executor operation to compare with: the proposal is what the decision's binding commits to, so a journal
+            # observation's destination state is compared to it (target, amount, unit, payload, grant, effect).
+            grants = {d.get("effect_id"): (d.get("binding") or {}).get("grant_id")
+                      for d in cp["decisions"] if isinstance(d, dict) and isinstance(d.get("binding"), dict)}
+            committed = {k: p.get(k) for k in ("target", "amount", "unit", "payload")}
+            for r in records:
+                if r.record_type == "effect_observation" and r.data.get("effect_id") in grants:
+                    seen = dict(r.data)  # the operation digest needs the executor's operation, which is absent here
+                    if isinstance(seen.get("destination_state"), dict):
+                        seen["destination_state"] = {k: v for k, v in seen["destination_state"].items() if k != "operation_digest"}
+                    _validate_observation_content(
+                        seen, r.data["effect_id"], {**committed, "grant_id": grants[r.data["effect_id"]]},
+                        "control_plane.observations")
 
     if repaired and any(not r.get("observation_accepted") for r in cp["reconciliations"]):
         report.findings.append(ImportFinding(
