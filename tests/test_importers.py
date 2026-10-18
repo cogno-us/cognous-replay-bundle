@@ -131,7 +131,8 @@ def bounded_source():
             "effect_id": effect_id,
             "observed_at": "2026-10-05T00:00:02Z",
             "state": "applied",
-            "destination_state": {"effect_id": effect_id},
+            "destination_state": {"effect_id": effect_id, "grant_id": "grant-1", "target": "target", "amount": 50.0,
+                                  "unit": "USD", "payload": {"customer_id": "c1"}},
         }],
         "reconciliations": [],
     }
