@@ -75,14 +75,18 @@ MOLTBOT_P4_REVISION = "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
 MANIFEST_P4_REVISION = MANIFEST_F5B_REVISION
 BOUNDED_P4_PROFILE = "control-plane-security-runtime@26a7e659"
 MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
-# Programme-2 generation (opt-in profiles): Control Plane 128eaa5e (main after operation identity N1, rule revision N2, freshness
-# N3 and the N5 witness/holder inventory). Same import semantics as P4 for a profile-off run (byte-identical records), plus the
-# members of the three opt-in profiles when a run carries them (see programme2_profiles.py). Only the Control Plane record is
-# accepted for this generation: there is no executor pairing (no exact runtime revision is selected), so an executor export
-# is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with them at end-of-alpha (P5).
-CONTROL_PLANE_P2_REVISION = "128eaa5e36fdff772fdc709581712dbeac046db3"
+# Programme-2 generation (opt-in profiles): Control Plane 3755c71a (main after operation identity N1, rule revision N2, freshness
+# N3, the N5 witness/holder inventory, merge-record/reversibility/dedupe-ttl N4, the 0.1/0.2 reason registry split and strict JSON J3).
+# It replaces the earlier tie to 128eaa5e (this generation is one exact revision, never a range). Same import semantics as P4 for a
+# profile-off run (byte-identical records), plus the members of the opt-in profiles when a run carries them (see
+# programme2_profiles.py). The executor pairing is the runtime fc034d14 (optional operation key on the atomic route): an executor
+# export of any other runtime revision is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with
+# them at end-of-alpha (P5).
+CONTROL_PLANE_P2_REVISION = "3755c71a20eab1a41135967b682342c809929572"
+MOLTBOT_P2_REVISION = "fc034d140ce55d9887ac3a0aab598f3a2c05ea47"
 MANIFEST_P2_REVISION = MANIFEST_F5B_REVISION
-BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@128eaa5e"
+BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@3755c71a"
+MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@fc034d14"
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
@@ -94,7 +98,7 @@ MOLTBOT_V2_PROFILE = "moltbot-safe-executor-producer-2.0.0@177354e9"
 # Every 2.0 executor profile fails closed on a dangling/ambiguous explicit attempt reference.
 STRICT_ACK_PROFILES = frozenset({MOLTBOT_V2_PROFILE, MOLTBOT_MERGED_PROFILE, MOLTBOT_REFUSAL_PROFILE,
                                  MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE,
-                                 MOLTBOT_F5B_PROFILE, MOLTBOT_P4_PROFILE})
+                                 MOLTBOT_F5B_PROFILE, MOLTBOT_P4_PROFILE, MOLTBOT_P2_PROFILE})
 PRODUCER_COMPATIBILITY = {
     "1.0.0": (MOLTBOT_SAFE_REVISION, CONTROL_PLANE_REVISION, MOLTBOT_PROFILE),
     "2.0.0": (MOLTBOT_V2_REVISION, CONTROL_PLANE_V2_REVISION, MOLTBOT_V2_PROFILE),
@@ -578,6 +582,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_P4_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_P4_REVISION, CONTROL_PLANE_P4_REVISION, MOLTBOT_P4_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_P4_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_P2_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_P2_REVISION, CONTROL_PLANE_P2_REVISION, MOLTBOT_P2_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_P2_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -872,7 +879,9 @@ def import_bounded_workflow(
         _P2_IDS = {"operations": ("operation_id",), "operation_renewals": ("renewal_id", "operation_id"),
                    "attempt_joins": ("join_id", "operation_id", "attempt_id", "effect_id", "decision_id", "check_id"),
                    "rule_revisions": ("revision_id", "rule_ref"), "rule_revision_refusals": ("refusal_id",),
-                   "age_extensions": ("extension_id",), "age_extension_refusals": ("refusal_id",), "recovery_runs": ("run_id",)}
+                   "age_extensions": ("extension_id",), "age_extension_refusals": ("refusal_id",), "recovery_runs": ("run_id",),
+                   "merge_records": ("merge_id", "survivor_operation_id"), "compensation_obligations": ("obligation_id", "merge_id"),
+                   "snapshot_uses": ("use_id", "check_id"), "dedupe_escalations": ("escalation_id", "effect_id", "operation_id")}
         for field, kind in _P2_LISTS.items():
             for i, raw in enumerate(cp.get(field) or []):
                 records.append(_record(bounded_profile, kind, seq, f"{field}[{i}]", raw,
