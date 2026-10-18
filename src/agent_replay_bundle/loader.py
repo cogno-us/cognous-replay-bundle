@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from .ingress import load_json_bounded
 from .models import AgentReplayBundle
 
 
@@ -21,6 +22,8 @@ def load_replay_bundle(path: str | Path) -> AgentReplayBundle:
 
     Raises:
         FileNotFoundError: If the file does not exist.
+        InputBoundsError: If the file exceeds the byte budget or nesting limit
+            (a ValueError subclass).
         ValueError: If the file contains invalid JSON.
         ValueError: If the JSON does not match the AgentReplayBundle schema.
     """
@@ -29,8 +32,7 @@ def load_replay_bundle(path: str | Path) -> AgentReplayBundle:
         raise FileNotFoundError(f"Replay bundle file not found: {path}")
 
     try:
-        with path.open(encoding="utf-8") as f:
-            payload = json.load(f)
+        payload = load_json_bounded(path)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in replay bundle file '{path}': {exc}") from exc
 

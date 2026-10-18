@@ -84,4 +84,6 @@ The embedded report does not affect the result of `validate_replay_bundle()` —
 arb validate examples/customer_service_replay_bundle.json
 ```
 
-Exit codes: `0` = valid, `1` = invalid, `2` = file/parse/model error.
+Exit codes: `0` = valid, `1` = invalid, `2` = file/parse/model error, `3` = input outside the bounds below.
+
+Input bounds: every command reads its file through one bounded reader. A file larger than 32 MiB (`MAX_INPUT_BYTES`) or nested deeper than 128 levels (`MAX_NESTING_DEPTH`) is refused before parsing with the typed error `InputBoundsError` (code `input_too_large` or `nesting_depth_exceeded`) and exit code `3`, which is distinct from the `1` of an invalid bundle.
