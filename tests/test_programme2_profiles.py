@@ -1,6 +1,6 @@
 """Programme-2 opt-in profiles: Replay accepts and retains the members of operation identity (N1), rule revision (N2) and
-freshness (N3), and (since the 3cd17ead re-capture) merge-record, reversibility and dedupe-ttl (N4, see
-test_programme2_n4_and_pairing.py) for the exact Control Plane revision 3cd17ead, refuses damaged ones with stable codes, and changes nothing with
+freshness (N3), and (since the 6093aca7 re-capture) merge-record, reversibility and dedupe-ttl (N4, see
+test_programme2_n4_and_pairing.py) for the exact Control Plane revision 6093aca7, refuses damaged ones with stable codes, and changes nothing with
 the profiles off.
 
 The valid cases are REAL run records written by the Control Plane's own flows (``tests/fixtures/programme2_profiles``, provenance
@@ -86,7 +86,7 @@ def test_profiles_the_fixtures_cover():
 
 # ---------------------------------------------------------------------------------------------------- acceptance
 def test_terminal_revocation_rows_are_accepted_and_kept_verbatim():
-    """3cd17ead: the opt-in terminal-revocation profile adds no run-record member; its rows carry the registry-0.2-only reason
+    """3cd17ead and after: the opt-in terminal-revocation profile adds no run-record member; its rows carry the registry-0.2-only reason
     ``grant_revocation_recorded`` (label 0.2) and a ``successor_grant_revision`` reopen condition. Replay accepts the real record and
     retains the decision and refusal rows whole (same retention test as every other real capture)."""
     cp = run("terminal-revocation-recorded-refused")

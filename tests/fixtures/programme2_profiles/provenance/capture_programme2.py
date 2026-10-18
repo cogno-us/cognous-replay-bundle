@@ -1,6 +1,6 @@
 """Capture real programme-2 profile-on run records for the Replay conformance fixtures.
 
-Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 3755c71a
+Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 6093aca7
 (`pip install -e .[dev]`), with this file outside the checkout:
 
     PYTHONPATH=src:. python capture_programme2.py <out-dir>

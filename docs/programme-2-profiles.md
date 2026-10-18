@@ -1,9 +1,9 @@
 # Programme-2 opt-in profiles (operation identity, rule revision, freshness, merge record, reversibility, dedupe)
 
 Replay accepts and retains the run-record members of the opt-in Control Plane profiles for one exact revision, Control Plane
-`3cd17ead6b24301290ad1e50ae4b22bbd93c12fb` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
-`11de097c450d3ad4d89f9add41b00e38e7cc2c7c` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
-`128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8); both ties are replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
+`6093aca7b945698e89c0d8ac7c75306375e1a298` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
+`62a5cc156ecb439b4103b757fd265f276bb30374` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
+`128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8) and `3cd17ead`; every earlier tie are replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
 as before; with every profile off the new generation imports a run exactly as the previous one does.
 
 | Profile | Members Replay accepts and retains |
@@ -29,7 +29,7 @@ Earlier generations still accept `/0.1` only. Replay does not check that a label
 
 ## Executor pairing
 
-The runtime `11de097c` (main after #116: atomic-route grant status monotonicity, envelope binding, strict instants, exception class names only; the earlier ties were `fc034d14` and `7170da59`, replaced not kept, and an export of either is now refused) exports the same producer contract as
+The runtime `62a5cc15` (main after #121; `11de097c` was main after #116: atomic-route grant status monotonicity, envelope binding, strict instants, exception class names only; the earlier ties were `fc034d14`, `7170da59` and `11de097c`, replaced not kept, and an export of any of them is now refused) exports the same producer contract as
 before; its export is accepted only with this Control Plane revision, and an export of any other runtime revision (`3024ef6e`,
 `4a83b175`, ...) is refused as an unsupported combination with it, and the reverse. The key itself is not in the export.
 Captured pairs: `tests/fixtures/programme2_paired` (adapter route and atomic route, default and with operation identity).
@@ -52,7 +52,7 @@ contract rule is applied: `undeclared_member` (an unknown member is refused, nev
 - It does not re-derive the producer's decisions, verify any signer, or check the ODES sidecar contracts in full. That is the
   verifier's and the ODES validators' work. Replay checks structure and the references a retained record must still satisfy.
 - It cannot tell that a profile was on: a record from which every profile member was removed is a profile-off record.
-- Only the runtime `11de097c` is paired with this generation; any other executor export is refused as an unsupported combination.
+- Only the runtime `62a5cc15` is paired with this generation; any other executor export is refused as an unsupported combination.
 - Under freshness the observation time is judged against the service clock at reconciliation (`reconciled_at`), as the producer
   does; staleness is still relative to the evaluation time.
 - A run with no decision (only extension or revision refusals) is refused as before ("resolution journal missing"), except a run
