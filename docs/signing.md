@@ -8,6 +8,10 @@ Signing a 0.1 replay bundle provides limited **export integrity**: a holder of t
 
 It is not a record that the received JSON file is unmodified. Verification first parses the file through the Pydantic models and then recomputes the HMAC over `model_dump`. Properties those models do not retain can be added to the file and are not authenticated. The outer `SignedReplayBundle` envelope is also outside the HMAC: `signed_bundle_id` and every `signature_metadata` field other than the signature value itself (`signed`, `signed_at`, `signature_algorithm`, `key_id`) can be changed without failing verification.
 
+`verify` refuses a file in which any JSON object repeats a member name (exit code 2, `Invalid JSON`); a parser would otherwise keep only the last value, so what is checked would differ from what a reader of the file sees. Loading a bundle for `validate` and the other commands keeps the parser's last-value behaviour, as before. `verify` also applies the input bounds of `docs/validation.md` (byte budget and nesting depth, exit code 3).
+
+Summary of what the HMAC covers: only the canonical form of the parsed inner `replay_bundle`. It does not cover `signed_bundle_id`, `signature_metadata` fields other than the value being checked, members the models do not retain, or the file bytes.
+
 ## Algorithm
 
 Agent Replay Bundle uses **HMAC-SHA256** with a caller-supplied secret.

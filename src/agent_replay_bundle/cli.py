@@ -10,10 +10,14 @@ from pathlib import Path
 
 def _load_bundle(path: str):
     """Load and return an AgentReplayBundle, printing errors and exiting on failure."""
+    from .ingress import EXIT_INPUT_BOUNDS, InputBoundsError
     from .loader import load_replay_bundle
 
     try:
         return load_replay_bundle(path)
+    except InputBoundsError as exc:
+        print(f"Error: {exc.code}: {exc}", file=sys.stderr)
+        sys.exit(EXIT_INPUT_BOUNDS)
     except FileNotFoundError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(2)
@@ -113,16 +117,27 @@ def cmd_verify(args: argparse.Namespace) -> int:
     """Verify the signature on a signed replay bundle."""
     from pydantic import ValidationError
 
+    from .ingress import (
+        EXIT_INPUT_BOUNDS,
+        DuplicateMemberError,
+        InputBoundsError,
+        load_json_bounded,
+    )
     from .signing import verify_signed_replay_bundle
     from .models import SignedReplayBundle
 
     try:
-        with open(args.path, encoding="utf-8") as f:
-            data = json.load(f)
+        data = load_json_bounded(args.path, reject_duplicates=True)
     except FileNotFoundError:
         print(f"Error: File not found: {args.path}", file=sys.stderr)
         sys.exit(2)
-    except json.JSONDecodeError as exc:
+    except InputBoundsError as exc:
+        print(f"Error: {exc.code}: {exc}", file=sys.stderr)
+        sys.exit(EXIT_INPUT_BOUNDS)
+    except DuplicateMemberError as exc:
+        print(f"Error: Invalid JSON: {exc}", file=sys.stderr)
+        sys.exit(2)
+    except ValueError as exc:
         print(f"Error: Invalid JSON: {exc}", file=sys.stderr)
         sys.exit(2)
 
@@ -144,6 +159,7 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
     """Validate all example bundles."""
     from pydantic import ValidationError
 
+    from .ingress import load_json_bounded
     from .loader import load_replay_bundle
     from .models import SignedReplayBundle
     from .reconstruction import ReconstructionBundle
@@ -164,9 +180,8 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
         name = json_file.name
 
         try:
-            with json_file.open(encoding="utf-8") as f:
-                raw = json.load(f)
-        except json.JSONDecodeError as exc:
+            raw = load_json_bounded(json_file)
+        except ValueError as exc:
             print(f"  FAIL             {name}: {exc}")
             all_ok = False
             continue
