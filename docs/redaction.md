@@ -4,7 +4,7 @@ This document describes how redaction works in Agent Replay Bundle.
 
 ## Purpose
 
-Redaction removes or replaces sensitive content from a bundle before sharing it externally. A redacted bundle retains enough governance-relevant structure to support audit review, incident reconstruction, and policy verification.
+Redaction replaces only the fields listed under "What can be redacted" (proposal payload, target and reason, decision, rule and blocked-action reasons, final output, and, when the options are set, task, scope and the embedded signature metadata). Other free text in `frame`, reliance and authority records and other embedded metadata is not redacted, and inherited `redacted_fields` entries are copied unchecked. A redacted bundle retains enough governance-relevant structure to support audit review, incident reconstruction, and policy verification.
 
 ## What is preserved
 
@@ -90,4 +90,4 @@ The `redacted_fields` list records the dot-path to each redacted field. Example:
 
 ## Validation of redacted bundles
 
-The validator (rule E024, E025) checks that if `redaction_metadata.redacted` is true, then `redacted_at` is present and `redacted_fields` is non-empty. Redacted bundles are expected to validate without errors.
+The validator (rule E024, E025) checks that if `redaction_metadata.redacted` is true, then `redacted_at` is present and `redacted_fields` is non-empty. A redacted bundle validates without errors unless no field was redacted (for example a bundle with no proposals, decisions or traces): the legacy helper still sets `redacted: true` with an empty `redacted_fields`, which fails E025.

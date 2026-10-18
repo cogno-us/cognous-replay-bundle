@@ -66,7 +66,7 @@ A bundle is **valid** (`report.valid = True`) when no error-severity issues are 
 | W008 | An action proposal has no `reason` |
 | W009 | A policy decision has no `trace_id` |
 | W010 | Bundle status is "complete" but `final_output` is missing |
-| W011 | An action payload contains potentially sensitive keys (email, phone, ssn, account_number, customer_id, address, token, secret, password) but `redaction_metadata` is not present |
+| W011 | An action payload contains potentially sensitive top-level keys (email, phone, ssn, account_number, customer_id, address, token, secret, password) but `redaction_metadata` is not present; nested keys are not inspected and any `redaction_metadata` suppresses the warning |
 | W012 | `signature_metadata` is missing |
 | W013 | Embedded `validation_report.checked_id` does not match `bundle_id` |
 
@@ -74,7 +74,7 @@ Complete bundles without `final_output` currently produce warning `W010`, not er
 
 ## Embedded validation report
 
-A bundle may include an embedded `validation_report`. The validator checks (W013) that `validation_report.checked_id` matches `bundle_id`. An embedded report that was generated from a different bundle version is flagged as a warning.
+A bundle may include an embedded `validation_report`. The validator checks (W013) that `validation_report.checked_id` matches `bundle_id`. W013 flags an embedded report whose `checked_id` differs from `bundle_id`; a different `bundle_version` of the same id, or different issues, is not compared.
 
 The embedded report does not affect the result of `validate_replay_bundle()` — the function always generates a fresh report.
 

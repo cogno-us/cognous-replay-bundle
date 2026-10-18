@@ -8,7 +8,7 @@ Agent Replay Bundle is a schema, validator, redaction helper, and signing helper
 
 - Defines a portable JSON format for AI-agent run evidence
 - Validates bundle consistency
-- Redacts sensitive fields from bundles
+- Replaces the listed fields of a bundle (see docs/redaction.md); other free text, scope fields and embedded signature metadata are left as they were unless the matching options are set
 - Signs bundles with HMAC-SHA256 for export integrity
 
 ## What this library does not do
@@ -20,7 +20,7 @@ Agent Replay Bundle is a schema, validator, redaction helper, and signing helper
 
 ## HMAC signing
 
-HMAC-SHA256 signing in this library is **export integrity**, not production key management. The signature verifies that a bundle has not been modified since it was signed with a given secret. It does not:
+HMAC-SHA256 signing in this library is **export integrity**, not production key management. The signature checks that the parsed inner `replay_bundle` matches what was signed with a given secret; a signature written by the current version also covers `signed_bundle_id` and the outer signature fields other than the value, while a bundle-only signature written by an earlier version leaves those envelope fields uncovered, and members the models do not retain and the file bytes are not covered (see docs/signing.md). It does not:
 
 - Provide non-repudiation
 - Authenticate the signer's identity

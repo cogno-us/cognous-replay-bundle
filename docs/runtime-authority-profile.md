@@ -9,7 +9,7 @@ Import retains each resolution journal event, purpose read, vocabulary change,
 profile binding, refusal vocabulary and read-state field as original committed
 source data. Journal validation checks opening, ownership, single closure and
 original decision/effect bindings. Each completed journal check must match a
-separately recorded resolution check by stage, inputs and reasons; journal and
+separately recorded resolution check by stage and inputs, with the journal's reasons a subset of the check's reasons (extra check reasons, order and duplicates are not compared); journal and
 resolution-check identifiers are distinct producer UUIDs, so the match is by
 content, and one resolution check can substantiate at most one completed
 journal. Open (never closed) or interrupted checks are retained as evidence of

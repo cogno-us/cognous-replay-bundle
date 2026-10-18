@@ -85,7 +85,7 @@ An `AuthorityRecord` records an authority grant in scope for the run. It capture
 - The **source** of the authority (user delegation, system policy, etc.)
 - Optional expiry
 
-Authority records enable reviewers to verify that the agent had (or lacked) the authority needed for proposed actions.
+Authority records state the authority the producer reported; the validator checks only their `run_id` and nothing binds them to decisions or proposals, so a reviewer cannot verify from them alone that the agent had (or lacked) the authority needed for proposed actions.
 
 ---
 
@@ -109,7 +109,7 @@ A `ValidationReport` is the result of running semantic validation on a bundle. I
 
 ## RedactionMetadata
 
-`RedactionMetadata` records what was redacted from a bundle, when, under what policy, and with what replacement string. It lists the field paths that were redacted. The presence of `RedactionMetadata` with `redacted: true` indicates the bundle has been processed for external review.
+`RedactionMetadata` records what was redacted from a bundle, when, under what policy, and with what replacement string. It lists the field paths that were redacted. The presence of `RedactionMetadata` with `redacted: true` records a redaction claim; it is self-asserted and does not show which content was actually removed.
 
 ---
 

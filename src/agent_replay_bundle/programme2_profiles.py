@@ -1,6 +1,6 @@
 """Programme-2 opt-in profile members of the Control Plane run record: acceptance, retention and damage refusal.
 
-Three opt-in profiles of the Control Plane (host-governed settings of ``RuntimeAuthorityProfile``) add members to the
+Six opt-in profiles of the Control Plane (host-governed settings of ``RuntimeAuthorityProfile``) add members to the
 bounded run record. With a profile off none of its members appears and nothing in this module runs. With a profile on,
 Replay accepts them only for the exact programme-2 Control Plane revision (``CONTROL_PLANE_P2_REVISION``); every earlier
 generation keeps refusing or ignoring them exactly as before.
