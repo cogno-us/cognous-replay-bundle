@@ -618,6 +618,35 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
         "legacy": False,
     }
 
+MAX_RECORD_NODES = 2_000_000
+MAX_RECORD_LIST_LENGTH = 100_000
+MAX_RECORD_DEPTH = 128
+
+
+def _check_record_bounds(value: Any) -> None:
+    """Refuse oversized or too deeply nested in-memory input (the dict API has no byte budget).
+
+    The limits are the same order as the CLI ingress bounds; the walk is iterative so deep input cannot overflow the stack.
+    """
+    nodes = 0
+    stack: list[tuple[Any, int]] = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_RECORD_NODES:
+            raise ImportContractError("input exceeds the node limit", code="input_too_large")
+        if isinstance(item, (dict, list, tuple)):
+            if depth > MAX_RECORD_DEPTH:
+                raise ImportContractError("input exceeds the nesting limit", code="input_too_deep")
+            if isinstance(item, dict):
+                children = list(item.values())
+            else:
+                if len(item) > MAX_RECORD_LIST_LENGTH:
+                    raise ImportContractError("input list exceeds the length limit", code="input_too_large")
+                children = list(item)
+            stack.extend((c, depth + 1) for c in children)
+
+
 def import_bounded_workflow(
     control_plane_record: dict[str, Any],
     *,
@@ -628,6 +657,9 @@ def import_bounded_workflow(
     """Import bounded Control Plane events and optional Moltbot destination evidence."""
     if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
+    _check_record_bounds(control_plane_record)
+    _check_record_bounds(proposal)
+    _check_record_bounds(moltbot_export)
     repaired = control_plane_revision in CONTROL_PLANE_SUPPORTED_V2_REVISIONS
     bounded_profile = {
         CONTROL_PLANE_V2_REVISION: BOUNDED_V2_PROFILE,
@@ -1534,8 +1566,31 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
         if len({row.get('started_at') for row in rows}) > 1:
             raise ImportContractError(f'Control Plane attempt {attempt_id} started_at changed between lifecycle rows',
                                       'attempt_started_at_changed')
-        if any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i)):
+        if _has_equal_rows(rows):
             raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record', 'repeated_record')
+
+
+def _freeze(value: Any) -> Any:
+    """A hashable form with the same equality as ``==`` on JSON values (dict order ignored; 1, 1.0 and True agree)."""
+    if isinstance(value, dict):
+        return frozenset((key, _freeze(item)) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _has_equal_rows(rows: list[Any]) -> bool:
+    """True when two rows are equal; one hash-set pass instead of comparing every pair."""
+    try:
+        seen: set[Any] = set()
+        for row in rows:
+            key = _freeze(row)
+            if key in seen:
+                return True
+            seen.add(key)
+        return False
+    except TypeError:  # an unhashable non-JSON scalar: fall back to the pairwise comparison
+        return any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i))
 
 
 def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
@@ -1632,8 +1687,12 @@ ROUTE_B_AUTHORITY_PROFILE = "urn:cognous:profiles:local-authority-effect:0.1.0-p
 
 
 def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[str, Any], effect: str,
-                                         decision_id: str) -> None:
-    """F-28: control_plane_evidence of a normal route-B execution (all four members, bound to the result)."""
+                                         decision_id: str, op: dict[str, Any]) -> None:
+    """F-28: control_plane_evidence of a normal route-B execution (all four members, bound to the result).
+
+    The receipt is also bound to the grant and revision of the execution envelope's operation (the same members the
+    envelope chain binds to the decision), so a receipt for another grant or revision is refused.
+    """
     if set(evidence) & ROUTE_B_EXECUTION_EVIDENCE_MEMBERS != ROUTE_B_EXECUTION_EVIDENCE_MEMBERS:
         raise ImportContractError("route B execution evidence is incomplete (profile, claim, linearized_at and "
                                   "authority_receipt are required together)")
@@ -1655,6 +1714,7 @@ def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[
     receipt = _obj(evidence["authority_receipt"], "route B authority receipt")
     for field, expected in (("attempt_id", result.get("attempt_id")), ("effect_id", effect),
                             ("decision_id", decision_id), ("claim_id", claim),
+                            ("grant_id", op.get("grant_id")), ("grant_revision", op.get("grant_revision")),
                             ("profile", ROUTE_B_AUTHORITY_PROFILE)):
         if expected is None or receipt.get(field) != expected:
             raise ImportContractError(f"route B authority receipt {field} contradicts the execution result")
@@ -1723,7 +1783,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
             # Route B (atomic local authority) normal execution: the executor names the claim and the local authority
             # receipt it linearized under. The members are descriptive evidence of the destination's own authority check;
             # they are bound to this result by identity and never establish more than the validated observation does.
-            _validate_route_b_execution_evidence(evidence, result, effect, source['execution_envelope']['decision_id'])
+            _validate_route_b_execution_evidence(evidence, result, effect, source['execution_envelope']['decision_id'], op)
             allowed |= ROUTE_B_EXECUTION_EVIDENCE_MEMBERS
         if set(evidence) - allowed:
             raise ImportContractError('unsupported typed refusal executor evidence field')

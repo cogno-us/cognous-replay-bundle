@@ -8,6 +8,24 @@ import sys
 from pathlib import Path
 
 
+def _t(value: object) -> str:
+    """Terminal-safe text: every character that is not printable (control, bidirectional, zero-width, line and
+    paragraph separators, lone surrogates) is shown as an escape, so bundle content cannot move the cursor, reorder
+    the line or forge a report line."""
+    out = []
+    for ch in str(value):
+        if ch.isprintable():
+            out.append(ch)
+        elif ord(ch) <= 0xFF:
+            out.append(f"\\x{ord(ch):02x}")
+        elif ord(ch) <= 0xFFFF:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(f"\\U{ord(ch):08x}")
+    return "".join(out)
+
+
+
 def _load_bundle(path: str):
     """Load and return an AgentReplayBundle, printing errors and exiting on failure."""
     from .ingress import EXIT_INPUT_BOUNDS, InputBoundsError
@@ -16,13 +34,13 @@ def _load_bundle(path: str):
     try:
         return load_replay_bundle(path)
     except InputBoundsError as exc:
-        print(f"Error: {exc.code}: {exc}", file=sys.stderr)
+        print(f"Error: {_t(exc.code)}: {_t(exc)}", file=sys.stderr)
         sys.exit(EXIT_INPUT_BOUNDS)
     except FileNotFoundError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"Error: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"Error: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
 
 
@@ -34,17 +52,17 @@ def cmd_validate(args: argparse.Namespace) -> int:
     report = validate_replay_bundle(bundle)
 
     status = "VALID" if report.valid else "INVALID"
-    print(f"{status}  bundle_id={bundle.bundle_id}  issues={len(report.issues)}")
+    print(f"{status}  bundle_id={_t(bundle.bundle_id)}  issues={len(report.issues)}")
 
     errors = [i for i in report.issues if i.severity.value == "error"]
     warnings = [i for i in report.issues if i.severity.value == "warning"]
 
     for issue in errors:
-        loc = f"  [{issue.path}]" if issue.path else ""
-        print(f"  ERROR   {issue.code}: {issue.message}{loc}")
+        loc = f"  [{_t(issue.path)}]" if issue.path else ""
+        print(f"  ERROR   {_t(issue.code)}: {_t(issue.message)}{loc}")
     for issue in warnings:
-        loc = f"  [{issue.path}]" if issue.path else ""
-        print(f"  WARNING {issue.code}: {issue.message}{loc}")
+        loc = f"  [{_t(issue.path)}]" if issue.path else ""
+        print(f"  WARNING {_t(issue.code)}: {_t(issue.message)}{loc}")
 
     return 0 if report.valid else 1
 
@@ -57,12 +75,12 @@ def cmd_summarize(args: argparse.Namespace) -> int:
     signed = "yes" if (bundle.signature_metadata and bundle.signature_metadata.signed) else "no"
     output_present = "present" if bundle.final_output is not None else "missing"
 
-    print(f"bundle_id:          {bundle.bundle_id}")
-    print(f"run_id:             {bundle.run_id}")
-    print(f"status:             {bundle.status.value}")
-    print(f"actor:              {bundle.frame.actor}")
-    print(f"environment:        {bundle.frame.environment}")
-    print(f"policy_version:     {bundle.frame.policy_version}")
+    print(f"bundle_id:          {_t(bundle.bundle_id)}")
+    print(f"run_id:             {_t(bundle.run_id)}")
+    print(f"status:             {_t(bundle.status.value)}")
+    print(f"actor:              {_t(bundle.frame.actor)}")
+    print(f"environment:        {_t(bundle.frame.environment)}")
+    print(f"policy_version:     {_t(bundle.frame.policy_version)}")
     print(f"action_proposals:   {len(bundle.action_proposals)}")
     print(f"policy_decisions:   {len(bundle.policy_decisions)}")
     print(f"policy_traces:      {len(bundle.policy_traces)}")
@@ -129,22 +147,22 @@ def cmd_verify(args: argparse.Namespace) -> int:
     try:
         data = load_json_bounded(args.path, reject_duplicates=True)
     except FileNotFoundError:
-        print(f"Error: File not found: {args.path}", file=sys.stderr)
+        print(f"Error: File not found: {_t(args.path)}", file=sys.stderr)
         sys.exit(2)
     except InputBoundsError as exc:
-        print(f"Error: {exc.code}: {exc}", file=sys.stderr)
+        print(f"Error: {_t(exc.code)}: {_t(exc)}", file=sys.stderr)
         sys.exit(EXIT_INPUT_BOUNDS)
     except DuplicateMemberError as exc:
-        print(f"Error: Invalid JSON: {exc}", file=sys.stderr)
+        print(f"Error: Invalid JSON: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
     except ValueError as exc:
-        print(f"Error: Invalid JSON: {exc}", file=sys.stderr)
+        print(f"Error: Invalid JSON: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
 
     try:
         signed_bundle = SignedReplayBundle.model_validate(data)
     except ValidationError as exc:
-        print(f"Error: Invalid signed bundle: {exc}", file=sys.stderr)
+        print(f"Error: Invalid signed bundle: {_t(exc)}", file=sys.stderr)
         sys.exit(2)
 
     if verify_signed_replay_bundle(signed_bundle, args.secret):
@@ -182,16 +200,16 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
         try:
             raw = load_json_bounded(json_file)
         except ValueError as exc:
-            print(f"  FAIL             {name}: {exc}")
+            print(f"  FAIL             {_t(name)}: {_t(exc)}")
             all_ok = False
             continue
 
         if raw.get("bundle_version") == "0.2.0":
             try:
                 ReconstructionBundle.model_validate(raw)
-                print(f"  OK (reconstruction) {name}")
+                print(f"  OK (reconstruction) {_t(name)}")
             except ValidationError as exc:
-                print(f"  FAIL             {name}: {exc}")
+                print(f"  FAIL             {_t(name)}: {_t(exc)}")
                 all_ok = False
             continue
 
@@ -199,28 +217,28 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
             # Load as SignedReplayBundle — structural check only
             try:
                 SignedReplayBundle.model_validate(raw)
-                print(f"  OK (structural)  {name}")
+                print(f"  OK (structural)  {_t(name)}")
             except (json.JSONDecodeError, ValidationError) as exc:
-                print(f"  FAIL             {name}: {exc}")
+                print(f"  FAIL             {_t(name)}: {_t(exc)}")
                 all_ok = False
             continue
 
         try:
             bundle = load_replay_bundle(json_file)
         except ValueError as exc:
-            print(f"  FAIL             {name}: {exc}")
+            print(f"  FAIL             {_t(name)}: {_t(exc)}")
             all_ok = False
             continue
 
         report = validate_replay_bundle(bundle)
         errors = [i for i in report.issues if i.severity.value == "error"]
         if errors:
-            print(f"  FAIL             {name}: {len(errors)} error(s)")
+            print(f"  FAIL             {_t(name)}: {len(errors)} error(s)")
             for e in errors:
-                print(f"    ERROR {e.code}: {e.message}")
+                print(f"    ERROR {_t(e.code)}: {_t(e.message)}")
             all_ok = False
         else:
-            print(f"  OK               {name}")
+            print(f"  OK               {_t(name)}")
 
     return 0 if all_ok else 1
 

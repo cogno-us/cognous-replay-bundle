@@ -625,10 +625,20 @@ def _validate_merges(cp: dict[str, Any]) -> None:
     for m in merges:
         if m["outcome"] == "merged" and "compensation_obligation_id" in m and m["merge_id"] not in owned:
             raise _error(f"merge {m['merge_id']} names an obligation that no row records", "obligation_merge_mismatch")
-    folded_of = {f for m in merges if m["outcome"] == "merged" for f in m["folded_operation_ids"]}
+    # Each folded operation maps to the survivor its merged record names; a join's merged_into must be that survivor
+    # (a fold into a different operation, or into one that no merged record names, is refused).
+    survivor_of: dict[str, set[Any]] = {}
+    for m in merges:
+        if m["outcome"] == "merged":
+            for f in m["folded_operation_ids"]:
+                survivor_of.setdefault(f, set()).add(m["survivor_operation_id"])
     for j in joins:
-        if j["merged_into"] is not None and j["operation_id"] not in folded_of:
+        if j["merged_into"] is None:
+            continue
+        if j["operation_id"] not in survivor_of:
             raise _error(f"join {j['join_id']} is merged into another operation that no merged record folds", "merged_into_unrecorded")
+        if j["merged_into"] not in survivor_of[j["operation_id"]]:
+            raise _error(f"join {j['join_id']} is merged into an operation that differs from its merged record's survivor", "merged_into_survivor_mismatch")
 
 
 def _validate_reversibility(cp: dict[str, Any]) -> None:

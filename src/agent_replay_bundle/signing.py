@@ -5,9 +5,22 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 from datetime import datetime, timezone
 
 from .models import AgentReplayBundle, SignatureMetadata, SignedReplayBundle
+
+
+_HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
+
+
+def is_hex_digest(value: object) -> bool:
+    """True only for a 64-character lowercase ASCII hex string (an HMAC-SHA256 hex digest).
+
+    ``hmac.compare_digest`` raises on a non-ASCII ``str``, so a stored signature that is not exactly this shape is
+    refused before any comparison.
+    """
+    return isinstance(value, str) and _HEX_DIGEST.fullmatch(value) is not None
 
 
 def canonical_bundle_json(bundle: AgentReplayBundle) -> str:
@@ -88,14 +101,18 @@ def verify_signed_replay_bundle(
         True if the signature is valid, False otherwise.
     """
     stored_sig = signed_bundle.signature_metadata.signature
-    if not stored_sig:
+    if not is_hex_digest(stored_sig):
         return False
 
     canonical = canonical_bundle_json(signed_bundle.replay_bundle)
+    try:
+        key = secret.encode("utf-8")
+    except UnicodeEncodeError:  # e.g. a command-line secret holding undecodable bytes: no signature can match it
+        return False
     expected = hmac.new(
-        secret.encode("utf-8"),
+        key,
         canonical.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
 
-    return hmac.compare_digest(expected, stored_sig)
+    return hmac.compare_digest(expected, stored_sig)  # both ASCII lowercase hex of equal length

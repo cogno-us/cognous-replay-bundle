@@ -163,6 +163,15 @@ def _structure_code(exc):
     return 'schema_violation'
 
 
+def _freeze(value):
+    """Hashable form with the equality of ``==`` on JSON values (object member order ignored)."""
+    if isinstance(value,dict):
+        return frozenset((k,_freeze(v)) for k,v in value.items())
+    if isinstance(value,(list,tuple)):
+        return tuple(_freeze(v) for v in value)
+    return value
+
+
 def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
@@ -236,6 +245,7 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
                 d.get('result')=='hold' and d.get('reasons')==['check_lease_unavailable'] and d.get('binding') is None for d in cp['decisions'])
             require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
             checks={};completions=[];open_at={};close_at={};terminal=set()
+            resolution_index=None;resolution_reasons=[]
             def normalize(values):
                 return [{k:v for k,v in x.items() if k not in ('previous_observed_at','extensions')} for x in values]
             for seq,raw in enumerate(cp.get('check_events',[])):
@@ -269,23 +279,48 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
                             unfinished.append(event.check_id);terminal.add(event.check_id)
                         if event.phase=='completed':
                             # Journal and resolution-check IDs are separate producer UUIDs; bind by content.
-                            candidates=[i for i,x in enumerate(cp['resolution_checks']) if x['stage']==event.stage and normalize(x['inputs'])==normalize(checks[event.check_id][2])
-                                        and set(event.reasons)<=set(x['reasons'])]
+                            if resolution_index is None:
+                                # Built once (not once per completed journal): resolution checks keyed by stage and normalized inputs.
+                                resolution_index={};resolution_reasons=[]
+                                for i,x in enumerate(cp['resolution_checks']):
+                                    resolution_index.setdefault((x['stage'],_freeze(normalize(x['inputs']))),[]).append(i)
+                                    resolution_reasons.append(set(x['reasons']))
+                            wanted=set(event.reasons)
+                            candidates=[i for i in resolution_index.get((event.stage,_freeze(normalize(checks[event.check_id][2]))),[])
+                                        if wanted<=resolution_reasons[i]]
                             require(bool(candidates),'completed journal differs from actual resolution check','journal_unbound_completion')
                             completions.append((event.check_id,candidates));close_at[event.check_id]=seq
                 if event.decision_id is not None:
                     require(event.decision_id in decisions and decisions[event.decision_id]['effect_id']==event.effect_id,'journal decision/effect lineage mismatch')
             # Each actual resolution check may substantiate at most one completed journal.
             owner={}
-            def assign(j,seen):
-                for i in completions[j][1]:
-                    if i not in seen:
+            def assign(start):
+                # Iterative augmenting-path search (no recursion, so the number of completed journals cannot exhaust the stack).
+                seen=set()
+                stack=[(start,iter(completions[start][1]))]
+                chosen=[]  # chosen[k] is the actual check frame k moved to while looking for a free one
+                while stack:
+                    j,candidates=stack[-1]
+                    descended=False
+                    for i in candidates:
+                        if i in seen:
+                            continue
                         seen.add(i)
-                        if i not in owner or assign(owner[i],seen):
-                            owner[i]=j;return True
+                        chosen.append(i)
+                        if i not in owner:
+                            for (frame_j,_),frame_i in zip(stack,chosen):
+                                owner[frame_i]=frame_j
+                            return True
+                        stack.append((owner[i],iter(completions[owner[i]][1])))
+                        descended=True
+                        break
+                    if not descended:
+                        stack.pop()
+                        if chosen:
+                            chosen.pop()
                 return False
             for j in range(len(completions)):
-                require(assign(j,set()),'completed journals reuse one actual resolution check','journal_check_reused')
+                require(assign(j),'completed journals reuse one actual resolution check','journal_check_reused')
             # Resolution checks are appended as they complete. Checks that did not overlap in the journal (one
             # completed before the other opened) must match actual checks in that order; overlapping (concurrent)
             # checks may complete in either order.
