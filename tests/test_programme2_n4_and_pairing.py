@@ -1,5 +1,5 @@
 """Programme-2 generation 3755c71a: the N4 profiles (merge-record, reversibility, dedupe-ttl), the reason registry label 0.2, and
-the executor pairing with the runtime fc034d14.
+the executor pairing with the runtime 7170da59.
 
 The valid cases are REAL run records and exports written by the Control Plane's and the runtime's own flows
 (``tests/fixtures/programme2_profiles`` for the Control Plane record, ``tests/fixtures/programme2_paired`` for record plus executor
@@ -34,7 +34,7 @@ LABEL_01, LABEL_02 = "runtime-authority-reasons/0.1", "runtime-authority-reasons
 def test_generation_is_the_new_control_plane_revision_and_the_old_one_is_not_kept():
     assert I.CONTROL_PLANE_P2_REVISION == "3755c71a20eab1a41135967b682342c809929572"
     assert I.BOUNDED_P2_PROFILE == "control-plane-programme2-profiles@3755c71a"
-    assert I.MOLTBOT_P2_REVISION == "fc034d140ce55d9887ac3a0aab598f3a2c05ea47"
+    assert I.MOLTBOT_P2_REVISION == "7170da59e04854a3dbe13f151400d0ac368b8dcb"
     with pytest.raises(ImportContractError, match="unsupported Control Plane revision"):
         import_bounded_workflow(run("default-path"), control_plane_revision="128eaa5e36fdff772fdc709581712dbeac046db3")
     provenance = json.loads((FIX / "PROVENANCE.json").read_text(encoding="utf-8"))
@@ -376,6 +376,18 @@ def test_the_new_runtime_revision_is_not_paired_with_any_earlier_control_plane()
     cp, proposal, export = paired("adapter-default")
     with pytest.raises(ImportContractError, match="unsupported executor/Control Plane revision combination"):
         pair_import(cp, proposal, export, I.CONTROL_PLANE_P4_REVISION)
+
+
+def test_the_previous_runtime_pairing_fc034d14_is_replaced_not_kept():
+    """P5: the exact pairing moved from fc034d14 to 7170da59 (the export shape is unchanged, the constant and captures moved)."""
+    old = "fc034d140ce55d9887ac3a0aab598f3a2c05ea47"
+    assert I.MOLTBOT_P2_REVISION != old and old not in vars(I).values()
+    cp, proposal, export = paired("adapter-default")
+    other = copy.deepcopy(export)
+    other["repository"]["revision"] = old
+    other["provenance"]["source_asserted"]["repository_revision"] = old
+    with pytest.raises(ImportContractError, match="unsupported Moltbot producer repository revision"):
+        pair_import(cp, proposal, other)
 
 
 def test_an_unknown_runtime_revision_is_refused():

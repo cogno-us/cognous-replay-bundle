@@ -2,9 +2,9 @@
  "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
  "producer": {
   "control_plane": "3755c71a20eab1a41135967b682342c809929572",
-  "runtime": "fc034d140ce55d9887ac3a0aab598f3a2c05ea47",
+  "runtime": "7170da59e04854a3dbe13f151400d0ac368b8dcb",
   "python": "3.13",
-  "note": "runtime main after R2 (#112, optional operation key on the atomic route); control plane main after J3 (#56)"
+  "note": "runtime main after N4 (#113, opt-in dedupe-ttl/0.1 destination; the export shape is unchanged since fc034d14, diff fc034d14..7170da59 touches control_plane_adapter.py, a new dedupe_destination.py, tests and CHANGELOG only); control plane main after J3 (#56). Re-captured by P5 with the unchanged capture script; the previous pairing fc034d14 is replaced, not kept"
  },
  "captured_on": "2026-10-18",
  "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
@@ -16,18 +16,19 @@
  },
  "atomic_record_note": "For the atomic scenarios the Control Plane run record is the one taken after the decision and before claim issuance. The Control Plane's own claim issuance (provision_local_execution_claim) opens a decision-stage journal check next to a claim-stage resolution check, and Replay refuses that record at P4 and at this generation alike (journal_check_reused); that is a finding, not changed here.",
  "sha256": {
-  "adapter-default/control_plane_run.json": "35f7ac411e81eadff0b441d299a0c38ce380523a0ac300468fdb46bcaa9f0bd6",
+  "adapter-default/control_plane_run.json": "e492ae97d88959a01dbb6decf8a20eb329deed90fdd9db88f05c500eaecaabc3",
   "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-default/executor.json": "8fdc1b4e9ff98dbee5fff2ee8b455ecbace763265b3f5e81dd4edf69a6ddd23e",
-  "adapter-operation-identity/control_plane_run.json": "3d4c7fc668064d6f0538c3f990e81cebf7182e68138ae5d95ebcbd2fab2a5849",
+  "adapter-default/executor.json": "f0ed0a8a91e21b939a0ac662823bd2c361ba3c8583d481ed1aa5382d75a876f8",
+  "adapter-operation-identity/control_plane_run.json": "82c8792d3660e61d1514d6cfa8b49db757327414533810f90e126a2d4145dfc5",
   "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-operation-identity/executor.json": "decb4df93c692221956e1e18bc9216daef5e8729e50720b9eb81c646d71741e3",
-  "atomic-default/control_plane_run.json": "d7a5d71eb1793d6e3f8333c479269cf300a0f413916806f48354af85da097d61",
+  "adapter-operation-identity/executor.json": "6288ca1e22aa24d9e9ac538968281785a8f701d8ceb59e8f67e3444a065a97d5",
+  "atomic-default/control_plane_run.json": "1cf98af87eb52edc8d000e6f24c5bffe263d1c0978a64a5b7be4b3afab7618c8",
   "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-default/executor.json": "3d7f87c5db442a438b6b7d1a71523d16a3d5eddd41f657b867f23acc44ba1b88",
-  "atomic-operation-key/control_plane_run.json": "9e071c82ae4411729627b19f1c59baa2a9dd2872e8c9118fb96d392ba8b08829",
+  "atomic-default/executor.json": "04bbbd22d1f0460445d42aa82fe2c01acca4f10cef32b1eb2eb41c89133b27d6",
+  "atomic-operation-key/control_plane_run.json": "9188fd6bf661845ffe044b7ea2198dd64dcce9a0074b77034a744b9587a8662a",
   "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-operation-key/executor.json": "fa08d6e4eca8e73218581ba07ce92255678c8ac64fc98debd7ea1d7e39e7f33a"
+  "atomic-operation-key/executor.json": "28427c88244bb54378bbc854d004a6a1ab1fe720b5d7705083b7dfb20c119bdc"
  },
- "script_sha256": "fea80e0de98af6d8e89b3c6ab98cdff0dff03df73cf1cff77fe546eb7f7eff6e"
+ "script_sha256": "72b3b2a6f86da3e03654dd68eb95d976264eec2a9735c0ebdf57ed3e35b0815e",
+ "script_note": "capture_paired.py code unchanged since the fc034d14 capture; only its docstring revision text moved"
 }
