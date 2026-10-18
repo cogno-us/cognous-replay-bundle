@@ -124,6 +124,7 @@ class P2Refusal(AuthorityRefusal):
     """Programme-2: an effect-time refusal also names its journal check (operation identity), the evaluation time and the
     deadline it was refused past (freshness), and the rule identity it was decided under (rule revision)."""
     resolution_inputs: list[P2Input]
+    reason_vocabulary_version: Literal['runtime-authority-reasons/0.1','runtime-authority-reasons/0.2']
     check_id: str | None = None
     evaluated_at: str | None = None
     deadline: str | None = None
@@ -138,6 +139,7 @@ class P2Check(AuthorityCheck):
 class P2Event(JournalEvent):
     phase: Literal['opened','input','completed','interrupted','overdue','expired']
     input: P2Input | None
+    reason_vocabulary_version: Literal['runtime-authority-reasons/0.1','runtime-authority-reasons/0.2']
     evaluated_at: str | None = None
     deadline: str | None = None
     age_bound_seconds: int | None = None
@@ -296,7 +298,8 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
             # Opened-only and interrupted checks are retained as evidence of incompletion.
             unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:
-                require(d.get('reason_vocabulary_version')=='runtime-authority-reasons/0.1','decision vocabulary missing')
+                accepted_labels=('runtime-authority-reasons/0.1','runtime-authority-reasons/0.2') if profiles else ('runtime-authority-reasons/0.1',)
+                require(d.get('reason_vocabulary_version') in accepted_labels,'decision vocabulary missing')
                 binding=d.get('binding') or {}
                 if binding:
                     authority=binding.get('runtime_authority')

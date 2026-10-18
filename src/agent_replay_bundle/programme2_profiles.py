@@ -12,9 +12,20 @@ generation keeps refusing or ignoring them exactly as before.
 * freshness ``freshness/0.1`` (N3): the lists ``age_extensions``, ``age_extension_refusals``, ``recovery_runs``, the three
   clocks (``evaluated_at``/``recorded_at``) on decisions, attempts, refusals and resolution checks, ``deadline``,
   ``age_bound_seconds``, ``extension_id``, ``nonce`` and the phases ``overdue``/``expired`` on journal events,
-  ``age_basis`` on inputs.
+  ``age_basis`` on inputs;
+* merge record ``merge-record/0.1`` (N4): the lists ``merge_records``, ``compensation_obligations`` and ``merged_into`` on attempt
+  joins (the folded operation of a merge dispatches under the survivor's id);
+* reversibility ``reversibility/0.1`` (N4): the list ``snapshot_uses`` (a cached purpose snapshot used, or refused, during an
+  outage) and the action-class member ``x-reversibility`` (free-form action class members are retained as written);
+* dedupe ``dedupe-ttl/0.1`` (N4): the list ``dedupe_escalations`` and an attempt left ``unknown`` with ``error``
+  ``destination_in_progress``.
 
-The shapes were read from the producer's real output (control plane ``128eaa5e``) and the ODES contracts
+The decision, refusal, check and journal rows of a run that used any code only the reason registry label
+``runtime-authority-reasons/0.2`` registers carry that label instead of ``/0.1`` (the Control Plane stamps a row with 0.2 only for
+such a code; 0.2 is a superset of 0.1). Replay accepts exactly those two labels for the programme-2 revision and does not check the
+label against the codes (that is the verifier's job); any other label is refused as ``unknown_enum_value``.
+
+The shapes were read from the producer's real output (control plane ``3755c71a``) and the ODES contracts
 ``operation-identity``, ``rule-revision`` and ``freshness-clocks`` (``0.1.0-draft``, not frozen); where they differ the
 producer's output wins.
 
@@ -34,6 +45,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
+REASON_LABELS = ("runtime-authority-reasons/0.1", "runtime-authority-reasons/0.2")
+
 PROFILE_LISTS = {
     "operations": "operation",
     "operation_renewals": "operation_renewal",
@@ -43,6 +56,10 @@ PROFILE_LISTS = {
     "age_extensions": "age_extension",
     "age_extension_refusals": "age_extension_refusal",
     "recovery_runs": "recovery_run",
+    "merge_records": "merge_record",
+    "compensation_obligations": "compensation_obligation",
+    "snapshot_uses": "snapshot_use",
+    "dedupe_escalations": "dedupe_escalation",
 }
 
 # Members a profile adds to rows Replay already knows (allowed only for the programme-2 revision).
@@ -54,7 +71,9 @@ EXPIRED = "check_expired_before_dispatch"
 OVERDUE = "check_overdue"
 PHASES = frozenset({"opened", "input", "completed", "interrupted", "overdue", "expired"})
 
-# Row specs: member -> (kind, required). Kinds: str, str?, int, time, list, dict, ('enum', values), ('enum?', values), any.
+_RULE_STATES = ("adopted", "unknown")
+_VERIFIED = ("none", "revision_row_present", "signer_independent_and_configured", "digest_matches_signed_revision")
+# Row specs: member -> (kind, required). Kinds: str, str?, int, num, bool, time, time?, list, dict, ('enum', values), ('enum?', values), any.
 _OPERATION = {"operation_id": ("str", 1), "principal_id": ("str", 1), "authority_domain": ("str", 1), "issuer": ("str", 1),
               "grant_id": ("str", 1), "first_grant_revision": ("str", 1), "admitted_at": ("time", 1), "evaluated_at": ("time", 0)}
 _RENEWAL = {"renewal_id": ("str", 1), "operation_id": ("str", 1), "grant_id": ("str?", 1), "from_revision": ("str?", 1),
@@ -81,11 +100,34 @@ _EXTENSION_REFUSAL = {"refusal_id": ("str", 1), "extension": ("dict", 1), "reaso
 _RECOVERY_RUN = {"run_id": ("str", 1), "trigger": (("enum", ("startup", "interval", "manual")), 1), "recorded_at": ("time", 1),
                  "interrupted": ("list", 1), "overdue": ("list", 1), "open_count": ("int", 1),
                  "oldest_open_age_seconds": ("num?", 1)}
+_MERGE_OUTCOMES = ("merged", "held", "unknown", "refused")
+_MERGE = {"merge_id": ("str", 1), "survivor_operation_id": ("str", 1), "folded_operation_ids": ("list", 1),
+          "equivalence_rule_ref": ("str", 1), "equivalence_rule_digest": ("str", 1),
+          "rule_state": (("enum", _RULE_STATES), 1), "rule_verified_through": (("enum", _VERIFIED), 1), "rule_findings": ("list", 1),
+          "merged_by": ("str", 1), "authority_ref": ("str?", 1), "reason": ("str", 1),
+          "outcome": (("enum", _MERGE_OUTCOMES), 1), "reasons": ("list", 1), "compensation_obligation_id": ("str", 0),
+          "recorded_at": ("time", 1), "evaluated_at": ("time", 0)}
+_OBLIGATION = {"obligation_id": ("str", 1), "merge_id": ("str", 1), "survivor_operation_id": ("str", 1), "operation_ids": ("list", 1),
+               "effect_ids": ("list", 1), "effect_ids_by_operation": ("dict", 1), "unresolved_effect_ids": ("list", 1),
+               "status": (("enum", ("recorded",)), 1), "execution": (("enum", ("not_executed",)), 1),
+               "recorded_at": ("time", 1), "evaluated_at": ("time", 0)}
+_SNAPSHOT_USE = {"use_id": ("str", 1), "class_id": ("str", 1), "purpose_ref": ("str", 1), "check_id": ("str", 0),
+                 "basis": (("enum", ("live_read", "cached_snapshot", "strict_default")), 1),
+                 "effective_status": (("enum", ("open", "closed")), 1), "accepted": ("bool", 1),
+                 "reversibility": (("enum", ("irreversible", "reversible_until", "reversible_at_cost")), 1),
+                 "epoch": ("str?", 1), "snapshot_status": ("str?", 1), "snapshot_observed_at": ("time?", 1),
+                 "age_seconds": ("num?", 1), "age_bound_seconds": ("int", 1), "extension_id": ("str", 0),
+                 "age_basis": (("enum", ("source_asserted",)), 1), "reasons": ("list", 1), "recorded_at": ("time", 1),
+                 "evaluated_at": ("time", 1)}
+_ESCALATION = {"escalation_id": ("str", 1), "effect_id": ("str", 1), "operation_id": ("str?", 1),
+               "mode": (("enum", ("none", "destination_ttl")), 1), "in_progress": ("bool", 1), "first_attempt_at": ("time", 1),
+               "provider_horizon_at": ("time", 1), "escalation_deadline_at": ("time", 1), "key_expires_at": ("time", 1),
+               "same_key_safe_until": ("time?", 1), "fired_at": ("time", 1), "fired_inside_key_ttl": ("bool", 1),
+               "reasons": ("list", 1), "recorded_at": ("time", 1), "evaluated_at": ("time", 0)}
 SPECS = {"operations": _OPERATION, "operation_renewals": _RENEWAL, "attempt_joins": _JOIN, "rule_revisions": _REVISION,
          "rule_revision_refusals": _REVISION_REFUSAL, "age_extensions": _EXTENSION, "age_extension_refusals": _EXTENSION_REFUSAL,
-         "recovery_runs": _RECOVERY_RUN}
-_RULE_STATES = ("adopted", "unknown")
-_VERIFIED = ("none", "revision_row_present", "signer_independent_and_configured", "digest_matches_signed_revision")
+         "recovery_runs": _RECOVERY_RUN, "merge_records": _MERGE, "compensation_obligations": _OBLIGATION,
+         "snapshot_uses": _SNAPSHOT_USE, "dedupe_escalations": _ESCALATION}
 _FINDINGS = ("no_signed_revision", "unsigned_revision_row", "self_signed_revision_row", "signer_not_configured",
              "digest_mismatch_with_adopted", "observed_digest_absent")
 _EXTENSION_REFUSAL_REASONS = ("age_extension_unsigned", "age_extension_self_signed", "age_extension_signer_not_configured",
@@ -120,7 +162,7 @@ def _check_kind(value: Any, kind: Any, label: str) -> None:
         return
     base = kind.rstrip("?")
     ok = {"str": isinstance(value, str) and bool(value), "int": type(value) is int and value >= 0,
-          "num": type(value) in (int, float) and value >= 0, "list": isinstance(value, list), "dict": isinstance(value, dict),
+          "num": type(value) in (int, float) and value >= 0, "bool": type(value) is bool, "list": isinstance(value, list), "dict": isinstance(value, dict),
           "time": isinstance(value, str)}[base]
     if not ok:
         raise _error(f"{label} has the wrong type or range", "schema_violation")
@@ -228,6 +270,12 @@ def active_profiles(cp: dict[str, Any]) -> set[str]:
             or any(isinstance(e, dict) and (set(markers) & set(e) or e.get("phase") in ("overdue", "expired")) for e in events) \
             or any(isinstance(r, dict) and ("deadline" in r or "evaluated_at" in r) for r in refusals):
         found.add("freshness/0.1")
+    if any(cp.get(f) for f in ("merge_records", "compensation_obligations")):
+        found.add("merge-record/0.1")
+    if cp.get("snapshot_uses"):
+        found.add("reversibility/0.1")
+    if cp.get("dedupe_escalations"):
+        found.add("dedupe-ttl/0.1")
     return found
 
 
@@ -526,6 +574,112 @@ def _validate_freshness(cp: dict[str, Any]) -> None:
                 raise _error("an input with read_state nonce_mismatch is recorded as nonce_bound", "nonce_mismatch_basis")
 
 
+def _validate_merges(cp: dict[str, Any]) -> None:
+    merges, obligations, joins = _rows(cp, "merge_records"), _rows(cp, "compensation_obligations"), _rows(cp, "attempt_joins")
+    _unique(merges, "merge_id", "duplicate_merge_id", "merge record")
+    _unique(obligations, "obligation_id", "duplicate_obligation_id", "compensation obligation")
+    ledger = {o["operation_id"] for o in _rows(cp, "operations")}
+    effects = {a["effect_id"] for a in _rows(cp, "attempts")}
+    by_id = {m["merge_id"]: m for m in merges}
+    for m in merges:
+        label = f"merge {m['merge_id']}"
+        folded = m["folded_operation_ids"]
+        if not folded or not all(isinstance(x, str) and x for x in folded) or len(set(folded)) != len(folded):
+            raise _error(f"{label} folded_operation_ids must be distinct non-empty operation ids", "merge_operation_ids_invalid")
+        if m["survivor_operation_id"] in folded:
+            raise _error(f"{label} folds its own survivor", "merge_operation_ids_invalid")
+        for finding in m["rule_findings"]:
+            _check_kind(finding, ("enum", _FINDINGS), label + ".rule_findings")
+        if instant(m["recorded_at"], label) < instant(m.get("evaluated_at", m["recorded_at"]), label):
+            raise _error(f"{label} recorded before it was evaluated", "recorded_before_evaluated")
+        if not all(isinstance(x, str) and x for x in m["reasons"]):
+            raise _error(f"{label} reasons must be non-empty strings", "schema_violation")
+        if (m["outcome"] == "merged") != (not m["reasons"]):
+            raise _error(f"{label} outcome {m['outcome']!r} and its reasons disagree (only a merged record has none)", "merge_outcome_reasons_inconsistent")
+        if m["outcome"] == "merged":
+            if m["rule_state"] != "adopted":
+                raise _error(f"{label} is merged under a rule that is not adopted", "merge_rule_not_adopted")
+            if ledger and ({m["survivor_operation_id"], *folded} - ledger):
+                raise _error(f"{label} merges an operation that no ledger row admits", "merge_operation_not_admitted")
+        elif "compensation_obligation_id" in m:
+            raise _error(f"{label} carries an obligation but its outcome is {m['outcome']!r}", "merge_obligation_without_merge")
+    owned = {}
+    for o in obligations:
+        label = f"obligation {o['obligation_id']}"
+        m = by_id.get(o["merge_id"])
+        if m is None or m["outcome"] != "merged" or m.get("compensation_obligation_id") != o["obligation_id"]:
+            raise _error(f"{label} names no merged merge record that names it back", "obligation_merge_mismatch")
+        if o["survivor_operation_id"] != m["survivor_operation_id"] or set(o["operation_ids"]) != {m["survivor_operation_id"], *m["folded_operation_ids"]}:
+            raise _error(f"{label} operations differ from its merge's", "obligation_merge_mismatch")
+        owned[o["merge_id"]] = o
+        per = o["effect_ids_by_operation"]
+        listed = [e for v in per.values() if isinstance(v, list) for e in v]
+        if set(per) - set(o["operation_ids"]) or not all(isinstance(v, list) for v in per.values()) or sorted(listed) != sorted(o["effect_ids"]):
+            raise _error(f"{label} effect ids and their per-operation listing disagree", "obligation_effects_inconsistent")
+        if set(o["effect_ids"]) - effects or set(o["unresolved_effect_ids"]) - effects:
+            raise _error(f"{label} names an effect that no attempt row has", "obligation_effect_unknown")
+        if len(o["effect_ids"]) < 2:
+            raise _error(f"{label} lists fewer than two applied effects (a merge before the second effect leaves none)", "obligation_without_two_effects")
+        if o["status"] != "recorded" or o["execution"] != "not_executed":
+            raise _error(f"{label} claims execution (record only)", "obligation_executed")
+    for m in merges:
+        if m["outcome"] == "merged" and "compensation_obligation_id" in m and m["merge_id"] not in owned:
+            raise _error(f"merge {m['merge_id']} names an obligation that no row records", "obligation_merge_mismatch")
+    folded_of = {f for m in merges if m["outcome"] == "merged" for f in m["folded_operation_ids"]}
+    for j in joins:
+        if j["merged_into"] is not None and j["operation_id"] not in folded_of:
+            raise _error(f"join {j['join_id']} is merged into another operation that no merged record folds", "merged_into_unrecorded")
+
+
+def _validate_reversibility(cp: dict[str, Any]) -> None:
+    uses = _rows(cp, "snapshot_uses")
+    _unique(uses, "use_id", "duplicate_snapshot_use_id", "snapshot use")
+    opened = {e["check_id"] for e in _rows(cp, "check_events") if e.get("phase") == "opened"}
+    for u in uses:
+        label = f"snapshot use {u['use_id']}"
+        if not all(isinstance(x, str) and x for x in u["reasons"]):
+            raise _error(f"{label} reasons must be non-empty strings", "schema_violation")
+        if instant(u["recorded_at"], label) < instant(u["evaluated_at"], label):
+            raise _error(f"{label} recorded before it was evaluated", "recorded_before_evaluated")
+        if u["accepted"]:
+            if u["basis"] != "cached_snapshot" or u["effective_status"] != "open" or u["reasons"]:
+                raise _error(f"{label} is accepted but is not an open cached snapshot without reasons", "snapshot_use_inconsistent")
+            if u["reversibility"] == "irreversible":
+                raise _error(f"{label} accepts a cached snapshot for an irreversible class", "snapshot_use_irreversible_accepted")
+            if u["age_seconds"] is None or u["snapshot_observed_at"] is None or u["age_seconds"] > u["age_bound_seconds"]:
+                raise _error(f"{label} is accepted without an age inside its bound", "snapshot_use_age_inconsistent")
+        elif u["effective_status"] != "closed" or not u["reasons"]:
+            raise _error(f"{label} is refused but is not closed with reasons", "snapshot_use_inconsistent")
+        if u.get("check_id") is not None and u["check_id"] not in opened:
+            raise _error(f"{label} names no opened journal check", "snapshot_use_check_missing")
+
+
+def _validate_dedupe(cp: dict[str, Any]) -> None:
+    rows = _rows(cp, "dedupe_escalations")
+    _unique(rows, "escalation_id", "duplicate_escalation_id", "dedupe escalation")
+    _unique(rows, "effect_id", "duplicate_escalation_for_effect", "escalation for effect")
+    effects = {a["effect_id"] for a in _rows(cp, "attempts")}
+    for e in rows:
+        label = f"escalation {e['escalation_id']}"
+        if e["effect_id"] not in effects:
+            raise _error(f"{label} names an effect that no attempt row has", "escalation_effect_unknown")
+        first, horizon, deadline, expires, fired = (instant(e[k], label) for k in (
+            "first_attempt_at", "provider_horizon_at", "escalation_deadline_at", "key_expires_at", "fired_at"))
+        if not (first <= horizon <= deadline < expires):
+            raise _error(f"{label} horizon, deadline and key expiry are not ordered first <= horizon <= deadline < expiry",
+                         "escalation_not_inside_key_ttl")
+        if fired < deadline:
+            raise _error(f"{label} fired before its deadline", "escalation_before_deadline")
+        inside = fired < expires
+        if e["fired_inside_key_ttl"] != inside:
+            raise _error(f"{label} fired_inside_key_ttl disagrees with its times", "escalation_flag_mismatch")
+        if e["reasons"] != ["attempt_unresolved_past_horizon"] + ([] if inside else ["escalation_after_key_ttl"]):
+            raise _error(f"{label} reasons disagree with its timing", "escalation_reasons_mismatch")
+        safe = e["same_key_safe_until"]
+        if (e["mode"] == "destination_ttl") != (safe is not None) or (safe is not None and instant(safe, label) != expires):
+            raise _error(f"{label} same_key_safe_until disagrees with its mode", "escalation_same_key_mismatch")
+
+
 def validate_cross_rows(cp: dict[str, Any]) -> set[str]:
     """Refuse a damaged profile-on record; returns the active profiles (empty set: nothing to check)."""
     profiles = active_profiles(cp)
@@ -536,4 +690,10 @@ def validate_cross_rows(cp: dict[str, Any]) -> set[str]:
         _validate_rules(cp)
     if "freshness/0.1" in profiles:
         _validate_freshness(cp)
+    if "merge-record/0.1" in profiles:
+        _validate_merges(cp)
+    if "reversibility/0.1" in profiles:
+        _validate_reversibility(cp)
+    if "dedupe-ttl/0.1" in profiles:
+        _validate_dedupe(cp)
     return profiles

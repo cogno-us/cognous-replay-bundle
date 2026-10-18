@@ -1,5 +1,6 @@
 """Programme-2 opt-in profiles: Replay accepts and retains the members of operation identity (N1), rule revision (N2) and
-freshness (N3) for the exact Control Plane revision 128eaa5e, refuses damaged ones with stable codes, and changes nothing with
+freshness (N3), and (since the 3755c71a re-capture) merge-record, reversibility and dedupe-ttl (N4, see
+test_programme2_n4_and_pairing.py) for the exact Control Plane revision 3755c71a, refuses damaged ones with stable codes, and changes nothing with
 the profiles off.
 
 The valid cases are REAL run records written by the Control Plane's own flows (``tests/fixtures/programme2_profiles``, provenance
@@ -30,6 +31,7 @@ P2 = CONTROL_PLANE_P2_REVISION
 SCENARIOS = sorted(p.stem for p in FIX.glob("*.json") if p.name != "PROVENANCE.json")
 
 OP, RULES, FRESH = "operation-identity/0.1", "rule-revision/0.1", "freshness/0.1"
+MERGE, REVERSIBLE, DEDUPE = "merge-record/0.1", "reversibility/0.1", "dedupe-ttl/0.1"
 
 
 def load(name):
@@ -75,7 +77,7 @@ def test_fixtures_are_unchanged_real_captures():
 
 def test_profiles_the_fixtures_cover():
     covered = {p for s in SCENARIOS for p in load(s)[1]}
-    assert covered == {OP, RULES, FRESH}
+    assert covered == {OP, RULES, FRESH, MERGE, REVERSIBLE, DEDUPE}
     assert any(set(load(s)[1]) == {OP, RULES, FRESH} for s in SCENARIOS), "a run with all three profiles on is captured"
     members = {f for s in SCENARIOS for f in PROFILE_LISTS if run(s).get(f)}
     assert members == set(PROFILE_LISTS), "every profile list appears in at least one real record"

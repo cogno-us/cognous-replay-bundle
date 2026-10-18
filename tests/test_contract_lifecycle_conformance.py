@@ -1094,7 +1094,7 @@ def test_captured_exports_satisfy_the_new_result_rules():
             assert not result["attempted"] and result["attempt_id"] is None, path
         if result["status"] == "executed":
             assert result["observation"], path
-    assert seen == 5
+    assert seen == 9  # five earlier captures plus the four programme-2 paired captures (tests/fixtures/programme2_paired)
 
 
 # ---- extensions on journal events/inputs, checks/check inputs and Control Plane attempt rows (decision 16) ----

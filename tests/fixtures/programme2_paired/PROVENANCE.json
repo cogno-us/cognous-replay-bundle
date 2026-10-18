@@ -1,0 +1,33 @@
+{
+ "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
+ "producer": {
+  "control_plane": "3755c71a20eab1a41135967b682342c809929572",
+  "runtime": "fc034d140ce55d9887ac3a0aab598f3a2c05ea47",
+  "python": "3.13",
+  "note": "runtime main after R2 (#112, optional operation key on the atomic route); control plane main after J3 (#56)"
+ },
+ "captured_on": "2026-10-18",
+ "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
+ "scenarios": {
+  "adapter-default": "PinnedControlPlaneExecutor, profiles off",
+  "adapter-operation-identity": "PinnedControlPlaneExecutor, operation-identity/0.1 on, OperationIdentityEffectiveGrantDestination",
+  "atomic-default": "AtomicLocalControlPlaneExecutor, no operation key (default)",
+  "atomic-operation-key": "AtomicLocalControlPlaneExecutor(operation_identity=True) with OperationIdentityAtomicAuthorityEffectDestination (one operation key row verified at the destination)"
+ },
+ "atomic_record_note": "For the atomic scenarios the Control Plane run record is the one taken after the decision and before claim issuance. The Control Plane's own claim issuance (provision_local_execution_claim) opens a decision-stage journal check next to a claim-stage resolution check, and Replay refuses that record at P4 and at this generation alike (journal_check_reused); that is a finding, not changed here.",
+ "sha256": {
+  "adapter-default/control_plane_run.json": "35f7ac411e81eadff0b441d299a0c38ce380523a0ac300468fdb46bcaa9f0bd6",
+  "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+  "adapter-default/executor.json": "8fdc1b4e9ff98dbee5fff2ee8b455ecbace763265b3f5e81dd4edf69a6ddd23e",
+  "adapter-operation-identity/control_plane_run.json": "3d4c7fc668064d6f0538c3f990e81cebf7182e68138ae5d95ebcbd2fab2a5849",
+  "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+  "adapter-operation-identity/executor.json": "decb4df93c692221956e1e18bc9216daef5e8729e50720b9eb81c646d71741e3",
+  "atomic-default/control_plane_run.json": "d7a5d71eb1793d6e3f8333c479269cf300a0f413916806f48354af85da097d61",
+  "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+  "atomic-default/executor.json": "3d7f87c5db442a438b6b7d1a71523d16a3d5eddd41f657b867f23acc44ba1b88",
+  "atomic-operation-key/control_plane_run.json": "9e071c82ae4411729627b19f1c59baa2a9dd2872e8c9118fb96d392ba8b08829",
+  "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+  "atomic-operation-key/executor.json": "fa08d6e4eca8e73218581ba07ce92255678c8ac64fc98debd7ea1d7e39e7f33a"
+ },
+ "script_sha256": "fea80e0de98af6d8e89b3c6ab98cdff0dff03df73cf1cff77fe546eb7f7eff6e"
+}
