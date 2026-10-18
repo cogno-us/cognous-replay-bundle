@@ -1,9 +1,9 @@
 # Programme-2 opt-in profiles (operation identity, rule revision, freshness, merge record, reversibility, dedupe)
 
-Replay accepts and retains the run-record members of six opt-in Control Plane profiles for one exact revision, Control Plane
-`3755c71a20eab1a41135967b682342c809929572` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
-`7170da59e04854a3dbe13f151400d0ac368b8dcb` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
-`128eaa5e` (Replay 8e32975d); that tie is replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
+Replay accepts and retains the run-record members of the opt-in Control Plane profiles for one exact revision, Control Plane
+`3cd17ead6b24301290ad1e50ae4b22bbd93c12fb` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
+`11de097c450d3ad4d89f9add41b00e38e7cc2c7c` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
+`128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8); both ties are replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
 as before; with every profile off the new generation imports a run exactly as the previous one does.
 
 | Profile | Members Replay accepts and retains |
@@ -14,6 +14,7 @@ as before; with every profile off the new generation imports a run exactly as th
 | `merge-record/0.1` (N4) | lists `merge_records`, `compensation_obligations` (record types `merge_record`, `compensation_obligation`); `merged_into` on attempt joins |
 | `reversibility/0.1` (N4) | list `snapshot_uses` (record type `snapshot_use`); the action-class member `x-reversibility` travels inside the retained journal rows as written |
 | `dedupe-ttl/0.1` (N4) | list `dedupe_escalations` (record type `dedupe_escalation`); an attempt `unknown` with error `destination_in_progress` |
+| `terminal-revocation/0.1` | no member of its own: its rows are an ordinary decision or refusal whose reason is `grant_revocation_recorded` (registry label 0.2 only) with a `successor_grant_revision` reopen condition, retained verbatim |
 
 Members inside rows Replay already retained (decisions, attempts, refusals, resolution checks, journal events) stay in the retained
 row verbatim. The lists become records, in source order after the existing evidence records, and `extend_retained_inputs`
@@ -28,7 +29,7 @@ Earlier generations still accept `/0.1` only. Replay does not check that a label
 
 ## Executor pairing
 
-The runtime `7170da59` (main after #113, the opt-in `dedupe-ttl/0.1` destination; the earlier tie was `fc034d14`, replaced not kept, and an export of `fc034d14` is now refused) exports the same producer contract as
+The runtime `11de097c` (main after #116: atomic-route grant status monotonicity, envelope binding, strict instants, exception class names only; the earlier ties were `fc034d14` and `7170da59`, replaced not kept, and an export of either is now refused) exports the same producer contract as
 before; its export is accepted only with this Control Plane revision, and an export of any other runtime revision (`3024ef6e`,
 `4a83b175`, ...) is refused as an unsupported combination with it, and the reverse. The key itself is not in the export.
 Captured pairs: `tests/fixtures/programme2_paired` (adapter route and atomic route, default and with operation identity).
@@ -51,7 +52,7 @@ contract rule is applied: `undeclared_member` (an unknown member is refused, nev
 - It does not re-derive the producer's decisions, verify any signer, or check the ODES sidecar contracts in full. That is the
   verifier's and the ODES validators' work. Replay checks structure and the references a retained record must still satisfy.
 - It cannot tell that a profile was on: a record from which every profile member was removed is a profile-off record.
-- Only the runtime `7170da59` is paired with this generation; any other executor export is refused as an unsupported combination.
+- Only the runtime `11de097c` is paired with this generation; any other executor export is refused as an unsupported combination.
 - Under freshness the observation time is judged against the service clock at reconciliation (`reconciled_at`), as the producer
   does; staleness is still relative to the evaluation time.
 - A run with no decision (only extension or revision refusals) is refused as before ("resolution journal missing"), except a run

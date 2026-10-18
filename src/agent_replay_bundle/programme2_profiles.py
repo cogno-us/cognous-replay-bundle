@@ -25,7 +25,7 @@ The decision, refusal, check and journal rows of a run that used any code only t
 such a code; 0.2 is a superset of 0.1). Replay accepts exactly those two labels for the programme-2 revision and does not check the
 label against the codes (that is the verifier's job); any other label is refused as ``unknown_enum_value``.
 
-The shapes were read from the producer's real output (control plane ``3755c71a``) and the ODES contracts
+The shapes were read from the producer's real output (control plane ``3cd17ead``) and the ODES contracts
 ``operation-identity``, ``rule-revision`` and ``freshness-clocks`` (``0.1.0-draft``, not frozen); where they differ the
 producer's output wins.
 

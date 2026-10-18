@@ -1,6 +1,6 @@
-"""Capture real programme-2 N4 profile-on run records (merge-record/0.1, reversibility/0.1, dedupe-ttl/0.1) for the Replay fixtures.
+"""Capture real programme-2 N4 profile-on run records (merge-record/0.1, reversibility/0.1, dedupe-ttl/0.1, terminal-revocation/0.1) for the Replay fixtures.
 
-Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 3755c71a
+Not a test and not vendored into the package. Run from a checkout of cogno-us/cognous-control-plane at 3cd17ead
 (`pip install -e .[dev]`), with this file outside the checkout:
 
     PYTHONPATH=src:. python capture_n4.py <out-dir>
@@ -26,6 +26,7 @@ bounded._now = lambda: NOW
 import tests.test_merge_record as tm
 import tests.test_reversibility as tr
 import tests.test_dedupe as td
+import tests.test_terminal_revocation as tt
 from tests.test_operation_identity import OPERATION, renew
 from tests.test_bounded_authorization import ISSUER
 
@@ -115,12 +116,24 @@ def reversibility_irreversible_refused():
     save("reversibility-irreversible-class-refused", f, ["reversibility/0.1"])
 
 
+def terminal_revocation_recorded():
+    p, r, f = tt.flow(tmp(), enabled=True)
+    d = tt._refused_once_then_status_back(f, p, r, "revoked")
+    try:
+        f.execute(p, d, adapter_id=p.adapter_id, now=NOW)
+    except PermissionError:
+        pass
+    f.decide(p, now=NOW)
+    save("terminal-revocation-recorded-refused", f, ["terminal-revocation/0.1"])
+
+
 def dedupe_escalation():
     mp = pytest.MonkeyPatch()
     p, r, f, c = td.flow(tmp(), mp, destination=lambda path: td.SilentDestination(path, capability=True))
     d = f.decide(p, now=NOW)
     td.go(f, p, d)
-    f.escalation_pass(now=td.at(300))
+    # 301 s, not 300: the escalation deadline is inclusive since control plane 3cd17ead (ODES time semantics section 3), due only after it.
+    f.escalation_pass(now=td.at(301))
     save("dedupe-unknown-attempt-escalated", f, ["operation-identity/0.1", "dedupe-ttl/0.1"])
 
 
@@ -149,6 +162,6 @@ def dedupe_expired_key():
     save("dedupe-expired-key-not-fresh", f, ["operation-identity/0.1", "dedupe-ttl/0.1"])
 
 
-for fn in (merge_before_second_effect, merge_folded_dispatches_under_survivor, merge_after_both_applied, merge_held_and_unknown, reversibility_cached_accepted,
+for fn in (terminal_revocation_recorded, merge_before_second_effect, merge_folded_dispatches_under_survivor, merge_after_both_applied, merge_held_and_unknown, reversibility_cached_accepted,
            reversibility_cached_refused, reversibility_irreversible_refused, dedupe_escalation, dedupe_in_progress, dedupe_expired_key):
     fn()
