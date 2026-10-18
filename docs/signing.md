@@ -6,11 +6,13 @@ This document describes the export integrity signing provided by Agent Replay Bu
 
 Signing a 0.1 replay bundle provides limited **export integrity**: a holder of the same shared secret can check that the model-dumped inner `replay_bundle` (the canonical form below) still matches the HMAC. This is useful for sharing bundles across systems, storing them in audit logs, or attaching them to incident reports.
 
-It is not a record that the received JSON file is unmodified. Verification first parses the file through the Pydantic models and then recomputes the HMAC over `model_dump`. Properties those models do not retain can be added to the file and are not authenticated. The outer `SignedReplayBundle` envelope is also outside the HMAC: `signed_bundle_id` and every `signature_metadata` field other than the signature value itself (`signed`, `signed_at`, `signature_algorithm`, `key_id`) can be changed without failing verification.
+It is not a record that the received JSON file is unmodified. Verification first parses the file through the Pydantic models and then recomputes the HMAC over `model_dump`. Properties those models do not retain can be added to the file and are not authenticated.
+
+**Two signature forms.** A signature written by the current version covers the whole parsed inner `replay_bundle` (including its own embedded `signature_metadata`), `signed_bundle_id`, and the outer `signature_metadata` fields other than the signature value (`signed`, `signed_at`, `signature_algorithm`, `key_id`); changing any of them fails verification. A signature written by an earlier version (bundle only) still verifies: the outer envelope of such a file, `signed_bundle_id` and those `signature_metadata` fields, can be changed without failing verification. `signature_coverage()` returns `"envelope_and_bundle"`, `"bundle_only"` or `None` for the form that matched. `arb verify` prints a note on stderr for a bundle-only signature and `--require-bound-envelope` (API: `allow_unbound_envelope=False`) refuses it; re-sign the bundle to get the current form. A file signed by the current version is not verified by an earlier version of this package.
 
 `verify` refuses a file in which any JSON object repeats a member name (exit code 2, `Invalid JSON`); a parser would otherwise keep only the last value, so what is checked would differ from what a reader of the file sees. Loading a bundle for `validate` and the other commands keeps the parser's last-value behaviour, as before. `verify` also applies the input bounds of `docs/validation.md` (byte budget and nesting depth, exit code 3).
 
-Summary of what the HMAC covers: only the canonical form of the parsed inner `replay_bundle`. It does not cover `signed_bundle_id`, `signature_metadata` fields other than the value being checked, members the models do not retain, or the file bytes.
+Summary of what the HMAC covers: for a current signature, the canonical form of the parsed inner `replay_bundle`, `signed_bundle_id` and the `signature_metadata` fields other than the value being checked; for a bundle-only signature, only the canonical form of the parsed inner `replay_bundle`. Neither covers members the models do not retain, or the file bytes.
 
 ## Algorithm
 
@@ -73,13 +75,15 @@ arb verify /tmp/signed.json --secret "my-secret"
 
 ## Canonical serialization
 
-The canonical form of a bundle is produced by:
+The bundle-only form (still accepted for earlier signatures) is produced by:
 
 1. Calling `bundle.model_dump(mode="json")`
 2. Removing the entire `signature_metadata` field from the `AgentReplayBundle` payload
 3. Serializing with `sort_keys=True`, compact separators `(",", ":")`, and `ensure_ascii=True`
 
-The canonical form is stable: the same bundle will always produce the same canonical string when all non-signature fields match, regardless of any embedded `signature_metadata`.
+The bundle-only form is stable: the same bundle will always produce the same canonical string when all non-signature fields match, regardless of any embedded `signature_metadata`.
+
+The current form signs the bytes `agent-replay-bundle/export-signature/2\n` followed by one canonical JSON document (same sorting, separators and ASCII escaping) with the members `signed_bundle_id`, `signature_metadata` (without `signature`) and `replay_bundle` (the full `model_dump`, embedded `signature_metadata` included). The prefix keeps the two forms apart.
 
 ## SignatureMetadata
 
@@ -107,6 +111,6 @@ The output of signing is a `SignedReplayBundle`:
 }
 ```
 
-`SignedReplayBundle.signature_metadata` is where signed exports carry their signature value. Only `signature` is checked; the remaining fields and `signed_bundle_id` are unauthenticated, caller-supplied labels and must not be relied on as signing time, algorithm or key identity.
+`SignedReplayBundle.signature_metadata` is where signed exports carry their signature value. For a current signature the remaining fields and `signed_bundle_id` are covered by it; for a bundle-only signature they are unauthenticated, caller-supplied labels and must not be relied on as signing time, algorithm or key identity. The HMAC is still a shared-secret check: `key_id` is a label that a verifier looks up, not proof of key identity.
 
-`AgentReplayBundle.signature_metadata` is optional embedded metadata for systems that store signature state directly on the bundle. It is not part of the canonical signing payload.
+`AgentReplayBundle.signature_metadata` is optional embedded metadata for systems that store signature state directly on the bundle. It is not part of the bundle-only canonical form; a current signature covers it as part of the inner bundle.

@@ -111,11 +111,30 @@ def test_load_keeps_last_value_for_repeated_member(tmp_path):
 
 
 def test_envelope_members_outside_signature_scope(tmp_path):
-    """Documented in docs/signing.md; pinned so a change is deliberate."""
+    """Pinned for a bundle-only signature (written before the envelope was covered; see tests/test_signing_envelope.py for the
+    current form, where each of these changes is refused)."""
+    import hashlib
+    import hmac
+
+    from agent_replay_bundle.signing import canonical_bundle_json
+
     p = _signed(tmp_path)
     d = json.loads(p.read_text())
+    d["signature_metadata"]["signature"] = hmac.new(
+        b"s3", canonical_bundle_json(load_replay_bundle(VALID)).encode(), hashlib.sha256).hexdigest()
     d["signed_bundle_id"] = "other"
     d["signature_metadata"]["key_id"] = "other"
     d["signature_metadata"]["signed_at"] = "2000-01-01T00:00:00Z"
     p.write_text(json.dumps(d))
     assert run_arb("verify", str(p), "--secret", "s3")[0] == 0
+    assert run_arb("verify", str(p), "--secret", "s3", "--require-bound-envelope")[0] == 1
+
+
+def test_envelope_members_are_inside_the_current_signature_scope(tmp_path):
+    p = _signed(tmp_path)
+    for member in ("signed_bundle_id", "key_id", "signed_at"):
+        d = json.loads(p.read_text())
+        (d if member == "signed_bundle_id" else d["signature_metadata"])[member] = "2000-01-01T00:00:00Z"
+        q = tmp_path / f"{member}.json"
+        q.write_text(json.dumps(d))
+        assert run_arb("verify", str(q), "--secret", "s3")[0] == 1

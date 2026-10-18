@@ -306,9 +306,11 @@ Legacy 0.1 replay bundles (`validator.py`, `redaction.py`, `signing.py`):
 - Legacy redaction copies any `redaction_metadata.redacted_fields` already
   present on the input into the output without checking those paths were
   redacted. Treat inherited entries as unverified claims. It also keeps an
-  embedded `signature_metadata` unchanged, so a redacted bundle can still show
-  `signed: true` with a signature over the earlier content. Re-sign derivatives
-  and do not trust embedded signature state.
+  embedded `signature_metadata` unchanged unless `clear_signature_metadata` is
+  set, so a redacted bundle can still show `signed: true` with a signature over
+  the earlier content, and it leaves the task text and scope fields unless
+  `redact_task` / `redact_scope` are set (see [redaction.md](redaction.md)).
+  Re-sign derivatives and do not trust embedded signature state.
 - The legacy HMAC limits and the `--secret` command-line exposure are described
   in [signing.md](signing.md).
 

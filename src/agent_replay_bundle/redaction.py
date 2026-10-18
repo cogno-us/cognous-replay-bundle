@@ -19,6 +19,9 @@ def redact_replay_bundle(
     redact_targets: bool = False,
     redact_final_output: bool = False,
     redact_reasons: bool = False,
+    redact_task: bool = False,
+    redact_scope: bool = False,
+    clear_signature_metadata: bool = False,
     replacement: str = "[REDACTED]",
     redaction_policy: str | None = None,
 ) -> AgentReplayBundle:
@@ -35,6 +38,11 @@ def redact_replay_bundle(
         redact_final_output: Replace ``final_output`` with *replacement*.
         redact_reasons: Redact ``reason`` fields on ActionProposals,
             PolicyDecisions, PolicyRuleEvaluations, and BlockedActions.
+        redact_task: Replace the run frame's ``task`` text with *replacement*.
+        redact_scope: Replace ``RelianceRecord.scope`` with *replacement* and each ``AuthorityRecord.scope`` list with a
+            one-item list holding *replacement*.
+        clear_signature_metadata: Drop the embedded ``signature_metadata``: it describes a signature over the content before
+            redaction and no longer matches.
         replacement: The placeholder string used when replacing text values.
         redaction_policy: Optional name of the redaction policy being applied.
 
@@ -75,6 +83,25 @@ def redact_replay_bundle(
         for i, ba in enumerate(data.get("blocked_actions", [])):
             ba["reason"] = replacement
             redacted_fields.append(f"blocked_actions[{i}].reason")
+
+    # Redact the task text of the run frame
+    if redact_task:
+        data["frame"]["task"] = replacement
+        redacted_fields.append("frame.task")
+
+    # Redact scope descriptions
+    if redact_scope:
+        for i, rr in enumerate(data.get("reliance_records", [])):
+            rr["scope"] = replacement
+            redacted_fields.append(f"reliance_records[{i}].scope")
+        for i, ar in enumerate(data.get("authority_records", [])):
+            ar["scope"] = [replacement]
+            redacted_fields.append(f"authority_records[{i}].scope")
+
+    # Drop embedded signature metadata that describes the pre-redaction content
+    if clear_signature_metadata and data.get("signature_metadata") is not None:
+        data["signature_metadata"] = None
+        redacted_fields.append("signature_metadata")
 
     # Redact final output
     if redact_final_output and data.get("final_output") is not None:
