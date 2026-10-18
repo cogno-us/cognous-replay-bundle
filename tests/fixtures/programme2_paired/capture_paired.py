@@ -1,6 +1,6 @@
-"""Capture executor-paired runs: Control Plane 3755c71a run record + proposal + runtime fc034d14 export, per scenario.
+"""Capture executor-paired runs: Control Plane 3755c71a run record + proposal + runtime 7170da59 export, per scenario.
 
-Not a test and not vendored into the package. Run with a Control Plane checkout at 3755c71a and a runtime checkout at fc034d14 on
+Not a test and not vendored into the package. Run with a Control Plane checkout at 3755c71a and a runtime checkout at 7170da59 on
 the path (both installed or on PYTHONPATH), from the control plane checkout:
 
     PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>

@@ -2,7 +2,7 @@
 
 Replay accepts and retains the run-record members of six opt-in Control Plane profiles for one exact revision, Control Plane
 `3755c71a20eab1a41135967b682342c809929572` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
-`fc034d140ce55d9887ac3a0aab598f3a2c05ea47` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
+`7170da59e04854a3dbe13f151400d0ac368b8dcb` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
 `128eaa5e` (Replay 8e32975d); that tie is replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
 as before; with every profile off the new generation imports a run exactly as the previous one does.
 
@@ -28,7 +28,7 @@ Earlier generations still accept `/0.1` only. Replay does not check that a label
 
 ## Executor pairing
 
-The runtime `fc034d14` (main after R2: the optional operation key on the atomic claim route) exports the same producer contract as
+The runtime `7170da59` (main after #113, the opt-in `dedupe-ttl/0.1` destination; the earlier tie was `fc034d14`, replaced not kept, and an export of `fc034d14` is now refused) exports the same producer contract as
 before; its export is accepted only with this Control Plane revision, and an export of any other runtime revision (`3024ef6e`,
 `4a83b175`, ...) is refused as an unsupported combination with it, and the reverse. The key itself is not in the export.
 Captured pairs: `tests/fixtures/programme2_paired` (adapter route and atomic route, default and with operation identity).
@@ -51,7 +51,7 @@ contract rule is applied: `undeclared_member` (an unknown member is refused, nev
 - It does not re-derive the producer's decisions, verify any signer, or check the ODES sidecar contracts in full. That is the
   verifier's and the ODES validators' work. Replay checks structure and the references a retained record must still satisfy.
 - It cannot tell that a profile was on: a record from which every profile member was removed is a profile-off record.
-- Only the runtime `fc034d14` is paired with this generation; any other executor export is refused as an unsupported combination.
+- Only the runtime `7170da59` is paired with this generation; any other executor export is refused as an unsupported combination.
 - Under freshness the observation time is judged against the service clock at reconciliation (`reconciled_at`), as the producer
   does; staleness is still relative to the evaluation time.
 - A run with no decision (only extension or revision refusals) is refused as before ("resolution journal missing"), except a run
