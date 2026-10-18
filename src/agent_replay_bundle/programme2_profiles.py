@@ -45,6 +45,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
+from .instants import is_naive_shape, parse_instant
+
 REASON_LABELS = ("runtime-authority-reasons/0.1", "runtime-authority-reasons/0.2")
 
 PROFILE_LISTS = {
@@ -141,12 +143,11 @@ def _error(message: str, code: str):
 
 def instant(value: Any, label: str) -> datetime:
     """A timezone-aware ISO-8601 time, else ``timestamp_invalid``."""
-    try:
-        result = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError, TypeError) as exc:
-        raise _error(f"{label} is not an ISO-8601 time", "timestamp_invalid") from exc
-    if result.tzinfo is None or result.utcoffset() is None:
-        raise _error(f"{label} has no UTC offset", "timestamp_invalid")
+    result = parse_instant(value)
+    if result is None:
+        if is_naive_shape(value):
+            raise _error(f"{label} has no UTC offset", "timestamp_invalid")
+        raise _error(f"{label} is not an ISO-8601 time", "timestamp_invalid")
     return result
 
 

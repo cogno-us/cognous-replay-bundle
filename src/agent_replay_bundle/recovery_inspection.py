@@ -6,9 +6,11 @@ Digests establish internal consistency of supplied bytes, never authenticity.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import timezone
 import hashlib
 import json
+
+from .instants import parse_instant
 
 RUNTIME_REVISION = "8e7d634cf0a22b6f3c1fc6d93afe92c7414fa243"
 PROFILE = "cognous-recovery-resolution/synthetic-0.1"
@@ -55,8 +57,8 @@ def _sha(value):
 
 def _time(value):
     _require(isinstance(value, str), "timestamp must be text")
-    stamp = datetime.fromisoformat(value)
-    _require(stamp.tzinfo is not None and stamp.utcoffset() is not None, "timestamp requires timezone")
+    stamp = parse_instant(value)
+    _require(stamp is not None, "timestamp requires the strict form with a UTC offset")
     return stamp.astimezone(timezone.utc)
 
 

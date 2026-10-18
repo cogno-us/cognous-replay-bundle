@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Strict instants (no contract change, all stays `0.1.0-draft`): every place Replay reads a time (observation and refusal rows, the Programme-2 profile rows, recovery inspection, the route-B `linearized_at`) uses one reader, `instants.parse_instant`: `YYYY-MM-DDThh:mm:ss[.f]` with `Z` or `+hh:mm`/`-hh:mm`, upper-case `T`, ASCII digits, one to six fraction digits, hour 00 to 23. A seventh fraction digit, a space separator, week or ordinal dates, compact forms, hour 24 and a naive time are refused (`timestamp_invalid` where a code applies). Every captured valid record already used the strict form.
+
 - Merge records read in time order (no contract change, all stays `0.1.0-draft`): a folded operation is folded once (`merge_operation_already_folded`), a survivor must not already be folded by an earlier merged record (`merge_survivor_already_folded`, which also refuses a cycle), and a chain of folds in time order is accepted; a join's `merged_into` may name the survivor of the record that folded its operation or a later survivor along the chain (the producer follows later merges to the root). Rows with another outcome do not count as folds.
 
 - Input bounds, round 2 (no contract change, all stays `0.1.0-draft`): the nesting-depth scan reads each input once (cost linear in its size; it was quadratic for long runs of escaped quotes); the text inside an executor `payload_json` and a retained `claim_json` is depth-checked before it is decoded and a too-deep text is refused (`input_too_deep` / corrupt claim) instead of raising; the journal-to-check matcher takes a free check without a search and counts its work against a fixed budget (`MAX_MATCH_WORK`), refusing a run past it with `input_too_large`. Valid input and results are unchanged.
@@ -54,7 +56,6 @@
 - Rejects multiple authorization bindings in the single-proposal importer instead of forcing a match.
 - HMAC now authenticates integrity metadata except the signature value itself; legacy HMACs require explicit handling or re-signing.
 - Added Governor regression coverage for proposal, destination, attempt, envelope and HMAC metadata substitution.
-
 
 ## 0.2.0 - 2026-10-05
 
