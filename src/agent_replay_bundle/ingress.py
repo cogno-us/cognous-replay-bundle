@@ -20,7 +20,10 @@ MAX_NESTING_DEPTH = 128
 #: and 2 (file, parse or model error).
 EXIT_INPUT_BOUNDS = 3
 
-_TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|[\[\]{}]', re.DOTALL)
+# One pass over the text: find the next quote or bracket, and inside a string jump from one quote or backslash to the next.
+# Nothing is rescanned, so the cost is linear in the input however many escaped quotes it holds.
+_NEXT = re.compile(r'["\[\]{}]')
+_STRING_STEP = re.compile(r'["\\]')
 
 
 class InputBoundsError(ValueError):
@@ -36,18 +39,35 @@ class DuplicateMemberError(ValueError):
 
 
 def check_depth(text: str, max_depth: int = MAX_NESTING_DEPTH) -> None:
-    """Raise InputBoundsError if brackets nest deeper than ``max_depth``."""
+    """Raise InputBoundsError if brackets nest deeper than ``max_depth``.
+
+    A string that never closes ends the scan: the rest of the text is inside it, and the JSON parser refuses the text itself.
+    """
     depth = 0
-    for match in _TOKEN.finditer(text):
+    pos = 0
+    while True:
+        match = _NEXT.search(text, pos)
+        if match is None:
+            return
         ch = match.group()
-        if ch == "[" or ch == "{":
+        pos = match.end()
+        if ch == '"':
+            while True:
+                step = _STRING_STEP.search(text, pos)
+                if step is None:
+                    return
+                pos = step.end()
+                if step.group() == '"':
+                    break
+                pos += 1  # the character after a backslash belongs to the escape
+        elif ch == "[" or ch == "{":
             depth += 1
             if depth > max_depth:
                 raise InputBoundsError(
                     "nesting_depth_exceeded",
                     f"input nesting depth exceeds {max_depth}",
                 )
-        elif ch == "]" or ch == "}":
+        else:
             depth -= 1
 
 
