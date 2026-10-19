@@ -81,14 +81,14 @@ MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
 # the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
 # generation is one exact revision, never a range). Same import semantics as P4 for a
 # profile-off run (byte-identical records), plus the members of the opt-in profiles when a run carries them (see
-# programme2_profiles.py). The executor pairing is the runtime c4a05883 (62a5cc15 plus the later main commits), with the action manifest ff549082: an executor
+# programme2_profiles.py). The executor pairing is the runtime 6b16962d (c4a05883 plus the later main commits), with the action manifest ff549082: an executor
 # export of any other runtime revision is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with
 # them at end-of-alpha (P5).
 CONTROL_PLANE_P2_REVISION = "2bac7875391cad0a431fa0d75208b7ade39743e3"
-MOLTBOT_P2_REVISION = "c4a05883266b815f39d97cbf2240406647985147"
+MOLTBOT_P2_REVISION = "6b16962db140590b808f02b5c2cb11a217aec46f"
 MANIFEST_P2_REVISION = "ff5490828b2bf7f6a976da209f3f533701855687"
 BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@2bac7875"
-MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@c4a05883"
+MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@6b16962d"
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
