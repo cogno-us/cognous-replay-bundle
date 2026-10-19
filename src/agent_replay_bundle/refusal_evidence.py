@@ -261,7 +261,7 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
             for seq,raw in enumerate(cp.get('check_events',[])):
                 event=EventModel.model_validate(raw);_aware_time(event.recorded_at)
                 check_extensions(raw,'check_events');check_extensions(raw.get('input'),'check_events.input')
-                require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment')
+                require(re.fullmatch(r'sha256:[a-f0-9]{64}',event.proposal_commitment),'invalid journal proposal commitment','schema_violation')
                 if event.phase=='opened':
                     require(event.check_id not in checks,'duplicate journal opening','journal_protocol')
                     checks[event.check_id]=[event,False,[]];open_at[event.check_id]=seq

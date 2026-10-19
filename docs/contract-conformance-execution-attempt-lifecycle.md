@@ -6,9 +6,9 @@ cogno-us/cognous-control-plane#38, steps P2 and P3; P3b applies the owner decisi
 | | |
 |---|---|
 | Contract | `execution-attempt-lifecycle` `0.1.0-draft` (draft, not frozen; any change may break) |
-| Vendored from | `cogno-us/open-decision-evidence-standard` at `a9db024c6f346f741a9963552e559476fdfc4189`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
+| Vendored from | `cogno-us/open-decision-evidence-standard` at `e5fe3822a2d3c3f6885fd61acccb4bb6281041be`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
 | Role | consumer |
-| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the one DIVERGES below (a validated `unknown` observation on result `unknown`, which waits for a Control Plane that emits it). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
+| Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the three DIVERGES below (a validated `unknown` observation on result `unknown`, which waits for a Control Plane that emits it, and the two invalid fixtures that carry it), and for two documented probe DIVERGES (`reasons_minimum` and the closed post-journal reason set, see Findings). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
 | Test | `tests/test_contract_lifecycle_conformance.py`; the importer changes are in `src/agent_replay_bundle/importers.py` and `refusal_evidence.py` (P3 and P3b) |
 
 ## How it is tested
@@ -21,9 +21,14 @@ Replay input and calls the real code through `import_bounded_workflow`:
 - `control_plane_attempts`: replace `attempts` of the real run (`_validate_repaired_run`);
 - `resolution_journal` / `resolution_checks`: replace `check_events` / `resolution_checks` (`refusal_evidence.validate_run`).
 
+A document that carries several families (`journal-refusal-then-valid-request`: attempts, journal and checks of one run) is
+imported as one run. Ids taken from a real run (not `syn-`) are rebound onto the base capture's single decision and effect.
+Text that is not valid Unicode has no counterpart for a document-level label such as `producer`, so the adapter carries it
+into an `x-` extension member of the real input (documents with valid text are imported unchanged).
+
 Completions are limited to what Replay needs and the contract leaves abstract: synthetic ids and the synthetic
 observation time are rebound to the capture's, the attempt row takes the capture's `operation_digest` / `created_at`,
-a validated applied observation takes the capture's `destination_state` when the fixture has none or `{}`, and for a
+a validated applied observation takes the capture's `destination_state` when the fixture has none or `{}`, an observed absence gets `destination_state` `{}`, and for a
 denied result the capture's effect and Control Plane attempt evidence is cleared. `observations` is not mirrored
 (the contract leaves it optional and Replay accepts its absence).
 Every REFUSED fixture has a control: the same adapter accepts it once only the planted defect is repaired.
@@ -52,14 +57,17 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executor-unknown-validated-absent-after-ambiguous-dispatch` | accept | ACCEPTED | accepted |  |
 | `executor-unknown-validated-unknown-after-ambiguous-dispatch` | accept | DIVERGES | unsupported accepted observation state | waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP acceptance unreviewed |
 | `extension-namespace-member-preserved` | accept | ACCEPTED | accepted |  |
+| `journal-refusal-then-valid-request` | accept | ACCEPTED | accepted | adapter: the document's decision and effect ids (a real run) are rebound onto the base capture's single decision and effect; the journal, checks an... |
 | `resolution-checks-overlap-a-completes-first` | accept | ACCEPTED | accepted |  |
 | `resolution-checks-overlap-b-completes-first-listed-completion-order` | accept | ACCEPTED | accepted |  |
 | `resolution-checks-overlap-b-completes-first-listed-open-order` | accept | ACCEPTED | accepted |  |
 | `resolution-journal-checks-extensions-preserved` | accept | ACCEPTED | accepted |  |
 | `attempt-started-at-changed` | refuse: attempt_started_at_changed | REFUSED | `attempt_started_at_changed`: Control Plane attempt <id> started_at changed between lifecycle rows |  |
 | `control-plane-attempt-extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: attempts[0].extensions names must start with 'x-': trace |  |
+| `control-plane-attempt-identity-changed` | refuse: attempt_identity_changed | REFUSED | `attempt_identity_changed`: Control Plane attempt <id> changed its effect_id or decision_id between lifecycle rows |  |
 | `control-plane-attempt-undeclared-member` | refuse: undeclared_member | REFUSED | `undeclared_member`: attempts[0] has unsupported member(s): injected_member |  |
 | `control-plane-dropped-start-record` | refuse: missing_start_record | REFUSED | `missing_start_record`: Control Plane attempt <id> lifecycle lacks its attempted start record |  |
+| `control-plane-failed-after-acknowledged` | refuse: attempt_transition | REFUSED | `attempt_transition`: conflicting content under immutable terminal Control Plane attempt <id> |  |
 | `control-plane-start-row-reconciled-existing-false` | refuse: invalid_reconciled_marker | REFUSED | `invalid_reconciled_marker`: Control Plane attempt <id> carries an invalid reconciled_existing marker |  |
 | `effect-free-reconcile-claims-attempt` | refuse: effect_free_reconcile_claims_attempt | REFUSED | `effect_free_reconcile_claims_attempt`: an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect |  |
 | `effect-free-reconcile-state-mismatch` | refuse: recovery_state_mismatch | REFUSED | `recovery_state_mismatch`: recovery report observed-state contradiction |  |
@@ -67,6 +75,8 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executed-without-observation` | refuse: executed_without_observation | REFUSED | `executed_without_observation`: an executed result must carry the observation that established it |  |
 | `executor-dropped-start-event` | refuse: missing_start_event | REFUSED | `missing_start_event`: executor attempt <id> events do not start with attempted |  |
 | `executor-dropped-terminal-event` | refuse: terminal_event_missing | REFUSED | `terminal_event_missing`: execution result status 'executed' contradicts the terminal attempt event 'attempted' |  |
+| `executor-failed-after-executed` | refuse: attempt_transition | REFUSED | `attempt_transition`: executor attempt <id> event 'failed' may not follow 'executed' |  |
+| `executor-failed-attempt-reopened` | refuse: attempt_transition | REFUSED | `attempt_transition`: executor attempt <id> event 'executed' may not follow 'failed' |  |
 | `executor-terminal-failed-vs-status` | refuse: status_terminal_mismatch | REFUSED | `status_terminal_mismatch`: execution result status 'executed' contradicts the terminal attempt event 'failed' |  |
 | `executor-unknown-recovery-state-contradiction` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: recovery report observed-state contradiction |  |
 | `executor-unknown-validated-absent-state-mismatch` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: unknown result observed-state contradiction with its validated observation |  |
@@ -76,6 +86,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `mixed-layout-observations-disagree-with-result` | refuse: observations_mismatch | REFUSED | `observations_mismatch`: accepted executor observations differ from result |  |
 | `null-observation-state-absent` | refuse: null_observation_state_mismatch | REFUSED | `null_observation_state_mismatch`: null observation cannot establish observed state |  |
 | `null-observation-state-applied-failed-result` | refuse: null_observation_state_mismatch | REFUSED | `null_observation_state_mismatch`: null observation cannot establish observed state |  |
+| `observation-names-different-effect` | refuse: result_binding_mismatch | REFUSED | `result_binding_mismatch`: execution_result.observation.effect_id conflicts with committed operation |  |
 | `observed-result-claims-attempt` | refuse: observed_result_claims_attempt | REFUSED | `observed_result_claims_attempt`: an observed result cannot claim an attempt, acknowledgement or new effect (a normal execution reports executed) |  |
 | `recovery-applied-missing-operation-digest` | refuse: recovery_report_incomplete | REFUSED | `recovery_report_incomplete`: execution_result.observation.operation_digest is required for an applied recovery report |  |
 | `recovery-hold-missing-reason` | refuse: recovery_report_incomplete | REFUSED | `recovery_report_incomplete`: execution_result.observation.reason is required for a hold recovery report |  |
@@ -85,11 +96,29 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `resolution-check-undeclared-member` | refuse: undeclared_member | REFUSED | `undeclared_member`: typed refusal profile: unsupported/missing evidence fields |  |
 | `resolution-checks-sequential-reorder` | refuse: resolution_checks_out_of_order | REFUSED | `resolution_checks_out_of_order`: typed refusal profile: resolution checks are out of journal order |  |
 | `resolution-journal-extension-key-without-x-prefix` | refuse: invalid_extension_key | REFUSED | `invalid_extension_key`: typed refusal profile: check_events.extensions names must start with 'x-': note |  |
+| `result-executed-null-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'executed' names no attempt row of the export (a null attempt_id or an id that matches no row ... |  |
+| `result-executed-unregistered-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'executed' names no attempt row of the export (a null attempt_id or an id that matches no row ... |  |
+| `result-failed-null-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'failed' names no attempt row of the export (a null attempt_id or an id that matches no row is... |  |
+| `result-failed-unregistered-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'failed' names no attempt row of the export (a null attempt_id or an id that matches no row is... |  |
+| `result-names-different-decision` | refuse: result_binding_mismatch | REFUSED | `result_binding_mismatch`: Moltbot execution_result identifiers do not match execution envelope |  |
+| `result-names-different-effect` | refuse: result_binding_mismatch | REFUSED | `result_binding_mismatch`: Moltbot execution_result identifiers do not match execution envelope |  |
+| `result-partial-flags-contradict-without-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'partial' names no attempt row of the export (a null attempt_id or an id that matches no row i... |  |
+| `result-partial-null-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'partial' names no attempt row of the export (a null attempt_id or an id that matches no row i... |  |
+| `result-partial-unregistered-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'partial' names no attempt row of the export (a null attempt_id or an id that matches no row i... |  |
+| `result-reconciled-flags-contradict-without-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'reconciled' names no attempt row of the export (a null attempt_id or an id that matches no ro... |  |
+| `result-reconciled-null-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'reconciled' names no attempt row of the export (a null attempt_id or an id that matches no ro... |  |
+| `result-reconciled-unregistered-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'reconciled' names no attempt row of the export (a null attempt_id or an id that matches no ro... |  |
+| `result-state-matrix-executed-not-fresh` | refuse: result_state_matrix | REFUSED | `result_state_matrix`: the producer status matrix contradicts the execution result: an executed result is acknowledged, fresh and observed as applied |  |
 | `result-status-unknown-enum-value` | refuse: unknown_enum_value | REFUSED | `unknown_enum_value`: execution_result.status is not a declared value: 'finished' |  |
+| `result-unknown-flags-contradict-without-attempt-id` | refuse: result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'unknown' names no attempt row of the export (a null attempt_id or an id that matches no row i... |  |
+| `result-unknown-null-attempt-id` | refuse: result_attempt_unresolved | DIVERGES | unsupported accepted observation state | refused (fail closed) at the Control Plane run before the result is read: the fixture's validated `unknown` observation must be an accepted reconci... |
+| `result-unknown-unregistered-attempt-id` | refuse: result_attempt_unresolved | DIVERGES | unsupported accepted observation state | refused (fail closed) at the Control Plane run before the result is read: the fixture's validated `unknown` observation must be an accepted reconci... |
+| `trailing-line-break-digest` | refuse: schema_violation | REFUSED | `schema_violation`: typed refusal profile: invalid journal proposal commitment |  |
 | `undeclared-member-outside-extensions` | refuse: undeclared_member | REFUSED | `undeclared_member`: execution_result has unsupported member(s): injected_member |  |
+| `unpaired-surrogate-text` | refuse: schema_violation | REFUSED | `schema_violation`: input text is not valid Unicode (unpaired surrogate) |  |
 <!-- END FIXTURE TABLE -->
 
-Totals: 19 ACCEPTED, 31 REFUSED, 1 DIVERGES, 0 NOT-EXERCISED.
+Totals: 20 ACCEPTED, 52 REFUSED, 3 DIVERGES, 0 NOT-EXERCISED.
 
 ## Probes beyond the fixtures
 
@@ -117,6 +146,10 @@ Each probe is first checked against the vendored reference validator, then run t
 | `recovery-report-on-executed-result` | recovery_observation_status | REFUSED | `recovery_observation_status`: a recovery report is only carried by results unknown or observed |  |
 | `executed-result-with-null-observation` | executed_without_observation | REFUSED | `executed_without_observation`: an executed result must carry the observation that established it |  |
 | `export-without-observations-member` | valid | ACCEPTED | accepted |  |
+| `result-unknown-null-attempt-id-null-observation` | result_attempt_unresolved | REFUSED | `result_attempt_unresolved`: execution result status 'unknown' names no attempt row of the export (a null attempt_id or an id that matches no row i... |  |
+| `control-plane-attempted-row-after-acknowledged` | attempt_transition | REFUSED | `attempt_transition`: Control Plane attempt syn-attempt-1 row status 'attempted' may not follow 'acknowledged' |  |
+| `reasons-minimum-unreadable-input-without-reason` | reasons_minimum | DIVERGES | accepted | Replay does not derive the implied-reasons floor of a completed journal check (contract 39-E) |
+| `reasons-match-extra-reason-on-check-row` | journal_unbound_completion | DIVERGES | accepted | Replay binds a completion to any check whose reasons are a superset; the contract allows only the closed POST_JOURNAL_GATE_CODES as additional reasons (39-A) |
 <!-- END PROBE TABLE -->
 
 ## Mapping from contract code to Replay message
@@ -124,7 +157,9 @@ Each probe is first checked against the vendored reference validator, then run t
 <!-- BEGIN MAPPING TABLE -->
 | Contract code | Replay message pattern | Emitted by Replay | Note |
 |---|---|---|---|
+| `attempt_identity_changed` | `changed its effect_id or decision_id between lifecycle rows` | yes |  |
 | `attempt_started_at_changed` | `started_at changed between lifecycle rows\|conflicting content under immutable attempt_id` | yes |  |
+| `attempt_transition` | `executor attempt .* event .* may not follow\|Control Plane attempt .* row status .* may not follow\|conflicting content under immutable terminal Control Plane attempt` | yes | executor events and Control Plane rows move only along the contract's attempt state machines |
 | `attempt_without_events` | `executor attempt .* has no attempt events` | yes |  |
 | `duplicate_attempt_row` | `duplicate executor attempt row` | yes |  |
 | `duplicate_check_id` | `duplicate/empty resolution check id` | yes |  |
@@ -141,6 +176,7 @@ Each probe is first checked against the vendored reference validator, then run t
 | `null_observation_state_mismatch` | `null observation cannot establish observed state` | yes |  |
 | `observations_mismatch` | `accepted executor observations differ from result` | yes |  |
 | `observed_result_claims_attempt` | `an observed result cannot claim an attempt` | yes |  |
+| `reasons_minimum` | `completion's reasons lack what its own recorded inputs imply` | no | Replay does not derive the implied-reasons floor of a completed journal check |
 | `recovery_observation_status` | `a recovery report is only carried by results unknown or observed` | yes |  |
 | `recovery_observations_mismatch` | `recovery_observations differ from the result report` | yes |  |
 | `recovery_report_incomplete` | `(operation_digest\|claim_state\|effect_id\|reason) is required for an? \w+ recovery report` | yes |  |
@@ -149,7 +185,10 @@ Each probe is first checked against the vendored reference validator, then run t
 | `repeated_record` | `lifecycle repeats a record` | yes |  |
 | `repeated_start_event` | `executor attempt .* repeats its attempted event` | yes |  |
 | `resolution_checks_out_of_order` | `resolution checks are out of journal order` | yes |  |
-| `schema_violation` | `is required\|must be an (object\|array)\|must be object or null\|not \{\}\|is not a validated observation` | yes | Replay emits this code for structural failures (since step B also for `{}` and for a recovery report in observations) |
+| `result_attempt_unresolved` | `names no attempt row of the export` | yes | a null attempt_id and an id that matches no row are both refused |
+| `result_binding_mismatch` | `execution_result identifiers do not match execution envelope\|execution_result\.observation\.effect_id conflicts with committed operation` | yes |  |
+| `result_state_matrix` | `the producer status matrix contradicts the execution result` | yes |  |
+| `schema_violation` | `is required\|must be an (object\|array)\|must be object or null\|not \{\}\|is not a validated observation\|input text is not valid Unicode\|invalid journal proposal commitment` | yes | Replay emits this code for structural failures (since step B also for `{}` and for a recovery report in observations) |
 | `status_terminal_mismatch` | `execution result status .* contradicts the terminal attempt event` | yes |  |
 | `terminal_event_missing` | `execution result status .* contradicts the terminal attempt event 'attempted'` | yes |  |
 | `undeclared_member` | `has unsupported member\(s\)\|recovery report has undeclared members\|unsupported/missing evidence fields` | yes |  |
@@ -177,6 +216,22 @@ except the one decision below. Evidence for the current behaviour is the tests, 
 | RP-10 `executed` without observation | Refused (`executed_without_observation`). |
 | RP-11 optional members | `observations`, `recovery_observations`, `control_plane_attempts`, result `decision_id`/`effect_id`, attempt `operation_digest` are no longer required; members the contract requires still are (`schema_violation`). |
 | RP-12 export-level `extensions` | Retained as the record `executor_export_extensions`. |
+
+### Lifecycle contract `e5fe3822` (attempt state machines, result binding, schema checks)
+
+| Rule | Replay |
+|---|---|
+| `attempt_transition` (decision 37) | Executor attempt events and Control Plane attempt rows move only along the contract's state machines (the tables `EXECUTOR_ATTEMPT_TRANSITIONS` and `CONTROL_PLANE_ATTEMPT_TRANSITIONS` equal the vendored ones, asserted by a test). A closed attempt is never reopened and never receives a later contradicting record. Previously an executor `failed`/`executed`/... reopen was accepted when the other evidence agreed. |
+| `attempt_identity_changed` | All rows of one Control Plane attempt carry one `effect_id` and one `decision_id`. |
+| `result_attempt_unresolved` (decision 40) | A result whose status claims an attempt (`failed`, `partial`, `unknown`, `executed`, `reconciled`) names an attempt the export carries; a null id and an unknown id are both refused, before the terminal-event comparison and the observation rules. Replay also accepts a Control Plane attempt row of the export as the named attempt (the Control Plane attempt namespace), which the contract validator does not model (its documents have no Control Plane attempt rows beside an executor result). |
+| `result_binding_mismatch` | The result's `effect_id`/`decision_id` and the observation's `effect_id` must equal the attempt's (Replay compares with the execution envelope the attempt rows are bound to). |
+| `result_state_matrix` | The producer's status matrix is checked explicitly (a port of the contract rule, tested against the vendored one over a grid), not only through the Control Plane acknowledgement cross-check. |
+| `schema_violation` for text | Text that is not valid Unicode (an unpaired surrogate, in a value or a member name) anywhere in an input is refused; the extension-name and digest patterns match the whole string (a trailing line break is no longer accepted). |
+
+Not enforced (strict-xfail probes, the contract code is the expectation): `reasons_minimum` (a completed journal check's
+reasons must include what its own recorded inputs imply) and the closed set of additional reasons on a check row
+(`POST_JOURNAL_GATE_CODES`, `reasons_match` 39-A). Replay binds a completion to any check whose reasons are a superset.
+Enforcing them changes which real Control Plane runs import, so it needs its own decision and a re-capture.
 
 Replay behaviour that goes beyond the contract, kept on purpose:
 
