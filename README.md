@@ -100,7 +100,7 @@ This runs the component-local tests retained in this repository, which is what t
 
 ## What ships
 
-Status labels: **merged** = merged in this repository; **selected** = pinned in the hub lock; **known limit**; **proposed**. See the [stack map](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/stack-map.md#status-labels). A newer commit here is not selected until the hub lock changes. Items marked "after the lock" are not in the revision the lock pins.
+Status labels: **merged** = merged in this repository; **selected** = pinned in the hub lock; **known limit**; **proposed**. See the [stack map](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/stack-map.md#status-labels). A newer commit here is not selected until the hub lock changes.
 
 ### Command-line tool `arb`
 
@@ -109,10 +109,10 @@ Status labels: **merged** = merged in this repository; **selected** = pinned in 
 | `arb validate <path>` | Validate a replay bundle (0.1 format). A reconstruction bundle is not accepted here; it is loaded through the Python API (`ReconstructionBundle`). | selected |
 | `arb summarize <path>` | Print a summary of a replay bundle. | selected |
 | `arb redact <path> --out <file> [--targets] [--final-output] [--reasons] [--replacement S] [--policy NAME]` | Write a redacted copy. | selected |
-| `arb redact ... [--task] [--scope] [--drop-signature]` | Also redact the task text, scope fields, or drop the embedded signature metadata (all off by default). | merged, after the lock |
+| `arb redact ... [--task] [--scope] [--drop-signature]` | Also redact the task text, scope fields, or drop the embedded signature metadata (all off by default). | merged |
 | `arb sign <path> --secret <key> --out <file> [--key-id ID]` | Sign a bundle with HMAC-SHA256 (export integrity). | selected |
 | `arb verify <path> --secret <key>` | Verify a signed bundle. | selected |
-| `arb verify ... --require-bound-envelope` | Refuse a signature that covers the inner bundle only. | merged, after the lock |
+| `arb verify ... --require-bound-envelope` | Refuse a signature that covers the inner bundle only. | merged |
 | `arb check-examples` | Check every `examples/*.json`: 0.1 bundles are validated; the signed example and the reconstruction examples are checked structurally against their models only. | selected |
 
 ### Formats and contracts
@@ -122,11 +122,11 @@ Status labels: **merged** = merged in this repository; **selected** = pinned in 
 | Reconstruction Bundle 0.2.0 | Evidence-preserving import of recorded producer evidence, with import reports, value states (`absent`, `unknown`, `unavailable`, `redacted`), commitments and loss reporting. | selected | [import contract](docs/reconstruction_import.md), [migration](docs/migration_0_2.md) |
 | Replay bundle 0.1 | The legacy format and its validator, redaction and signing. Kept distinct from 0.2.0. | merged; see known limits | [bundle format](docs/bundle_format.md), [validation](docs/validation.md) |
 | Executor producer profiles | Versioned executor profile 1.0.0 and 2.0.0 and the legacy unversioned adapter, each tied to exact revisions; unknown revisions are refused, never guessed from shape. | selected | [migration](docs/executor_producer_migration.md), [persistence checkpoint](docs/workstreams/replay-control-plane-persistence-checkpoint.md) |
-| Programme-2 opt-in profiles | Run-record members of six opt-in Control Plane profiles (operation identity, rule revision, freshness, merge record, reversibility, dedupe), accepted for one exact Control Plane revision. | merged, after the lock | [profiles](docs/programme-2-profiles.md) |
-| Typed refusal, runtime authority and repaired-runtime generations | Separate exact-revision mappings that stay non-selected and additive. | merged, after the lock | [typed refusal](docs/typed-refusal-profile.md), [runtime authority](docs/runtime-authority-profile.md), [repaired runtime](docs/security-runtime-profile-20261016.md), [F5b](docs/security-runtime-f5b-profile-20261016.md) |
+| Programme-2 opt-in profiles | Run-record members of six opt-in Control Plane profiles (operation identity, rule revision, freshness, merge record, reversibility, dedupe), accepted for one exact Control Plane revision. | merged | [profiles](docs/programme-2-profiles.md) |
+| Typed refusal, runtime authority and repaired-runtime generations | Separate exact-revision mappings that stay non-selected and additive. | merged | [typed refusal](docs/typed-refusal-profile.md), [runtime authority](docs/runtime-authority-profile.md), [repaired runtime](docs/security-runtime-profile-20261016.md), [F5b](docs/security-runtime-f5b-profile-20261016.md) |
 | Merged producer compatibility profile | One exact Control Plane and Execution Runtime revision pair for the bounded producer 2.0.0 export (see [below](#merged-producer-compatibility)). | proposed | [profile](docs/workstreams/merged-producer-compatibility.md) |
-| W0 C8 compatibility contract | A W0 candidate mapping contract. | merged, after the lock | [contract](docs/w0-c8-compatibility-contract.md) |
-| Recovery inspection API 0.1 | Optional, non-effecting inspection of a pinned synthetic recovery export; separate from Reconstruction Bundle 0.2.0. | merged, after the lock | [recovery inspection](docs/recovery-inspection.md) |
+| W0 C8 compatibility contract | A W0 candidate mapping contract. | merged | [contract](docs/w0-c8-compatibility-contract.md) |
+| Recovery inspection API 0.1 | Optional, non-effecting inspection of a pinned synthetic recovery export; separate from Reconstruction Bundle 0.2.0. | merged | [recovery inspection](docs/recovery-inspection.md) |
 
 ### Python modules (`src/agent_replay_bundle/`)
 
@@ -184,8 +184,6 @@ Use the [current component lock](https://github.com/cogno-us/cognous-open-contro
 
 Producer profile 2.0.0 supports the exact older observation-repair and newer persistence-repair Control Plane revisions documented in the [compatibility checkpoint](docs/workstreams/replay-control-plane-persistence-checkpoint.md). Legacy unversioned and profile-1.0.0 mappings remain separate. Reconstruction Bundle stays 0.2.0.
 
-<!-- pin-round: the lock pin for replay_bundle is 459e4ba62fca; the "after the lock" labels in "What ships" and docs/README.md describe what main adds. Re-read them when the pin moves. -->
-
 Operational deployment trust is still [HOLD under orchestrator #30](https://github.com/cogno-us/cognous-stack-orchestrator/issues/30). No signature, evidence package, successful test or source merge creates a production grant, proves external settlement, or changes selected release authority. Test results and historical qualification records are read against their recorded source revisions.
 
 ### Merged producer compatibility
@@ -203,8 +201,8 @@ Executable integration suites and harnesses moved to the [qualification reposito
 <a id="cognous-stack-components"></a>
 
 <!-- stack-map:start -->
-<!-- Canonical block: identical text in every component README. Source: docs/stack-map.md in the hub. Refresh at the pin round. -->
-The Open Control Stack groups its repositories by responsibility. The groups are a navigation map, not an execution sequence and not a requirement to install every component. The hub [component lock](https://github.com/cogno-us/cognous-open-control-stack/blob/main/component-lock.json) is the only source of selected revisions; [release status](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/release-status.md) states their evidence and limits. Last checked against `component-lock.json` at hub commit `dcc9bd7533ef`.
+<!-- Canonical block: identical text in every component README. Source: docs/stack-map.md in the hub. -->
+The Open Control Stack groups its repositories by responsibility. The groups are a navigation map, not an execution sequence and not a requirement to install every component. The hub [component lock](https://github.com/cogno-us/cognous-open-control-stack/blob/main/component-lock.json) is the only source of selected revisions; [release status](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/release-status.md) states their evidence and limits. The component revisions selected for the stack are listed in the hub's `component-lock.json`; this repository does not record which hub commit it was last checked against.
 
 | Group | Members |
 | --- | --- |
