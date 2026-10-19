@@ -1905,7 +1905,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     if problems:
         raise ImportContractError("the producer status matrix contradicts the execution result: " + "; ".join(problems),
                                   "result_state_matrix")
-    if observation is None and result.get('attempted') and result.get('status') != 'unknown':
+    # An attempted result with no observation established nothing, so it stays 'unknown'. The lifecycle contract also
+    # admits a 'failed' attempt without an observation (observed_state 'unknown', enforced by the matrix above).
+    if observation is None and result.get('attempted') and result.get('status') not in {'unknown', 'failed'}:
         raise ImportContractError('attempt without validated observation must remain unknown')
     if result.get('newly_executed') and not source.get('effects'):
         raise ImportContractError('new effect claim lacks retained destination row')
