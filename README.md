@@ -198,32 +198,26 @@ This is not an atomic-claim or refund-intent evidence importer. New profile-spec
 
 Executable integration suites and harnesses moved to the [qualification repository](https://github.com/cogno-us/cognous-stack-qualification/tree/39f038435afdd71ba162860faa5718d90d7bde64/suites/cognous-replay-bundle). See [the path migration map](CROSS_COMPONENT_TESTS.md) for current commands and source identity rules. Component-local tests remain here; historical qualification results retain their original scope.
 
-<!-- stack-block:start -->
 ## Where it fits: Cognous stack components
 
 <a id="cognous-stack-components"></a>
 
-The Open Control Stack groups component responsibilities into five groups, plus a cross-cutting exchange and two side groups. The groups are a navigation map. They are not an execution sequence and not a requirement to install every component. Selected revisions come only from the hub [component lock](https://github.com/cogno-us/cognous-open-control-stack/blob/main/component-lock.json), read with [release status](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/release-status.md).
+<!-- stack-map:start -->
+<!-- Canonical block: identical text in every component README. Source: docs/stack-map.md in the hub. Refresh at the pin round. -->
+The Open Control Stack groups its repositories by responsibility. The groups are a navigation map, not an execution sequence and not a requirement to install every component. The hub [component lock](https://github.com/cogno-us/cognous-open-control-stack/blob/main/component-lock.json) is the only source of selected revisions; [release status](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/release-status.md) states their evidence and limits. Last checked against `component-lock.json` at hub commit `dcc9bd7533ef`.
 
-| Group | Components |
-|---|---|
-| 01 Knowledge & Provenance | [Evidence Registry (The Index)](https://github.com/cogno-us/cognous-evidence-registry) · [Evidence Attestation (BitRep)](https://github.com/cogno-us/cognous-evidence-attestation) |
-| 02 Institutional Governance | [Institutional Governance (Alvorada)](https://github.com/cogno-us/cognous-institutional-governance) |
-| 03 Declaration & Policy Control | [Action Manifest](https://github.com/cogno-us/cognous-action-manifest) · [Control Plane](https://github.com/cogno-us/cognous-control-plane) |
-| 04 Constrained Execution | [Execution Runtime](https://github.com/cogno-us/cognous-execution-runtime) |
-| 05 Replay & Evidence | [Replay Bundle](https://github.com/cogno-us/cognous-replay-bundle) · [Governance Evidence Pack](https://github.com/cogno-us/cognous-governance-evidence-pack) · [ODES](https://github.com/cogno-us/open-decision-evidence-standard) |
-| Cross-cutting exchange | [Governed Exchange (GAX/IMX)](https://github.com/cogno-us/cognous-governed-exchange) |
-| Optional reasoning protocols (side group) | [PRP](https://github.com/cogno-us/portable-reasoning-protocol) · [Research Intelligence Protocol](https://github.com/cogno-us/research-intelligence-protocol) · [TFA Protocol](https://github.com/cogno-us/truth-freedom-agency-protocol) |
-| Tooling and qualification (side group) | [Ergonomics (cognous-ocs)](https://github.com/cogno-us/cognous-open-control-stack-ergonomics) · [Verifier](https://github.com/cogno-us/cognous-open-control-stack-verifier) · [Orchestrator](https://github.com/cogno-us/cognous-stack-orchestrator) · [Qualification](https://github.com/cogno-us/cognous-stack-qualification) |
-| Hub | [Open Control Stack hub](https://github.com/cogno-us/cognous-open-control-stack) |
+| Group | Members |
+| --- | --- |
+| **01 Knowledge & Provenance** | [Evidence Registry (The Index)](https://github.com/cogno-us/cognous-evidence-registry) · [Evidence Attestation (BitRep)](https://github.com/cogno-us/cognous-evidence-attestation) |
+| **02 Institutional Governance** | [Institutional Governance (Alvorada)](https://github.com/cogno-us/cognous-institutional-governance) |
+| **03 Declaration & Policy Control** | [Action Manifest](https://github.com/cogno-us/cognous-action-manifest) · [Control Plane](https://github.com/cogno-us/cognous-control-plane) |
+| **04 Constrained Execution** | [Execution Runtime](https://github.com/cogno-us/cognous-execution-runtime) |
+| **05 Replay & Evidence** | [Replay Bundle](https://github.com/cogno-us/cognous-replay-bundle) · [Governance Evidence Pack](https://github.com/cogno-us/cognous-governance-evidence-pack) · [ODES](https://github.com/cogno-us/open-decision-evidence-standard) |
+| **Cross-cutting exchange** | [Governed Exchange (GAX/IMX)](https://github.com/cogno-us/cognous-governed-exchange) |
+| **Tooling and qualification** (side group) | [Ergonomics (`cognous-ocs`)](https://github.com/cogno-us/cognous-open-control-stack-ergonomics) · [Verifier](https://github.com/cogno-us/cognous-open-control-stack-verifier) · [Orchestrator](https://github.com/cogno-us/cognous-stack-orchestrator) · [Qualification](https://github.com/cogno-us/cognous-stack-qualification) |
 
-Hub pages: [stack map](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/stack-map.md) (one row per repository), [naming](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/naming.md) (display names, packages, commands, former names), [profiles and tools](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/profiles-and-tools.md) and the [documentation index](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/README.md).
-
-Status labels used in every "What ships" table: **merged** (merged in the owning repository, not by itself selected), **selected** (pinned in the hub lock), **known limit** (a limitation existing documentation already states) and **proposed** (draft or planned, not a supported interface). A signature, registry entry, message receipt or evidence summary does not grant execution authority.
-
-<!-- pin-round: refresh the hub commit on the next line when the component lock changes -->
-Last checked against `component-lock.json` at hub commit `dcc9bd7533ef`.
-<!-- stack-block:end -->
+Status labels used in this README: **merged** (reviewed and merged in the owning repository; not by itself selected), **selected** (pinned in the hub lock), **known limit** (a limitation that is stated and kept visible) and **proposed** (draft or planned work, not a supported interface). Full map, names and commands: [stack map](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/stack-map.md), [naming](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/naming.md), [profiles and tools](https://github.com/cogno-us/cognous-open-control-stack/blob/main/docs/profiles-and-tools.md). A signature, registry entry, message receipt or evidence summary does not grant execution authority.
+<!-- stack-map:end -->
 
 ## Known limits
 
