@@ -101,3 +101,52 @@ def test_a_failed_attempt_with_an_observed_state_other_than_unknown_is_refused(s
     with pytest.raises(ImportContractError) as info:
         _import(cp, proposal, export)
     assert info.value.code == "null_observation_state_mismatch", str(info.value)
+
+
+# ---- a failed result beside an accepted reconciliation observation --------------------------------------------
+
+def _accepting_case():
+    """The failed case whose reconciliation accepted an `absent` observation (a commit refused after the attempt)."""
+    cp, proposal, export = _case()
+    effect = export["execution_result"]["effect_id"]
+    observation = {"effect_id": effect, "observed_at": "2026-10-05T19:00:00+00:00", "state": "absent",
+                   "destination_state": {}}
+    rec = copy.deepcopy(export["control_plane_evidence"]["reconciliation"])
+    rec.update(result="observed_absent", observation=observation, observation_accepted=True, reasons=[])
+    cp["reconciliations"][-1] = rec
+    cp["observations"] = [r["observation"] for r in cp["reconciliations"] if r["observation_accepted"]]
+    evidence = {"attempt": export["control_plane_evidence"]["attempt"], "reconciliation": rec}
+    export["control_plane_evidence"] = evidence
+    export["execution_result"]["control_plane_evidence"] = evidence
+    return cp, proposal, export
+
+
+def test_a_failed_attempt_without_an_observation_imports_beside_an_accepted_absent_reconciliation():
+    cp, proposal, export = _accepting_case()
+    assert export["execution_result"]["observation"] is None
+    assert export["control_plane_evidence"]["reconciliation"]["observation_accepted"] is True
+    assert _import(cp, proposal, export).status == "reconstruction_complete"
+
+
+@pytest.mark.parametrize("status", ["reconciled", "partial", "unknown"])
+def test_other_attempted_results_still_need_the_accepted_reconciliation_observation(status, monkeypatch):
+    """With the status matrix set aside, a null observation beside an accepted reconciliation one is still refused."""
+    from agent_replay_bundle import importers as I
+    monkeypatch.setattr(I, "_result_matrix_problems", lambda result: [])
+    cp, proposal, export = _accepting_case()
+    _claim(export, status)
+    if status == "unknown":
+        export["execution_result"].update(acknowledged=False)
+        export["control_plane_attempts"][0].update(status="unknown")
+    with pytest.raises(ImportContractError) as info:
+        _import(cp, proposal, export)
+    # reconciled and partial are refused one rule earlier (they must remain unknown); unknown reaches this rule
+    expected = ("accepted reconciliation observation missing" if status == "unknown" else "must remain unknown")
+    assert expected in str(info.value), str(info.value)
+
+
+def test_an_executed_attempt_beside_an_accepted_reconciliation_is_still_refused():
+    cp, proposal, export = _accepting_case()
+    _claim(export, "executed")
+    with pytest.raises(ImportContractError):
+        _import(cp, proposal, export)

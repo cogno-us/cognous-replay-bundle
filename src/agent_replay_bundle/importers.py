@@ -1982,7 +1982,10 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
             raise ImportContractError('rejected observations differ from retained reconciliation')
         if observation and (not rec['observation_accepted'] or rec.get('observation') != observation):
             raise ImportContractError('rejected/substituted evidence promoted to accepted observation')
-        if result.get('attempted') and rec['observation_accepted'] and observation != rec.get('observation'):
+        # A failed result carries a null observation by contract (observed_state unknown); the lifecycle contract does not
+        # model reconciliation, so the accepted reconciliation observation stays Control Plane evidence beside it.
+        if (result.get('attempted') and result.get('status') != 'failed' and rec['observation_accepted']
+                and observation != rec.get('observation')):
             raise ImportContractError('accepted reconciliation observation missing from attempted result')
         if not rec['observation_accepted'] and result.get('observed_state') != 'unknown':
             raise ImportContractError('rejected observation cannot establish observed state')
