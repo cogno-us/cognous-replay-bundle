@@ -1,6 +1,6 @@
 """Programme-2 opt-in profiles: Replay accepts and retains the members of operation identity (N1), rule revision (N2) and
 freshness (N3), and (since the 6093aca7 re-capture) merge-record, reversibility and dedupe-ttl (N4, see
-test_programme2_n4_and_pairing.py) for the exact Control Plane revision 6093aca7, refuses damaged ones with stable codes, and changes nothing with
+test_programme2_n4_and_pairing.py) for the exact Control Plane revision 2bac7875, refuses damaged ones with stable codes, and changes nothing with
 the profiles off.
 
 The valid cases are REAL run records written by the Control Plane's own flows (``tests/fixtures/programme2_profiles``, provenance
