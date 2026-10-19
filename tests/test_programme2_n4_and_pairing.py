@@ -1,5 +1,5 @@
 """Programme-2 generation 2bac7875: the N4 profiles (merge-record, reversibility, dedupe-ttl), the reason registry label 0.2, and
-the executor pairing with the runtime c4a05883.
+the executor pairing with the runtime 6b16962d.
 
 The valid cases are REAL run records and exports written by the Control Plane's and the runtime's own flows
 (``tests/fixtures/programme2_profiles`` for the Control Plane record, ``tests/fixtures/programme2_paired`` for record plus executor
@@ -34,7 +34,7 @@ LABEL_01, LABEL_02 = "runtime-authority-reasons/0.1", "runtime-authority-reasons
 def test_generation_is_the_new_control_plane_revision_and_the_old_one_is_not_kept():
     assert I.CONTROL_PLANE_P2_REVISION == "2bac7875391cad0a431fa0d75208b7ade39743e3"
     assert I.BOUNDED_P2_PROFILE == "control-plane-programme2-profiles@2bac7875"
-    assert I.MOLTBOT_P2_REVISION == "c4a05883266b815f39d97cbf2240406647985147"
+    assert I.MOLTBOT_P2_REVISION == "6b16962db140590b808f02b5c2cb11a217aec46f"
     assert I.MANIFEST_P2_REVISION == "ff5490828b2bf7f6a976da209f3f533701855687"
     for old in ("128eaa5e36fdff772fdc709581712dbeac046db3", "3755c71a20eab1a41135967b682342c809929572", "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb", "6093aca7b945698e89c0d8ac7c75306375e1a298"):  # the earlier ties are replaced
         assert old not in vars(I).values()
@@ -383,7 +383,7 @@ def test_the_new_runtime_revision_is_not_paired_with_any_earlier_control_plane()
 
 @pytest.mark.parametrize("old", ["fc034d140ce55d9887ac3a0aab598f3a2c05ea47", "7170da59e04854a3dbe13f151400d0ac368b8dcb", "11de097c450d3ad4d89f9add41b00e38e7cc2c7c", "62a5cc156ecb439b4103b757fd265f276bb30374"])
 def test_the_previous_runtime_pairings_are_replaced_not_kept(old):
-    """The exact pairing moved from fc034d14 to 7170da59 to 11de097c to 62a5cc15 to c4a05883 (the export shape is unchanged, the constant and captures moved)."""
+    """The exact pairing moved from fc034d14 to 7170da59 to 11de097c to 62a5cc15 to c4a05883 to 6b16962d (the export shape is unchanged, the constant and captures moved)."""
     assert I.MOLTBOT_P2_REVISION != old and old not in vars(I).values()
     cp, proposal, export = paired("adapter-default")
     other = copy.deepcopy(export)
