@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import copy
 from datetime import datetime, timezone
 
 from .models import (
     AgentReplayBundle,
     BundleStatus,
-    RedactionMetadata,
 )
 
 
