@@ -1,6 +1,6 @@
 """Consumer conformance of Replay to the ODES execution-attempt lifecycle contract (0.1.0-draft, level L).
 
-The contract (vendored under tests/contracts/execution-attempt-lifecycle/, ODES e33d541a) ships abstract fixtures
+The contract (vendored under tests/contracts/execution-attempt-lifecycle/, ODES e5fe3822) ships abstract fixtures
 with synthetic ids. This module feeds every vendored fixture through Replay's real import code and records the
 outcome of each one in a generated table (also kept in docs/contract-conformance-execution-attempt-lifecycle.md):
 
@@ -54,7 +54,7 @@ DOC = HERE.parent / "docs" / "contract-conformance-execution-attempt-lifecycle.m
 
 CONTRACT_NAME = "execution-attempt-lifecycle"
 CONTRACT_VERSION = "0.1.0-draft"
-ODES_COMMIT = "a9db024c6f346f741a9963552e559476fdfc4189"
+ODES_COMMIT = "e5fe3822a2d3c3f6885fd61acccb4bb6281041be"
 REVISION = I.CONTROL_PLANE_P4_REVISION
 EXECUTOR_REVISION = I.MOLTBOT_P4_REVISION
 
@@ -107,6 +107,17 @@ CODE_TO_REPLAY = {
     "missing_start_event": Mapped(r"executor attempt .* events do not start with attempted"),
     "repeated_start_event": Mapped(r"executor attempt .* repeats its attempted event"),
     "event_order": Mapped(r"attempt_events\[\d+\] (event_id is repeated or out of order|created_at is missing or out of order)"),
+    "attempt_transition": Mapped(
+        r"executor attempt .* event .* may not follow|Control Plane attempt .* row status .* may not follow"
+        r"|conflicting content under immutable terminal Control Plane attempt",
+        "executor events and Control Plane rows move only along the contract's attempt state machines"),
+    "attempt_identity_changed": Mapped(r"changed its effect_id or decision_id between lifecycle rows"),
+    "result_attempt_unresolved": Mapped(r"names no attempt row of the export",
+                                        "a null attempt_id and an id that matches no row are both refused"),
+    "result_binding_mismatch": Mapped(
+        r"execution_result identifiers do not match execution envelope"
+        r"|execution_result\.observation\.effect_id conflicts with committed operation"),
+    "result_state_matrix": Mapped(r"the producer status matrix contradicts the execution result"),
     "terminal_event_missing": Mapped(r"execution result status .* contradicts the terminal attempt event 'attempted'"),
     "status_terminal_mismatch": Mapped(r"execution result status .* contradicts the terminal attempt event"),
     # observations and recovery
@@ -125,7 +136,8 @@ CODE_TO_REPLAY = {
     # member model
     "undeclared_member": Mapped(r"has unsupported member\(s\)|recovery report has undeclared members|unsupported/missing evidence fields"),
     "invalid_extension_key": Mapped(r"extensions names must start with 'x-'"),
-    "schema_violation": Mapped(r"is required|must be an (object|array)|must be object or null|not \{\}|is not a validated observation",
+    "schema_violation": Mapped(r"is required|must be an (object|array)|must be object or null|not \{\}|is not a validated observation"
+                               r"|input text is not valid Unicode|invalid journal proposal commitment",
                                "Replay emits this code for structural failures (since step B also for `{}` and for a "
                                "recovery report in observations)"),
     "unknown_enum_value": Mapped(r"is not a recovery status|is not a declared value"),
@@ -138,6 +150,8 @@ CODE_TO_REPLAY = {
     "repeated_record": Mapped(r"lifecycle repeats a record"),
     # resolution journal and checks
     "journal_protocol": Mapped(r"journal (missing opening or already closed|binding changed|input missing)|duplicate journal opening"),
+    "reasons_minimum": Mapped(r"completion's reasons lack what its own recorded inputs imply",
+                              "Replay does not derive the implied-reasons floor (probe reasons-minimum-...: DIVERGES)"),
     "journal_unbound_completion": Mapped(r"completed journal differs from actual resolution check"),
     "journal_check_reused": Mapped(r"completed journals reuse one actual resolution check"),
     "duplicate_check_id": Mapped(r"duplicate/empty resolution check id"),
@@ -145,7 +159,8 @@ CODE_TO_REPLAY = {
 }
 
 # Codes Replay does not emit, with the reason (everything else in CODE_TO_REPLAY is emitted and asserted).
-NOT_EMITTED = {"unsupported_contract_version": "Replay exports carry no contract_version member"}
+NOT_EMITTED = {"unsupported_contract_version": "Replay exports carry no contract_version member",
+               "reasons_minimum": "Replay does not derive the implied-reasons floor of a completed journal check"}
 
 # A refusal inside the observation union may carry either code (the contract: an unknown value inside a union
 # may surface as schema_violation).
@@ -259,6 +274,8 @@ def _complete_destination_state(observation, base_destination):
             and observation.get("destination_state") in (None, {})):
         observation = dict(observation)
         observation["destination_state"] = {**base_destination, "state": observation["state"]}
+    elif isinstance(observation, dict) and observation.get("state") == "absent" and "destination_state" not in observation:
+        observation = {**observation, "destination_state": {}}  # an observed absence carries no destination content
     return observation
 
 
@@ -355,6 +372,7 @@ def build_executor(doc, mirror_observations=False):
     for member in ("recovery_observations", "extensions"):
         if member in planted:
             x[member] = planted[member]
+    _carry_text(doc, lambda ext: x.setdefault("extensions", {}).update(ext))
     if res["status"] == "denied":
         _make_denied(cp, x)
     elif not res["observation"]:  # null (and the tolerated empty object): no observation was established
@@ -368,9 +386,56 @@ def build_executor(doc, mirror_observations=False):
     return lambda: run_import(cp, proposal, x)
 
 
+def _invalid_text(doc):
+    """The first text (member value or member name) of ``doc`` that is not valid Unicode, else None."""
+    todo = [doc]
+    while todo:
+        item = todo.pop()
+        if isinstance(item, str):
+            try:
+                item.encode("utf-8")
+            except UnicodeEncodeError:
+                return item
+        elif isinstance(item, dict):
+            todo.extend(item.keys())
+            todo.extend(item.values())
+        elif isinstance(item, list):
+            todo.extend(item)
+    return None
+
+
+def _carry_text(doc, carrier):
+    """Document-level labels (``producer``) have no counterpart in a Replay input. When a fixture's text is not valid
+    Unicode, the adapter carries that text into a free-form ``x-`` extension member of the real input, so the importer
+    reads it; documents whose text is valid are imported unchanged."""
+    text = _invalid_text(doc)
+    if text is not None:
+        carrier({"x-fixture-text": text})
+
+
+def _identity_table(doc, cp):
+    """Ids of a document taken from a real run (not ``syn-``) are rebound to the base capture's decision and effect,
+    so the rows resolve against the real Control Plane run; synthetic ids keep their own identity (a fixture may
+    plant a change of identity on purpose)."""
+    base = cp["decisions"][0]
+    table = {}
+    rows = list(doc.get("control_plane_attempts") or []) + list(doc.get("resolution_journal") or [])
+    for row in rows:
+        for member, target in (("decision_id", base["decision_id"]), ("effect_id", base["effect_id"])):
+            value = row.get(member)
+            if isinstance(value, str) and not value.startswith("syn-"):
+                table[value] = target
+    return table
+
+
 def build_cp_attempts(doc):
     cp, proposal, x = load_security()
-    cp["attempts"] = _rebind(doc["control_plane_attempts"], _table(cp, x))
+    table = {**_table(cp, x), **_identity_table(doc, cp)}
+    cp["attempts"] = _rebind(doc["control_plane_attempts"], table)
+    if "resolution_journal" in doc:  # a document of one run carries the journal and checks beside the attempts
+        cp["check_events"] = _rebind(doc["resolution_journal"], table)
+        cp["resolution_checks"] = _rebind(doc["resolution_checks"], table)
+    _carry_text(doc, lambda ext: cp["attempts"][0].setdefault("extensions", {}).update(ext))
     return lambda: run_import(cp, proposal)
 
 
@@ -378,6 +443,7 @@ def build_resolution(doc):
     cp, proposal, _ = load_security()
     cp["check_events"] = copy.deepcopy(doc["resolution_journal"])
     cp["resolution_checks"] = copy.deepcopy(doc["resolution_checks"])
+    _carry_text(doc, lambda ext: cp["check_events"][0].setdefault("extensions", {}).update(ext))
     return lambda: run_import(cp, proposal)
 
 
@@ -405,10 +471,19 @@ def evaluate(fixture) -> Outcome:
 NOT_EXERCISED: dict[str, str] = {}  # every vendored fixture is reachable through an adapter at this revision
 
 # fixture id -> finding ids / note shown in the table
+_UNKNOWN_OBSERVATION_NOTE = (
+    "refused (fail closed) at the Control Plane run before the result is read: the fixture's validated `unknown` "
+    "observation must be an accepted reconciliation and CP acceptance is not widened (owner decision 2026-10-17); the "
+    "rule is covered with a null observation by probe `result-unknown-null-attempt-id-null-observation`")
 NOTES = {
     "executor-unknown-validated-unknown-after-ambiguous-dispatch":
         "waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP "
         "acceptance unreviewed",
+    "result-unknown-null-attempt-id": _UNKNOWN_OBSERVATION_NOTE,
+    "result-unknown-unregistered-attempt-id": _UNKNOWN_OBSERVATION_NOTE,
+    "journal-refusal-then-valid-request":
+        "adapter: the document's decision and effect ids (a real run) are rebound onto the base capture's single "
+        "decision and effect; the journal, checks and attempt rows are imported together",
 }
 
 
@@ -425,6 +500,8 @@ def classify(fixture):
 
 DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED" for fid, fx in FIXTURES.items()}
 DECLARED["executor-unknown-validated-unknown-after-ambiguous-dispatch"] = "DIVERGES"  # CP acceptance not widened
+DECLARED["result-unknown-null-attempt-id"] = "DIVERGES"  # same cause: refused earlier, without the contract code
+DECLARED["result-unknown-unregistered-attempt-id"] = "DIVERGES"
 
 
 def _fixture_params():
@@ -439,7 +516,7 @@ def _fixture_params():
 
 def test_declared_statuses_cover_every_fixture_and_match_the_adapters():
     assert set(DECLARED) == set(FIXTURES)
-    assert len(FIXTURES) == 51
+    assert len(FIXTURES) == 75
     actual = {fid: classify(fx)[0] for fid, fx in FIXTURES.items()}
     assert actual == DECLARED
 
@@ -530,7 +607,76 @@ def _observed_state(value):
     return lambda doc: doc["execution_result"].__setitem__("observed_state", value)
 
 
+def _set_result(**members):
+    return lambda doc: doc["execution_result"].update(members)
+
+
+def _name_attempt(doc):
+    doc["execution_result"]["attempt_id"] = "syn-attempt-1"
+
+
+def _name_attempt_as_unknown(doc):
+    """Replay additionally requires an attempted result without a validated observation to be 'unknown' (its own
+    stricter rule), and does not accept a validated `unknown` reading (CP acceptance not widened): the control names the
+    attempt and reports the status and terminal event 'unknown' with no observation."""
+    _name_attempt(doc)
+    doc["execution_result"].update(status="unknown", observation=None, observed_state="unknown", acknowledged=True,
+                                   newly_executed=False)
+    doc["attempt_events"][-1]["status"] = "unknown"
+
+
+def _name_attempt_and_consistent_flags(doc):
+    """The fixture also plants a flag/state combination the producer refuses; the control repairs both defects."""
+    _name_attempt(doc)
+    result = doc["execution_result"]
+    if result["status"] == "unknown":
+        result.update(acknowledged=False, newly_executed=False)
+    else:
+        result.update(acknowledged=True, newly_executed=False)
+
+
+def _drop_event(index):
+    return lambda doc: doc["attempt_events"].pop(index)
+
+
+def _identity_restored(doc):
+    rows = doc["control_plane_attempts"]
+    rows[1]["effect_id"] = rows[0]["effect_id"]
+
+
+def _digest_without_line_break(doc):
+    for event in doc["resolution_journal"]:
+        event["proposal_commitment"] = event["proposal_commitment"].rstrip("\n")
+
+
+def _status_executed_then_unknown(doc):
+    doc["attempt_events"][-1]["status"] = "unknown"
+    doc["execution_result"].update(status="unknown", observation=None, observed_state="unknown", newly_executed=False,
+                                   acknowledged=True)
+
+
 REPAIRS = {
+    "control-plane-attempt-identity-changed": _identity_restored,
+    "control-plane-failed-after-acknowledged": lambda d: d["control_plane_attempts"].pop(),
+    "executor-failed-attempt-reopened": _drop_event(1),
+    "executor-failed-after-executed": _status_executed_then_unknown,
+    "observation-names-different-effect": lambda d: d["execution_result"]["observation"].__setitem__("effect_id", "syn-effect-1"),
+    "result-names-different-decision": lambda d: d["execution_result"].__setitem__("decision_id", "syn-decision-1"),
+    "result-names-different-effect": lambda d: d["execution_result"].__setitem__("effect_id", "syn-effect-1"),
+    "result-state-matrix-executed-not-fresh": _set_result(newly_executed=True),
+    "trailing-line-break-digest": _digest_without_line_break,
+    "unpaired-surrogate-text": lambda d: d.__setitem__("producer", "control-plane"),
+    "result-executed-null-attempt-id": _name_attempt,
+    "result-executed-unregistered-attempt-id": _name_attempt,
+    "result-failed-null-attempt-id": _name_attempt_as_unknown,
+    "result-failed-unregistered-attempt-id": _name_attempt_as_unknown,
+    "result-partial-null-attempt-id": _name_attempt,
+    "result-partial-unregistered-attempt-id": _name_attempt,
+    "result-reconciled-null-attempt-id": _name_attempt,
+    "result-reconciled-unregistered-attempt-id": _name_attempt,
+    "result-partial-flags-contradict-without-attempt-id": _name_attempt_and_consistent_flags,
+    "result-reconciled-flags-contradict-without-attempt-id": _name_attempt_and_consistent_flags,
+    "result-unknown-flags-contradict-without-attempt-id": _name_attempt_and_consistent_flags,
     "control-plane-attempt-extension-key-without-x-prefix": _repair_cp_extension_key,
     "control-plane-attempt-undeclared-member": lambda d: [r.pop("injected_member", None) for r in d["control_plane_attempts"]],
     "executor-unknown-validated-absent-state-mismatch": _observed_state("absent"),
@@ -669,6 +815,24 @@ def _validated_unknown_state(doc):
     doc["observations"] = [obs]
 
 
+def _unknown_null_attempt_id(doc):
+    doc["execution_result"]["attempt_id"] = None
+
+
+def _attempted_row_after_acknowledged(doc):
+    rows = doc["control_plane_attempts"]
+    rows.append({**rows[0], "error": "reopened"})  # an 'attempted' row after the closed 'acknowledged' row
+
+
+def _unreadable_input_without_a_reason(doc):
+    """A completed check whose own recorded input was unreadable carries no `status_unreadable` reason (journal and
+    check carry the same input, so only the implied-reasons floor is violated)."""
+    for event in doc["resolution_journal"]:
+        if event["phase"] == "input" and event["check_id"] == "jA":
+            event["input"]["read_state"] = "unreadable"
+    doc["resolution_checks"][0]["inputs"][0]["read_state"] = "unreadable"
+
+
 R_RECOVERY = "executor-unknown-recovery-observation-route-b"
 R_CP = "control-plane-reconciled-existing-acknowledged"
 R_TERMINAL_FAILED = "executor-terminal-failed-vs-status"
@@ -720,6 +884,17 @@ PROBES = [
        code="executed_without_observation", finding=None),
     _p(id="export-without-observations-member", base=R_RECOVERY, mutate=lambda d: None, code=None,
        runner=_no_observations_member, finding=None),
+    _p(id="result-unknown-null-attempt-id-null-observation", base="executor-unknown-ack-unobserved",
+       mutate=_unknown_null_attempt_id, code="result_attempt_unresolved", finding=None),
+    _p(id="control-plane-attempted-row-after-acknowledged", base="control-plane-normal-attempted-acknowledged", mutate=_attempted_row_after_acknowledged,
+       code="attempt_transition", runner=_direct_cp_validator, finding=None),
+    _p(id="reasons-minimum-unreadable-input-without-reason", base="resolution-checks-overlap-a-completes-first",
+       mutate=_unreadable_input_without_a_reason, code="reasons_minimum",
+       finding="Replay does not derive the implied-reasons floor of a completed journal check (contract 39-E)"),
+    _p(id="reasons-match-extra-reason-on-check-row", base="resolution-checks-overlap-a-completes-first",
+       mutate=_set(("resolution_checks", 0, "reasons"), ["some_other_reason"]), code="journal_unbound_completion",
+       finding="Replay binds a completion to any check whose reasons are a superset; the contract allows only the "
+               "closed POST_JOURNAL_GATE_CODES as additional reasons (39-A)"),
 ]
 
 

@@ -67,8 +67,8 @@ PROFILE_LISTS = {
 # Members a profile adds to rows Replay already knows (allowed only for the programme-2 revision).
 ATTEMPT_PROFILE_MEMBERS = frozenset({"evaluated_at", "recorded_at"})
 
-EXTENSION_NAME = re.compile(r"^x-[a-z0-9][a-z0-9._-]*$")
-DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+EXTENSION_NAME = re.compile(r"^x-[a-z0-9][a-z0-9._-]*(?!\n)$")
+DIGEST = re.compile(r"^sha256:[0-9a-f]{64}(?!\n)$")
 EXPIRED = "check_expired_before_dispatch"
 OVERDUE = "check_overdue"
 PHASES = frozenset({"opened", "input", "completed", "interrupted", "overdue", "expired"})

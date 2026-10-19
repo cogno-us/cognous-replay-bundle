@@ -153,9 +153,9 @@ def _unique_or_same(seen: dict[str, dict[str, Any]], key: str, value: dict[str, 
         raise ImportContractError(f"conflicting content under immutable {label} {key}", code)
 
 
-def _require_equal(actual: Any, expected: Any, path: str) -> None:
+def _require_equal(actual: Any, expected: Any, path: str, code: str | None = None) -> None:
     if actual != expected:
-        raise ImportContractError(f"{path} conflicts with committed operation")
+        raise ImportContractError(f"{path} conflicts with committed operation", code)
 
 
 def _proposal_commitment(proposal: dict[str, Any]) -> str:
@@ -239,7 +239,7 @@ EXECUTOR_ATTEMPT_MEMBERS = frozenset({"attempt_id", "effect_id", "decision_id", 
 ATTEMPT_EVENT_MEMBERS = frozenset({"event_id", "attempt_id", "status", "error", "created_at", "extensions"})
 CONTROL_PLANE_ATTEMPT_MEMBERS = frozenset({"attempt_id", "effect_id", "decision_id", "started_at", "time_source",
                                            "status", "acknowledgement", "error", "extensions"})
-EXTENSION_NAME = re.compile(r"^x-[a-z0-9][a-z0-9._-]*$")
+EXTENSION_NAME = re.compile(r"^x-[a-z0-9][a-z0-9._-]*(?!\n)$")  # the whole string, never "before a trailing line break" (the contract's own form)
 
 
 def _is_recovery_observation(observation: object) -> bool:
@@ -298,13 +298,14 @@ def _validate_recovery_observation(observation: dict[str, Any], result: dict[str
                                   "recovery_state_mismatch" if result.get("status") == "observed"
                                   else "unknown_state_mismatch")
     if "effect_id" in observation:
-        _require_equal(observation["effect_id"], effect_id, path + ".effect_id")
+        _require_equal(observation["effect_id"], effect_id, path + ".effect_id", "result_binding_mismatch")
     if "operation_digest" in observation:
         _require_equal(observation["operation_digest"], _sha256(op), path + ".operation_digest")
 
 
 def _validate_observation_content(observation: dict[str, Any], effect_id: str, op: dict[str, Any], path: str) -> None:
-    _require_equal(observation.get("effect_id"), effect_id, path + ".effect_id")
+    _require_equal(observation.get("effect_id"), effect_id, path + ".effect_id",
+                   "result_binding_mismatch" if path == "execution_result.observation" else None)
     state = observation.get("state")
     destination = observation.get("destination_state")
     if state in {"applied", "partial"}:
@@ -628,6 +629,15 @@ MAX_RECORD_LIST_LENGTH = 100_000
 MAX_RECORD_DEPTH = 128
 
 
+def _require_unicode_text(text: str) -> None:
+    """Text that cannot be encoded as UTF-8 (an unpaired surrogate code point) is refused, never evaluated
+    (lifecycle contract input hardening: ``schema_violation``)."""
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        raise ImportContractError("input text is not valid Unicode (unpaired surrogate)", "schema_violation") from None
+
+
 def _check_record_bounds(value: Any) -> None:
     """Refuse oversized or too deeply nested in-memory input (the dict API has no byte budget).
 
@@ -640,10 +650,15 @@ def _check_record_bounds(value: Any) -> None:
         nodes += 1
         if nodes > MAX_RECORD_NODES:
             raise ImportContractError("input exceeds the node limit", code="input_too_large")
-        if isinstance(item, (dict, list, tuple)):
+        if isinstance(item, str):
+            _require_unicode_text(item)
+        elif isinstance(item, (dict, list, tuple)):
             if depth > MAX_RECORD_DEPTH:
                 raise ImportContractError("input exceeds the nesting limit", code="input_too_deep")
             if isinstance(item, dict):
+                for key in item:
+                    if isinstance(key, str):
+                        _require_unicode_text(key)
                 children = list(item.values())
             else:
                 if len(item) > MAX_RECORD_LIST_LENGTH:
@@ -1128,7 +1143,8 @@ def _import_moltbot(
     # must match the envelope.
     if (result.get("decision_id", envelope_decision) != envelope_decision
             or result.get("effect_id", envelope_effect) != envelope_effect):
-        raise ImportContractError("Moltbot execution_result identifiers do not match execution envelope")
+        raise ImportContractError("Moltbot execution_result identifiers do not match execution envelope",
+                                  "result_binding_mismatch")
     if source.get("producer_profile", {}).get("profile_version") == "2.0.0":
         _validate_v2_export(source, cp_records, op, envelope_effect)
         for kind, path, value in (
@@ -1149,7 +1165,8 @@ def _import_moltbot(
             severity="info", path="execution_result.observation",
             message="Destination recovery report is retained as a report only; it is not a validated Control Plane observation."))
     elif isinstance(result_observation, dict) and result_observation:
-        _require_equal(result_observation.get("effect_id"), envelope_effect, "execution_result.observation.effect_id")
+        _require_equal(result_observation.get("effect_id"), envelope_effect, "execution_result.observation.effect_id",
+                       "result_binding_mismatch")
         if "state" in result_observation and result.get("observed_state") not in (None, "unknown"):
             _require_equal(result_observation.get("state"), result.get("observed_state"), "execution_result.observation.state")
         if "destination_state" in result_observation:
@@ -1508,6 +1525,27 @@ def _validate_programme2_members(cp: dict[str, Any]) -> None:
         raise ImportContractError("programme-2 profile: malformed profile member: " + repr(exc), "schema_violation") from exc
 
 
+# Attempt state machines of the lifecycle contract (decision 37; 39-P adds executed/partial -> unknown, the Control Plane
+# adapter appends 'unknown' when the follow-up observation is not accepted). A status without successor is closed: a
+# closed attempt is never reopened and never receives a later, contradicting record (``attempt_transition``).
+EXECUTOR_ATTEMPT_TRANSITIONS: dict[str, frozenset[str]] = {
+    "attempted": frozenset({"executed", "partial", "failed", "unknown", "denied", "reconciled"}),
+    "unknown": frozenset({"executed", "partial", "failed", "reconciled"}),
+    "executed": frozenset({"unknown", "reconciled"}),
+    "partial": frozenset({"unknown", "reconciled"}),
+    "failed": frozenset(),
+    "denied": frozenset(),
+    "reconciled": frozenset(),
+}
+CONTROL_PLANE_ATTEMPT_TRANSITIONS: dict[str, frozenset[str]] = {
+    "attempted": frozenset({"acknowledged", "unknown", "failed", "partial"}),
+    "unknown": frozenset({"acknowledged", "failed", "partial"}),
+    "acknowledged": frozenset(),
+    "partial": frozenset(),
+    "failed": frozenset(),
+}
+
+
 def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> None:
     """Check recorded contract consistency; no authority evaluation or new observation."""
     accepted = []
@@ -1559,8 +1597,18 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
     for i, attempt in enumerate(cp.get('attempts', [])):
         attempt = _obj(attempt, 'attempt')
         _validate_control_plane_attempt_row(attempt, f'attempts[{i}]', extra=_P2_ATTEMPT_MEMBERS if profiles else frozenset())
+        previous = lifecycle.get(attempt.get('attempt_id'))
+        if previous and any((row.get('effect_id'), row.get('decision_id')) != (attempt.get('effect_id'), attempt.get('decision_id'))
+                            for row in previous[:1]):
+            # effect_id and decision_id are fixed by the first row of an attempt and identical on every later row.
+            raise ImportContractError(
+                f"Control Plane attempt {attempt.get('attempt_id')} changed its effect_id or decision_id between lifecycle rows",
+                'attempt_identity_changed')
         if attempt.get('status') != 'attempted':
-            _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt')
+            reopened = (previous is not None and previous[0].get('status') == 'attempted' and previous[-1] != attempt
+                        and attempt.get('status') not in CONTROL_PLANE_ATTEMPT_TRANSITIONS.get(previous[-1].get('status'), frozenset()))
+            _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt',
+                            'attempt_transition' if reopened else None)
         lifecycle.setdefault(attempt.get('attempt_id'), []).append(attempt)
     # Each attempt lifecycle starts with exactly one 'attempted' record; no lifecycle record is repeated
     # verbatim. A dropped start record or a duplicated record is a defect, not repeated history.
@@ -1584,6 +1632,12 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
                                       'attempt_started_at_changed')
         if _has_equal_rows(rows):
             raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record', 'repeated_record')
+        if rows[0].get('status') == 'attempted':
+            for before, after in zip(rows, rows[1:]):
+                if before != after and after.get('status') not in CONTROL_PLANE_ATTEMPT_TRANSITIONS.get(before.get('status'), frozenset()):
+                    raise ImportContractError(
+                        f"Control Plane attempt {attempt_id} row status {after.get('status')!r} may not follow {before.get('status')!r}",
+                        'attempt_transition')
 
 
 def _freeze(value: Any) -> Any:
@@ -1609,14 +1663,11 @@ def _has_equal_rows(rows: list[Any]) -> bool:
         return any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i))
 
 
-def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
-                               result: dict[str, Any]) -> None:
-    """Producer 2.0.0 executor rows must be a complete, ordered, non-repeated lifecycle.
-
-    Attempt rows are unique; the attempt events of every executor attempt are present, carry strictly
-    increasing event ids and non-decreasing times, start with ``attempted`` and are not repeated; the
-    terminal event of the attempt that the execution result names equals the result status.
-    """
+def _validate_executor_attempt_rows(source: dict[str, Any],
+                                    attempts: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Attempt rows are unique; the attempt events of every executor attempt are present, carry strictly
+    increasing event ids and non-decreasing times, start with ``attempted``, are not repeated and move only along
+    the attempt state machine. Returns the events of each attempt in order."""
     rows = source["attempts"]
     if len(rows) != len(attempts):
         raise ImportContractError("duplicate executor attempt row", "duplicate_attempt_row")
@@ -1642,6 +1693,24 @@ def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[
             raise ImportContractError(f"executor attempt {aid} events do not start with attempted", "missing_start_event")
         if any(r.get("status") == "attempted" for r in rows_for[1:]):
             raise ImportContractError(f"executor attempt {aid} repeats its attempted event", "repeated_start_event")
+        for before, after in zip(rows_for, rows_for[1:]):
+            if after.get("status") not in EXECUTOR_ATTEMPT_TRANSITIONS.get(before.get("status"), frozenset()):
+                raise ImportContractError(
+                    f"executor attempt {aid} event {after.get('status')!r} may not follow {before.get('status')!r}",
+                    "attempt_transition")
+    return per_attempt
+
+
+def _validate_v2_executor_rows(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
+                               result: dict[str, Any]) -> None:
+    """Producer 2.0.0 executor rows must be a complete, ordered, non-repeated lifecycle (see
+    ``_validate_executor_attempt_rows``); the terminal event of the attempt that the execution result names equals
+    the result status."""
+    _validate_result_terminal_event(source, attempts, _validate_executor_attempt_rows(source, attempts), result)
+
+
+def _validate_result_terminal_event(source: dict[str, Any], attempts: dict[str, dict[str, Any]],
+                                    per_attempt: dict[str, list[dict[str, Any]]], result: dict[str, Any]) -> None:
     attempt_identity = source.get("attempt_identity") or {}
     result_attempt = result.get("attempt_id")
     if (attempt_identity.get("namespace") == "executor" and result_attempt in attempts
@@ -1736,6 +1805,66 @@ def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[
         raise ImportContractError("route B authority receipt does not show an active grant")
 
 
+ATTEMPT_CLAIMING_STATUSES = frozenset({"failed", "partial", "unknown", "executed", "reconciled"})
+OBSERVED_STATES = frozenset({"applied", "partial", "absent", "unknown"})
+
+
+def _validate_result_attempt_binding(source: dict[str, Any], result: dict[str, Any]) -> None:
+    """Executor attempt rows, events and transitions, then the result's attempt binding (contract rule
+    ``result_attempt_unresolved``), then the terminal-event comparison: a result whose status claims an attempt names
+    an attempt that the export carries, whatever its flags and observation say. A null attempt_id and an id that matches no row are both refused. The
+    attempt may be an executor attempt row or, for a Control Plane attempt namespace result, a Control Plane attempt
+    row of the export (which the attempt_identity checks bind further)."""
+    rows = source["attempts"]
+    if not all(isinstance(row.get("attempt_id"), str) and row["attempt_id"] for row in rows):
+        return  # reported by the attempt checks that read the rows
+    by_id = {row["attempt_id"]: row for row in rows}
+    per_attempt = _validate_executor_attempt_rows(source, by_id)
+    if result.get("status") in ATTEMPT_CLAIMING_STATUSES:
+        named = result.get("attempt_id")
+        control_plane_ids = {row.get("attempt_id") for row in (source.get("control_plane_attempts") or [])
+                             if isinstance(row, dict)}
+        if not (isinstance(named, str) and named and (named in by_id or named in control_plane_ids)):
+            raise ImportContractError(
+                f"execution result status {result.get('status')!r} names no attempt row of the export "
+                "(a null attempt_id or an id that matches no row is refused)", "result_attempt_unresolved")
+    _validate_result_terminal_event(source, by_id, per_attempt, result)
+
+
+def _result_matrix_problems(result: dict[str, Any]) -> list[str]:
+    """What the producer's status matrix refuses about an execution result (contract rule ``result_state_matrix``)."""
+    status = result["status"]
+    present = {name: result[name] for name in ("attempted", "acknowledged", "newly_executed") if name in result}
+    if any(type(value) is not bool for value in present.values()):
+        return ["attempted, acknowledged and newly_executed are carried as booleans"]
+    if len(present) != 3:  # absent flags are not claimed, so the flag rows have nothing to read
+        present = {}
+    attempted, acknowledged, fresh = (present.get(name) for name in ("attempted", "acknowledged", "newly_executed"))
+    observed_state, observation = result["observed_state"], result["observation"]
+    problems: list[str] = []
+    if not isinstance(observed_state, str) or observed_state not in OBSERVED_STATES:
+        problems.append("observed_state is one of applied, partial, absent, unknown")
+    if status in ATTEMPT_CLAIMING_STATUSES and attempted is False:
+        problems.append(f"status {status!r} requires an attempted execution")
+    if acknowledged and attempted is False:
+        problems.append("an acknowledgement requires an attempted execution")
+    if fresh and not (acknowledged is True and status in {"executed", "partial", "unknown"}):
+        problems.append("a fresh execution is acknowledged and has status executed, partial or unknown")
+    if status in {"denied", "failed"} and (acknowledged or fresh or observed_state != "unknown"):
+        problems.append("a denied or failed result carries no acknowledgement, no fresh execution and observed_state unknown")
+    if status == "executed" and (acknowledged is False or fresh is False or observed_state != "applied"):
+        problems.append("an executed result is acknowledged, fresh and observed as applied")
+    if status == "reconciled" and (fresh or observed_state != "applied"):
+        problems.append("a reconciled result is observed as applied and is not a fresh execution")
+    if status == "partial" and observed_state != "partial":
+        problems.append("a partial result is observed as partial")
+    if status in {"executed", "reconciled", "partial", "observed"} and not isinstance(observation, dict):
+        problems.append(f"status {status!r} requires a retained observation")
+    if _observation_kind(observation) == "validated" and observation["state"] != observed_state:
+        problems.append("a validated observation's state is the result's observed_state")
+    return problems
+
+
 def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                         op: dict[str, Any], effect: str) -> None:
     result = source['execution_result']
@@ -1750,6 +1879,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     kind = _observation_kind(observation)
     _validate_export_layout(source, observation, kind)
     _validate_result_contract(result, observation, kind)
+    _validate_result_attempt_binding(source, result)
     if kind == "recovery":
         _validate_recovery_observation(observation, result, effect, op)
     elif kind == "none":
@@ -1771,6 +1901,10 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         _validate_observation_content(observation, effect, op, 'execution_result.observation')
         if observation.get('state') in {'applied', 'partial'}:
             _accepted_repaired_observation(observation, effect)
+    problems = _result_matrix_problems(result)
+    if problems:
+        raise ImportContractError("the producer status matrix contradicts the execution result: " + "; ".join(problems),
+                                  "result_state_matrix")
     if observation is None and result.get('attempted') and result.get('status') != 'unknown':
         raise ImportContractError('attempt without validated observation must remain unknown')
     if result.get('newly_executed') and not source.get('effects'):
