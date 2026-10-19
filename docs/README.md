@@ -29,8 +29,8 @@ Labels follow the hub [stack map](https://github.com/cogno-us/cognous-open-contr
 | [Executor producer migration](executor_producer_migration.md) | Versioned executor producer profiles, the legacy unversioned adapter, attempt namespaces and lifecycle shapes. | selected |
 | [Examples](examples.md) | What each example bundle demonstrates. | merged |
 | [Integration with the Control Plane](integration_with_agent_control_plane.md) | The conceptual relationship between Replay Bundle and the Control Plane. | merged |
-| [Programme-2 opt-in profiles](programme-2-profiles.md) | The run-record members of six opt-in Control Plane profiles, accepted for one exact revision, and the reason-registry labels. | merged, after the lock |
-| [Optional recovery inspection API 0.1](recovery-inspection.md) | A candidate, non-effecting inspection of a pinned synthetic recovery export. Its test file lives in the qualification repository. | merged, after the lock |
+| [Programme-2 opt-in profiles](programme-2-profiles.md) | The run-record members of six opt-in Control Plane profiles, accepted for one exact revision, and the reason-registry labels. | merged |
+| [Optional recovery inspection API 0.1](recovery-inspection.md) | A candidate, non-effecting inspection of a pinned synthetic recovery export. Its test file lives in the qualification repository. | merged |
 
 ## Candidate mappings and producer generations
 
@@ -38,11 +38,11 @@ Each page below describes an additive, exact-revision mapping that is not select
 
 | Page | What it covers | Label |
 |---|---|---|
-| [Typed refusal candidate profile](typed-refusal-profile.md) | One exact Control Plane revision with executor producer 2.0.0 for typed effect-time refusal evidence. | merged, after the lock |
-| [Runtime authority candidate mapping](runtime-authority-profile.md) | A nonselected mapping for runtime-authority journals, with how journal checks match recorded resolution checks. | merged, after the lock |
-| [Repaired runtime generation (16 October 2026)](security-runtime-profile-20261016.md) | One exact Control Plane and executor generation with a Manifest attribution. | merged, after the lock |
-| [F5b repaired runtime generation (16 October 2026)](security-runtime-f5b-profile-20261016.md) | A further exact generation beside the other generations. | merged, after the lock |
-| [W0 C8 compatibility contract](w0-c8-compatibility-contract.md) | A W0 candidate mapping contract for evidence compatibility. | merged, after the lock |
+| [Typed refusal candidate profile](typed-refusal-profile.md) | One exact Control Plane revision with executor producer 2.0.0 for typed effect-time refusal evidence. | merged |
+| [Runtime authority candidate mapping](runtime-authority-profile.md) | A nonselected mapping for runtime-authority journals, with how journal checks match recorded resolution checks. | merged |
+| [Repaired runtime generation (16 October 2026)](security-runtime-profile-20261016.md) | One exact Control Plane and executor generation with a Manifest attribution. | merged |
+| [F5b repaired runtime generation (16 October 2026)](security-runtime-f5b-profile-20261016.md) | A further exact generation beside the other generations. | merged |
+| [W0 C8 compatibility contract](w0-c8-compatibility-contract.md) | A W0 candidate mapping contract for evidence compatibility. | merged |
 | [Merged producer compatibility](workstreams/merged-producer-compatibility.md) | One exact Control Plane and Execution Runtime revision pair for the bounded producer 2.0.0 export. | proposed |
 
 ## Generated, checkpoint and planning pages

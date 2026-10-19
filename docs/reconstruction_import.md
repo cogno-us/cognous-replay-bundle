@@ -23,7 +23,7 @@ The importer's default semantics are therefore non-effecting.
 
 The bounded adapter is also tested with Manifest v1.1 at
 `46c950bed37fe3812000895430bc0312d29e37ce` and Alvorada Authority Context
-0.1.0 at `fb3d97938969a89e149e8ff8db2756091d1233fc`.
+0.1.0 (the governance revision is listed in the hub's `component-lock.json`).
 
 Shape similarity is never treated as a version negotiation mechanism.
 
