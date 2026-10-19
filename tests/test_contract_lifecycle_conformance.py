@@ -616,8 +616,7 @@ def _name_attempt(doc):
 
 
 def _name_attempt_as_unknown(doc):
-    """Replay additionally requires an attempted result without a validated observation to be 'unknown' (its own
-    stricter rule), and does not accept a validated `unknown` reading (CP acceptance not widened): the control names the
+    """Replay does not accept a validated `unknown` reading (CP acceptance not widened): the control names the
     attempt and reports the status and terminal event 'unknown' with no observation."""
     _name_attempt(doc)
     doc["execution_result"].update(status="unknown", observation=None, observed_state="unknown", acknowledged=True,
@@ -681,8 +680,7 @@ REPAIRS = {
     "control-plane-attempt-undeclared-member": lambda d: [r.pop("injected_member", None) for r in d["control_plane_attempts"]],
     "executor-unknown-validated-absent-state-mismatch": _observed_state("absent"),
     "null-observation-state-absent": _observed_state("unknown"),
-    # Replay additionally requires an attempted result without a validated observation to be 'unknown' (its own
-    # stricter rule), so the control for the failed-result fixture also reports status and terminal event 'unknown'.
+    # The control for the failed-result fixture reports status and terminal event 'unknown' with no observation.
     "null-observation-state-applied-failed-result": lambda d: (
         d["execution_result"].update(observed_state="unknown", status="unknown"),
         d["attempt_events"][-1].__setitem__("status", "unknown")),
