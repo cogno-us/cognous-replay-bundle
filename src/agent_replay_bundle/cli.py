@@ -198,7 +198,7 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
     from .ingress import load_json_bounded
     from .loader import load_replay_bundle
     from .models import SignedReplayBundle
-    from .reconstruction import ReconstructionBundle
+    from .reconstruction import ReconstructionBundle, verify_content_digest
     from .validator import validate_replay_bundle
 
     examples_dir = Path(__file__).parent.parent.parent / "examples"
@@ -224,11 +224,16 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
 
         if raw.get("bundle_version") == "0.2.0":
             try:
-                ReconstructionBundle.model_validate(raw)
-                print(f"  OK (reconstruction) {_t(name)}")
+                recon = ReconstructionBundle.model_validate(raw)
             except ValidationError as exc:
                 print(f"  FAIL             {_t(name)}: {_t(exc)}")
                 all_ok = False
+                continue
+            if not verify_content_digest(recon, required=False):
+                print(f"  FAIL             {_t(name)}: content-digest entry does not match the bundle content")
+                all_ok = False
+                continue
+            print(f"  OK (reconstruction) {_t(name)}")
             continue
 
         if name == "signed_replay_bundle.json":

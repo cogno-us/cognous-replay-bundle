@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Content-digest verifier (2026-10-22, no contract change, all stays `0.1.0-draft`): new `verify_content_digest(bundle, required=True)` for a 0.2.0 reconstruction bundle (exported from the package root); it fails closed on a stale or malformed `content-digest` entry. `arb check-examples` calls it with `required=False` on every reconstruction example. Loading is deliberately unchanged: a bundle with a stale digest still loads through `ReconstructionBundle.model_validate`, because consumers load altered copies on purpose (the qualification suite does) and no shipped example or importer output carries a digest other than the one `redact_reconstruction_bundle` writes, which verifies. See docs/reconstruction_import.md.
+
 - Bundle-only signatures refused by default (2026-10-22, no contract change, all stays `0.1.0-draft`): `verify_signed_replay_bundle(..., allow_unbound_envelope=...)` now defaults to `False` and `arb verify` refuses a signature that covers the inner bundle only (`Signature NOT ACCEPTED`, exit 1). The earlier behaviour stays available explicitly: `arb verify --allow-unbound-envelope` / `allow_unbound_envelope=True`. `--require-bound-envelope` is still accepted (now the default). Current-form signatures are unaffected. Two tests and one CLI test that relied on the old default now pass the explicit option.
 
 - Unknown `bundle_version` refused (2026-10-22, no contract change, all stays `0.1.0-draft`): the 0.1 validator reports E002 for any `bundle_version` other than `0.1` (the version the format documents) instead of accepting any non-empty string. Every shipped 0.1 example and fixture declares `0.1`. Not changed: duplicate `action_id`s are still not rejected, as docs/reconstruction_import.md records.

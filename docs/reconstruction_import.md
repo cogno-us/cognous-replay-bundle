@@ -169,6 +169,16 @@ establish production key custody. `key_id` is merely an authenticated label
 provided by the caller; the HMAC does not independently authenticate the
 identity or custody of that key.
 
+The `content-digest` entry (written by `redact_reconstruction_bundle`) is checked by
+`verify_content_digest(bundle, required=True)`: it fails closed on a stale value, a
+second entry, another algorithm or profile, a foreign `subject_bundle_id` and (when
+`required`) on no entry. `arb check-examples` applies it to every reconstruction
+example (`required=False`: a bundle without an entry has nothing to check). Loading
+a bundle (`ReconstructionBundle.model_validate`) does **not** run it: a bundle with a
+stale digest still loads, so a consumer that relies on the digest must call the
+verifier. It is an integrity check, not authentication: whoever edits the content can
+recompute the digest.
+
 Redaction order is:
 
 1. copy the source reconstruction;

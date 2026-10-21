@@ -199,6 +199,32 @@ def content_digest(bundle: ReconstructionBundle) -> IntegrityMetadata:
     )
 
 
+def verify_content_digest(bundle: ReconstructionBundle, *, required: bool = True) -> bool:
+    """True only if the bundle's ``content-digest`` entry matches the digest recomputed from its content.
+
+    Fails closed: more than one ``content-digest`` entry, another algorithm or canonicalization profile, a
+    ``subject_bundle_id`` other than this bundle, a value that is not the recomputed ``sha256:`` digest, and (when
+    ``required``) no entry at all, each return False. With ``required=False`` a bundle that carries no ``content-digest``
+    entry returns True (there is nothing to check); an entry that is present is always checked.
+
+    This is an integrity check against accidental or unsigned change, not authentication: anyone who edits the content can
+    also recompute the digest (use the HMAC for a shared-secret check).
+    """
+    entries = [item for item in bundle.integrity if item.kind == "content-digest"]
+    if not entries:
+        return not required
+    if len(entries) != 1:
+        return False
+    entry = entries[0]
+    expected = content_digest(bundle)
+    return (
+        entry.algorithm == expected.algorithm
+        and entry.canonicalization_profile == expected.canonicalization_profile
+        and entry.subject_bundle_id == bundle.bundle_id
+        and entry.value == expected.value
+    )
+
+
 def sign_reconstruction_bundle(
     bundle: ReconstructionBundle, secret: str, *, key_id: str | None = None
 ) -> ReconstructionBundle:
