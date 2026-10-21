@@ -144,7 +144,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
         InputBoundsError,
         load_json_bounded,
     )
-    from .signing import signature_coverage
+    from .signing import signature_coverage, unretained_members
     from .models import SignedReplayBundle
 
     try:
@@ -169,6 +169,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
         sys.exit(2)
 
     coverage = signature_coverage(signed_bundle, args.secret)
+    if coverage is not None:
+        extra = unretained_members(data, signed_bundle.model_dump(mode="json"))
+        if extra:
+            shown = ", ".join(_t(path) for path in extra[:5]) + (f" (+{len(extra) - 5} more)" if len(extra) > 5 else "")
+            print(f"Signature INVALID: the file carries members the signature does not cover: {shown}")
+            return 1
     if coverage == "bundle_only":
         if args.require_bound_envelope:
             print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered")

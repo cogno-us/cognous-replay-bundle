@@ -131,6 +131,30 @@ def signature_coverage(signed_bundle: SignedReplayBundle, secret: str) -> str | 
     return None
 
 
+def unretained_members(raw: object, retained: object, _path: str = "$") -> list[str]:
+    """Paths of the members of a parsed JSON document that the parsed models did not retain.
+
+    ``raw`` is the JSON as parsed from the file; ``retained`` is ``model_dump(mode="json")`` of the model built from it.
+    The HMAC covers only the retained form, so a member listed here (an unknown field the models silently dropped) is not
+    authenticated. Only member names and list lengths are compared, not values. Free-form members (``payload``,
+    ``metadata``) are retained whole, so they are never listed.
+    """
+    found: list[str] = []
+    if isinstance(raw, dict) and isinstance(retained, dict):
+        for key, value in raw.items():
+            if key not in retained:
+                found.append(f"{_path}.{key}")
+            else:
+                found.extend(unretained_members(value, retained[key], f"{_path}.{key}"))
+    elif isinstance(raw, list) and isinstance(retained, list):
+        if len(raw) != len(retained):
+            found.append(f"{_path}[length]")
+        else:
+            for index, (a, b) in enumerate(zip(raw, retained)):
+                found.extend(unretained_members(a, b, f"{_path}[{index}]"))
+    return found
+
+
 def verify_signed_replay_bundle(
     signed_bundle: SignedReplayBundle,
     secret: str,
