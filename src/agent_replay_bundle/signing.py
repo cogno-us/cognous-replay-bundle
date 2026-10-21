@@ -39,7 +39,7 @@ def canonical_bundle_json(bundle: AgentReplayBundle) -> str:
     """
     data = bundle.model_dump(mode="json")
     data.pop("signature_metadata", None)
-    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
 
 
 _ENVELOPE_DOMAIN = b"agent-replay-bundle/export-signature/2\n"
@@ -63,7 +63,7 @@ def canonical_envelope_bytes(
         "signature_metadata": covered,
         "replay_bundle": bundle.model_dump(mode="json"),
     }
-    return _ENVELOPE_DOMAIN + json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return _ENVELOPE_DOMAIN + json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode("utf-8")
 
 
 def sign_replay_bundle(

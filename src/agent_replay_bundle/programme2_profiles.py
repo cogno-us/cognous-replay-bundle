@@ -41,6 +41,7 @@ Refusal codes are the ODES contract codes where a contract rule is applied (``un
 """
 from __future__ import annotations
 
+import math
 import re
 from datetime import datetime, timedelta
 from typing import Any
@@ -163,7 +164,7 @@ def _check_kind(value: Any, kind: Any, label: str) -> None:
         return
     base = kind.rstrip("?")
     ok = {"str": isinstance(value, str) and bool(value), "int": type(value) is int and value >= 0,
-          "num": type(value) in (int, float) and value >= 0, "bool": type(value) is bool, "list": isinstance(value, list), "dict": isinstance(value, dict),
+          "num": type(value) in (int, float) and math.isfinite(value) and value >= 0, "bool": type(value) is bool, "list": isinstance(value, list), "dict": isinstance(value, dict),
           "time": isinstance(value, str)}[base]
     if not ok:
         raise _error(f"{label} has the wrong type or range", "schema_violation")
