@@ -9,6 +9,7 @@ caller can map it to a dedicated exit code instead of an uncaught exception.
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -99,11 +100,19 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 class NonFiniteNumberError(ValueError):
-    """A JSON document contained NaN, Infinity or -Infinity, which are not JSON."""
+    """A JSON document contained NaN, Infinity, -Infinity or a literal such as 1e999 that overflows to infinity."""
 
 
 def _reject_constant(name: str) -> Any:
     raise NonFiniteNumberError(f"non-finite JSON number is not accepted: {name}")
+
+
+def _parse_float(text: str) -> float:
+    """Refuse a float literal that overflows to infinity (``1e999``); such a value is not representable JSON data."""
+    value = float(text)
+    if not math.isfinite(value):
+        raise NonFiniteNumberError(f"non-finite JSON number is not accepted: {text}")
+    return value
 
 
 def load_json_bounded(
@@ -121,4 +130,4 @@ def load_json_bounded(
     """
     text = read_bounded_text(path, max_bytes=max_bytes, max_depth=max_depth)
     hook = _no_duplicates if reject_duplicates else None
-    return json.loads(text, object_pairs_hook=hook, parse_constant=_reject_constant)
+    return json.loads(text, object_pairs_hook=hook, parse_constant=_reject_constant, parse_float=_parse_float)
