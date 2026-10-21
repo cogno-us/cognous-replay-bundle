@@ -66,3 +66,40 @@ def test_unretained_members_reports_paths():
     raw["replay_bundle"]["x"] = 1
     assert unretained_members(raw, dump) == ["$.replay_bundle.x"]
     assert unretained_members(dump, dump) == []
+
+
+def _rule_matched_file(tmp_path, value):
+    """A signed file whose first evaluated rule was signed with ``matched: false``, then edited to ``value``."""
+    bundle = load_replay_bundle(VALID)
+    bundle.policy_traces[0].rules_evaluated[0].matched = False
+    signed = sign_replay_bundle(bundle, "s3", key_id="k")
+    data = json.loads(signed.model_dump_json())
+    data["replay_bundle"]["policy_traces"][0]["rules_evaluated"][0]["matched"] = value
+    p = tmp_path / "coerced.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    return p
+
+
+def test_control_signed_false_verifies(tmp_path):
+    rc, out, _ = run_arb("verify", str(_rule_matched_file(tmp_path, False)), "--secret", "s3")
+    assert rc == 0 and "Signature VALID" in out
+
+
+def test_scalar_edited_to_a_coercible_value_is_invalid(tmp_path):
+    for value in ("false", 0, "False", "no"):
+        rc, out, _ = run_arb("verify", str(_rule_matched_file(tmp_path, value)), "--secret", "s3")
+        assert rc == 1 and "Signature INVALID" in out and "matched[value]" in out, (value, out)
+
+
+def test_unretained_members_compares_scalar_type_and_value():
+    from agent_replay_bundle.signing import unretained_members
+
+    assert unretained_members({"a": "false"}, {"a": False}) == ["$.a[value]"]
+    assert unretained_members({"a": 0}, {"a": False}) == ["$.a[value]"]
+    assert unretained_members({"a": True}, {"a": 1}) == ["$.a[value]"]
+    assert unretained_members({"a": "x"}, {"a": "y"}) == ["$.a[value]"]
+    assert unretained_members({"a": None}, {"a": ""}) == ["$.a[value]"]
+    assert unretained_members({"a": [1, "2"]}, {"a": [1, 2]}) == ["$.a[1][value]"]
+    # an integer and a float of the same value are the same JSON number
+    assert unretained_members({"a": 1}, {"a": 1.0}) == []
+    assert unretained_members({"a": False, "b": None, "c": "s", "d": 2}, {"a": False, "b": None, "c": "s", "d": 2}) == []

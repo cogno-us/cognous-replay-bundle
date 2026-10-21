@@ -191,6 +191,58 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_verify_reconstruction(args: argparse.Namespace) -> int:
+    """Verify the HMAC and/or content digest of a 0.2.0 reconstruction bundle file."""
+    from pydantic import ValidationError
+
+    from .ingress import (
+        EXIT_INPUT_BOUNDS,
+        InputBoundsError,
+        load_json_bounded,
+    )
+    from .reconstruction import (
+        load_reconstruction_bundle_checked,
+        verify_content_digest,
+        verify_reconstruction_hmac,
+    )
+
+    try:
+        data = load_json_bounded(args.path)
+    except FileNotFoundError:
+        print(f"Error: File not found: {_t(args.path)}", file=sys.stderr)
+        sys.exit(2)
+    except InputBoundsError as exc:
+        print(f"Error: {_t(exc.code)}: {_t(exc)}", file=sys.stderr)
+        sys.exit(EXIT_INPUT_BOUNDS)
+    except ValueError as exc:  # includes DuplicateMemberError
+        print(f"Error: Invalid JSON: {_t(exc)}", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        bundle, extra = load_reconstruction_bundle_checked(data)
+    except ValidationError as exc:
+        print(f"Error: Invalid reconstruction bundle: {_t(exc)}", file=sys.stderr)
+        sys.exit(2)
+
+    if extra:
+        shown = ", ".join(_t(path) for path in extra[:5]) + (f" (+{len(extra) - 5} more)" if len(extra) > 5 else "")
+        print(f"Verification INVALID: the file carries members or values the integrity entries do not cover: {shown}")
+        return 1
+    if args.secret is None and not args.require_digest:
+        print("Error: give --secret (HMAC check) and/or --require-digest (content-digest check).", file=sys.stderr)
+        return 2
+    ok = True
+    if args.require_digest:
+        digest_ok = verify_content_digest(bundle, required=True)
+        print("Content digest " + ("VALID" if digest_ok else "INVALID"))
+        ok = ok and digest_ok
+    if args.secret is not None:
+        hmac_ok = verify_reconstruction_hmac(bundle, args.secret)
+        print("HMAC " + ("VALID" if hmac_ok else "INVALID"))
+        ok = ok and hmac_ok
+    return 0 if ok else 1
+
+
 def cmd_check_examples(args: argparse.Namespace) -> int:
     """Validate all example bundles."""
     from pydantic import ValidationError
@@ -198,7 +250,7 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
     from .ingress import load_json_bounded
     from .loader import load_replay_bundle
     from .models import SignedReplayBundle
-    from .reconstruction import ReconstructionBundle, verify_content_digest
+    from .reconstruction import ReconstructionBundle, reconstruction_unretained_members, verify_content_digest
     from .validator import validate_replay_bundle
 
     examples_dir = Path(__file__).parent.parent.parent / "examples"
@@ -227,6 +279,11 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
                 recon = ReconstructionBundle.model_validate(raw)
             except ValidationError as exc:
                 print(f"  FAIL             {_t(name)}: {_t(exc)}")
+                all_ok = False
+                continue
+            extra = reconstruction_unretained_members(raw, recon)
+            if extra:
+                print(f"  FAIL             {_t(name)}: members or values the digest does not cover: {_t(', '.join(extra[:5]))}")
                 all_ok = False
                 continue
             if not verify_content_digest(recon, required=False):
@@ -315,6 +372,13 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Refuse a signature that covers the inner bundle only. This is now the default; the option is "
                               "kept so existing invocations keep working.")
 
+    # verify-reconstruction
+    p_vr = sub.add_parser("verify-reconstruction", help="Verify the HMAC and/or content digest of a 0.2.0 reconstruction bundle.")
+    p_vr.add_argument("path", help="Path to the reconstruction bundle JSON file.")
+    p_vr.add_argument("--secret", default=None, help="HMAC secret key (checks the hmac integrity entry).")
+    p_vr.add_argument("--require-digest", dest="require_digest", action="store_true", default=False,
+                      help="Require a content-digest entry and check it.")
+
     # check-examples
     sub.add_parser("check-examples", help="Validate all example bundles.")
 
@@ -332,6 +396,7 @@ def main() -> None:
         "redact": cmd_redact,
         "sign": cmd_sign,
         "verify": cmd_verify,
+        "verify-reconstruction": cmd_verify_reconstruction,
         "check-examples": cmd_check_examples,
     }
 

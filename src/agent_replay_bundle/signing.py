@@ -131,13 +131,24 @@ def signature_coverage(signed_bundle: SignedReplayBundle, secret: str) -> str | 
     return None
 
 
+def _same_scalar(raw: object, retained: object) -> bool:
+    """Same JSON value and type; a bool is never an int, and an int equals a float of the same value."""
+    if isinstance(raw, bool) or isinstance(retained, bool):
+        return type(raw) is type(retained) and raw == retained
+    if isinstance(raw, (int, float)) and isinstance(retained, (int, float)):
+        return raw == retained
+    return type(raw) is type(retained) and raw == retained
+
+
 def unretained_members(raw: object, retained: object, _path: str = "$") -> list[str]:
     """Paths of the members of a parsed JSON document that the parsed models did not retain.
 
     ``raw`` is the JSON as parsed from the file; ``retained`` is ``model_dump(mode="json")`` of the model built from it.
     The HMAC covers only the retained form, so a member listed here (an unknown field the models silently dropped) is not
-    authenticated. Only member names and list lengths are compared, not values. Free-form members (``payload``,
-    ``metadata``) are retained whole, so they are never listed.
+    authenticated. Member names, list lengths and scalar values are compared; a scalar that the models coerced (a signed
+    ``false`` edited to ``"false"`` or ``0``) is listed with a ``[value]`` suffix, because the file then reads differently
+    from what was signed. An integer and a float of equal value (``1`` and ``1.0``) count as equal. Free-form members
+    (``payload``, ``metadata``) are retained whole, so they are listed only if they differ.
     """
     found: list[str] = []
     if isinstance(raw, dict) and isinstance(retained, dict):
@@ -152,6 +163,8 @@ def unretained_members(raw: object, retained: object, _path: str = "$") -> list[
         else:
             for index, (a, b) in enumerate(zip(raw, retained)):
                 found.extend(unretained_members(a, b, f"{_path}[{index}]"))
+    elif not _same_scalar(raw, retained):
+        found.append(f"{_path}[value]")
     return found
 
 

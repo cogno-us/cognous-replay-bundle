@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from .signing import is_hex_digest
+from .signing import is_hex_digest, unretained_members
 
 
 RECONSTRUCTION_BUNDLE_VERSION = "0.2.0"
@@ -209,6 +209,9 @@ def verify_content_digest(bundle: ReconstructionBundle, *, required: bool = True
 
     This is an integrity check against accidental or unsigned change, not authentication: anyone who edits the content can
     also recompute the digest (use the HMAC for a shared-secret check).
+
+    Limit: this takes a parsed model, which no longer holds members the model dropped, so the digest covers only the model
+    dump. A caller verifying a file must use ``verify_content_digest_raw`` (or ``reconstruction_unretained_members``).
     """
     entries = [item for item in bundle.integrity if item.kind == "content-digest"]
     if not entries:
@@ -253,6 +256,8 @@ def sign_reconstruction_bundle(
 
 
 def verify_reconstruction_hmac(bundle: ReconstructionBundle, secret: str) -> bool:
+    """Verify the HMAC of a parsed bundle. Limit: members the model dropped when the file was parsed are not authenticated
+    and cannot be seen here; to verify a file use ``verify_reconstruction_hmac_raw`` (see docs/signing.md)."""
     signatures = [item for item in bundle.integrity if item.kind == "hmac"]
     if len(signatures) != 1:
         return False
@@ -277,6 +282,48 @@ def verify_reconstruction_hmac(bundle: ReconstructionBundle, secret: str) -> boo
     if not is_hex_digest(signature.value):
         return False
     return hmac.compare_digest(signature.value, expected)
+
+
+def reconstruction_unretained_members(raw: object, bundle: ReconstructionBundle) -> list[str]:
+    """Paths in the raw JSON of a 0.2.0 reconstruction bundle that the model did not retain, or that it coerced.
+
+    The digest and the HMAC are computed over ``bundle.model_dump``, so a member the model dropped (an unknown field at any
+    depth) or a scalar it coerced (``false`` edited to ``"false"``) is not covered by either. See ``signing.unretained_members``.
+    """
+    return unretained_members(raw, bundle.model_dump(mode="json"))
+
+
+def load_reconstruction_bundle_checked(raw: object) -> tuple[ReconstructionBundle, list[str]]:
+    """Parse the raw JSON of a reconstruction bundle; return the model and the paths it did not retain (empty when clean).
+
+    Raises ``pydantic.ValidationError`` when the document is not a valid 0.2.0 reconstruction bundle.
+    """
+    bundle = ReconstructionBundle.model_validate(raw)
+    return bundle, reconstruction_unretained_members(raw, bundle)
+
+
+def verify_reconstruction_hmac_raw(raw: object, secret: str) -> bool:
+    """``verify_reconstruction_hmac`` for the raw JSON of a file: also False when the file carries members the model does
+    not retain or scalars it coerced (neither is authenticated by the HMAC), and False when it is not a valid bundle."""
+    from pydantic import ValidationError
+
+    try:
+        bundle, extra = load_reconstruction_bundle_checked(raw)
+    except ValidationError:
+        return False
+    return not extra and verify_reconstruction_hmac(bundle, secret)
+
+
+def verify_content_digest_raw(raw: object, *, required: bool = True) -> bool:
+    """``verify_content_digest`` for the raw JSON of a file: also False when the file carries members the model does not
+    retain or scalars it coerced (the digest does not cover them), and False when it is not a valid bundle."""
+    from pydantic import ValidationError
+
+    try:
+        bundle, extra = load_reconstruction_bundle_checked(raw)
+    except ValidationError:
+        return False
+    return not extra and verify_content_digest(bundle, required=required)
 
 
 def redact_reconstruction_bundle(
