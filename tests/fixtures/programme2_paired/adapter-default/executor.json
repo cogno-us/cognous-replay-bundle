@@ -1,30 +1,30 @@
 {
   "attempt_events": [
     {
-      "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
-      "created_at": 1792599413.3203433,
+      "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
+      "created_at": 1792617356.1782095,
       "error": null,
       "event_id": 1,
       "status": "attempted"
     },
     {
-      "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
-      "created_at": 1792599413.3231022,
+      "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
+      "created_at": 1792617356.1821938,
       "error": null,
       "event_id": 2,
       "status": "executed"
     }
   ],
   "attempt_identity": {
-    "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
+    "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
     "namespace": "executor",
     "owner": "cogno-us/moltbot-safe"
   },
   "attempts": [
     {
-      "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
-      "created_at": 1792599413.3188918,
-      "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+      "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
+      "created_at": 1792617356.1764295,
+      "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
       "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
       "operation_digest": "sha256:ffcad4c587ea3a81df49e9b2c5d3ee817a929d07356d8704db82c1b9c70af175"
     }
@@ -32,7 +32,7 @@
   "control_plane_attempts": [
     {
       "acknowledgement": {
-        "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
+        "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
         "moltbot_safe_status": "executed",
         "newly_executed": true,
         "observation": {
@@ -53,8 +53,8 @@
           "state": "applied"
         }
       },
-      "attempt_id": "7cac79ee-6966-461e-8121-bc953fa27179",
-      "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+      "attempt_id": "77f72df6-d903-459b-89fe-21b147fb62ce",
+      "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
       "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
       "error": null,
       "started_at": "2026-10-05T19:00:00+00:00",
@@ -65,7 +65,7 @@
   "control_plane_evidence": {
     "attempt": {
       "acknowledgement": {
-        "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
+        "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
         "moltbot_safe_status": "executed",
         "newly_executed": true,
         "observation": {
@@ -86,8 +86,8 @@
           "state": "applied"
         }
       },
-      "attempt_id": "7cac79ee-6966-461e-8121-bc953fa27179",
-      "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+      "attempt_id": "77f72df6-d903-459b-89fe-21b147fb62ce",
+      "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
       "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
       "error": null,
       "started_at": "2026-10-05T19:00:00+00:00",
@@ -138,7 +138,7 @@
   ],
   "execution_envelope": {
     "attempt_id": null,
-    "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+    "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "operation": {
       "action_id": "urn:cognous:action:refund-issue-routine-v1",
@@ -173,12 +173,12 @@
   },
   "execution_result": {
     "acknowledged": true,
-    "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
+    "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
     "attempted": true,
     "control_plane_evidence": {
       "attempt": {
         "acknowledgement": {
-          "attempt_id": "7bc21ab5-2a05-497f-8768-96a0b1551c9b",
+          "attempt_id": "c3eb91ac-68b1-40f7-8e6d-a242aa53932c",
           "moltbot_safe_status": "executed",
           "newly_executed": true,
           "observation": {
@@ -199,8 +199,8 @@
             "state": "applied"
           }
         },
-        "attempt_id": "7cac79ee-6966-461e-8121-bc953fa27179",
-        "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+        "attempt_id": "77f72df6-d903-459b-89fe-21b147fb62ce",
+        "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
         "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
         "error": null,
         "started_at": "2026-10-05T19:00:00+00:00",
@@ -237,7 +237,7 @@
         "retry_eligible": false
       }
     },
-    "decision_id": "f5f96393-405e-42d0-b918-3da0467b6a27",
+    "decision_id": "59cd61c5-6340-4f1a-bcdf-62ba3408a3d9",
     "effect_id": "sha256:d19d83b15e0ec164f3da356fe7a1ecef64734724d7fd65265e91e95f2ffe2829",
     "error": null,
     "newly_executed": true,
@@ -293,13 +293,13 @@
     "source_asserted": {
       "producer_profile_id": "urn:cognous:profiles:moltbot-safe-executor-producer",
       "producer_profile_version": "2.0.0",
-      "repository_revision": "cab4d9abc651c7efbafb429798d2c908f048bf5c"
+      "repository_revision": "ec728da6dc301a664b331ac8986afd6e850a1273"
     }
   },
   "rejected_observations": [],
   "repository": {
     "repository": "cogno-us/moltbot-safe",
-    "revision": "cab4d9abc651c7efbafb429798d2c908f048bf5c",
+    "revision": "ec728da6dc301a664b331ac8986afd6e850a1273",
     "revision_status": "source_asserted"
   }
 }
