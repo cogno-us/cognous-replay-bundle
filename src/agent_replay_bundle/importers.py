@@ -77,19 +77,19 @@ MOLTBOT_P4_REVISION = "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
 MANIFEST_P4_REVISION = MANIFEST_F5B_REVISION
 BOUNDED_P4_PROFILE = "control-plane-security-runtime@26a7e659"
 MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
-# Programme-2 generation (opt-in profiles): Control Plane e77fe0ee (5c474ba8 plus the later main commits, itself 2bac7875 plus later main commits, itself 6093aca7 plus later main commits; main after operation identity N1, rule revision N2, freshness
+# Programme-2 generation (opt-in profiles): Control Plane 0a41faa9 (e77fe0ee plus the later main commits, itself 5c474ba8 plus the later main commits, itself 2bac7875 plus later main commits, itself 6093aca7 plus later main commits; main after operation identity N1, rule revision N2, freshness
 # N3, the N5 witness/holder inventory, merge-record/reversibility/dedupe-ttl N4, the 0.1/0.2 reason registry split, strict JSON J3,
-# the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to 5c474ba8, 2bac7875, 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
+# the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to e77fe0ee, 5c474ba8, 2bac7875, 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
 # generation is one exact revision, never a range). Same import semantics as P4 for a
 # profile-off run (byte-identical records), plus the members of the opt-in profiles when a run carries them (see
-# programme2_profiles.py). The executor pairing is the runtime cab4d9ab (79f39166 plus the later main commits), with the action manifest fa170815: an executor
+# programme2_profiles.py). The executor pairing is the runtime ec728da6 (cab4d9ab plus the later main commits, itself 79f39166 plus the later main commits), with the action manifest fa170815: an executor
 # export of any other runtime revision is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with
 # them at end-of-alpha (P5).
-CONTROL_PLANE_P2_REVISION = "e77fe0ee8714617899592528e660a80fbb2e864a"
-MOLTBOT_P2_REVISION = "cab4d9abc651c7efbafb429798d2c908f048bf5c"
+CONTROL_PLANE_P2_REVISION = "0a41faa972699f7ec3063967a14cd9bdd3e67d27"
+MOLTBOT_P2_REVISION = "ec728da6dc301a664b331ac8986afd6e850a1273"
 MANIFEST_P2_REVISION = "fa170815ef96a54c233d0dd9da821b60debabf8b"
-BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@e77fe0ee"
-MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@cab4d9ab"
+BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@0a41faa9"
+MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@ec728da6"
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
