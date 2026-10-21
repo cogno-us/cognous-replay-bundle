@@ -56,7 +56,14 @@ The bounded producer is event-oriented:
 - proposal `correlation_id`, manifest identifiers, decision/effect IDs,
   grant/revision, policy versions, requirement commitment and role-mapping
   version/digest are retained where supplied;
-- blocked/held decisions retain their producer `reasons`.
+- blocked/held decisions retain their producer `reasons`;
+- a decision's `result` must be a value the Control Plane emits (`authorized` or `hold`, the values of every captured run); any other value
+  (`denied`, an empty string, a different case, a non-string) is refused with the code `unknown_enum_value`, as an unknown
+  executor status is, instead of being retained as a complete `runtime_decision`.
+
+Chronology across producers is not checked: the timestamps of the executor export (`created_at` of attempts and events,
+effect and observation times) are not related to the Control Plane's `decided_at`, so an executor event may carry a time
+before the decision that authorized it and the import does not refuse or flag that.
 
 A Control Plane attempt ID and Moltbot Safe attempt ID are different namespaces.
 A link is created only when producer evidence explicitly supplies the Moltbot

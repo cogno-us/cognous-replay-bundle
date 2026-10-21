@@ -232,6 +232,9 @@ RECOVERY_OBSERVATION_STATUSES = {"applied", "partial", "hold", "unknown"}
 ATTEMPT_EVENT_STATUSES = frozenset({"attempted", "executed", "partial", "failed", "reconciled", "unknown", "denied"})
 EXECUTION_RESULT_STATUSES = frozenset({"denied", "failed", "partial", "unknown", "executed", "observed", "reconciled"})
 VALIDATED_OBSERVATION_STATES = frozenset({"absent", "applied", "partial", "unknown"})
+# Control Plane decision results seen in every captured run (`authorized`, `hold`); any other value is refused, as an
+# unknown executor status is.
+CONTROL_PLANE_DECISION_RESULTS = frozenset({"authorized", "hold"})
 CONTROL_PLANE_ATTEMPT_STATUSES = frozenset({"attempted", "acknowledged", "unknown", "failed", "partial"})
 CONTROL_PLANE_TIME_SOURCES = frozenset({"unrecorded", "control_plane", "test_override"})
 EXECUTOR_ATTEMPT_MEMBERS = frozenset({"attempt_id", "effect_id", "decision_id", "operation_digest", "created_at",
@@ -805,6 +808,8 @@ def import_bounded_workflow(
         if not isinstance(did, str) or not did:
             raise ImportContractError(f"decisions[{i}].decision_id required")
         _unique_or_same(decisions, did, raw, "decision_id")
+        if "result" in raw:
+            _closed_enum(raw["result"], CONTROL_PLANE_DECISION_RESULTS, f"decisions[{i}].result")
         binding = raw.get("binding")
         ids = {"run_id": run_id, "decision_id": did, "effect_id": raw.get("effect_id")}
         if isinstance(binding, dict):
