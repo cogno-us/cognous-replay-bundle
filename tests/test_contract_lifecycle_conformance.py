@@ -54,7 +54,7 @@ DOC = HERE.parent / "docs" / "contract-conformance-execution-attempt-lifecycle.m
 
 CONTRACT_NAME = "execution-attempt-lifecycle"
 CONTRACT_VERSION = "0.1.0-draft"
-ODES_COMMIT = "e5fe3822a2d3c3f6885fd61acccb4bb6281041be"
+ODES_COMMIT = "59ca4c797b4c0700b581815a53b113a60bda1c67"
 REVISION = I.CONTROL_PLANE_P4_REVISION
 EXECUTOR_REVISION = I.MOLTBOT_P4_REVISION
 
@@ -338,7 +338,7 @@ def _make_denied(cp, x):
 
 
 def build_executor(doc, mirror_observations=False):
-    result = doc["execution_result"]
+    result = doc.get("execution_result") or {}  # a document of events only carries no result: the capture's stays
     observation = result.get("observation")
     if _is_recovery(observation):
         if result["status"] == "observed":
@@ -357,10 +357,22 @@ def build_executor(doc, mirror_observations=False):
     base_destination = load_security()[2]["observations"][0]["destination_state"]
 
     planted = _rebind(doc, table)
-    x["attempts"] = [{**base_attempt_row, **row} for row in planted["attempts"]]
-    x["attempt_events"] = planted["attempt_events"]
-    res = {**x["execution_result"], **planted["execution_result"]}
-    res["observation"] = _complete_destination_state(planted["execution_result"].get("observation"), base_destination)
+    # a member the document leaves out is left out of the export (the contract reads a missing attempts member as an
+    # empty row list; Replay must not need it to run the event and result rules)
+    if "attempts" in planted:
+        x["attempts"] = [{**base_attempt_row, **row} for row in planted["attempts"]]
+    else:
+        x.pop("attempts", None)
+    if "attempt_events" in planted:
+        x["attempt_events"] = planted["attempt_events"]
+    else:
+        x.pop("attempt_events", None)
+    if "control_plane_attempts" in planted:  # present but possibly empty: Control Plane rows of the same run
+        x["control_plane_attempts"] = planted["control_plane_attempts"]
+        cp["attempts"] = copy.deepcopy(planted["control_plane_attempts"])
+    res = {**x["execution_result"], **planted.get("execution_result", {})}
+    res["observation"] = _complete_destination_state(
+        planted["execution_result"].get("observation") if "execution_result" in planted else res["observation"], base_destination)
     x["execution_result"] = res
     if "observations" in planted:
         x["observations"] = [_complete_destination_state(o, base_destination) for o in planted["observations"]]
@@ -448,7 +460,9 @@ def build_resolution(doc):
 
 
 def evaluate_doc(doc) -> Outcome:
-    if "control_plane_attempts" in doc:
+    if "execution_result" in doc or "attempt_events" in doc:  # a result or events: the executor rules run, whatever else is present
+        build = build_executor
+    elif "control_plane_attempts" in doc:
         build = build_cp_attempts
     elif "resolution_journal" in doc:
         build = build_resolution
@@ -475,7 +489,14 @@ _UNKNOWN_OBSERVATION_NOTE = (
     "refused (fail closed) at the Control Plane run before the result is read: the fixture's validated `unknown` "
     "observation must be an accepted reconciliation and CP acceptance is not widened (owner decision 2026-10-17); the "
     "rule is covered with a null observation by probe `result-unknown-null-attempt-id-null-observation`")
+_MISSING_MEMBERS_NOTE = (
+    "refused, but before the contract's rule runs: the export import requires the `attempts` and `attempt_events` members "
+    "(`Moltbot export missing: ...`, no contract code), where the contract reads a missing `attempts` member as an empty "
+    "row list and still applies the event and result rules. Fail-closed; only the code differs")
 NOTES = {
+    "control-plane-empty-attempts-ghost-result": _MISSING_MEMBERS_NOTE,
+    "executor-events-out-of-order-without-attempts-member": _MISSING_MEMBERS_NOTE,
+    "executor-ghost-result-without-attempts-member": _MISSING_MEMBERS_NOTE,
     "executor-unknown-validated-unknown-after-ambiguous-dispatch":
         "waits until the Control Plane emits an `unknown` observation; owner decision 2026-10-17 not to widen CP "
         "acceptance unreviewed",
@@ -500,6 +521,9 @@ def classify(fixture):
 
 DECLARED = {fid: "ACCEPTED" if fx["expected_outcome"] == "accept" else "REFUSED" for fid, fx in FIXTURES.items()}
 DECLARED["executor-unknown-validated-unknown-after-ambiguous-dispatch"] = "DIVERGES"  # CP acceptance not widened
+for _fid in ("control-plane-empty-attempts-ghost-result", "executor-events-out-of-order-without-attempts-member",
+             "executor-ghost-result-without-attempts-member"):
+    DECLARED[_fid] = "DIVERGES"  # ODES 59ca4c79 missing-attempts rule: refused earlier (required export members), without the contract code
 DECLARED["result-unknown-null-attempt-id"] = "DIVERGES"  # same cause: refused earlier, without the contract code
 DECLARED["result-unknown-unregistered-attempt-id"] = "DIVERGES"
 
@@ -516,7 +540,7 @@ def _fixture_params():
 
 def test_declared_statuses_cover_every_fixture_and_match_the_adapters():
     assert set(DECLARED) == set(FIXTURES)
-    assert len(FIXTURES) == 75
+    assert len(FIXTURES) == 78
     actual = {fid: classify(fx)[0] for fid, fx in FIXTURES.items()}
     assert actual == DECLARED
 
