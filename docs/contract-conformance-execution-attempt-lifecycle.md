@@ -6,7 +6,7 @@ cogno-us/cognous-control-plane#38, steps P2 and P3; P3b applies the owner decisi
 | | |
 |---|---|
 | Contract | `execution-attempt-lifecycle` `0.1.0-draft` (draft, not frozen; any change may break) |
-| Vendored from | `cogno-us/open-decision-evidence-standard` at `e5fe3822a2d3c3f6885fd61acccb4bb6281041be`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
+| Vendored from | `cogno-us/open-decision-evidence-standard` at `59ca4c797b4c0700b581815a53b113a60bda1c67`, in `tests/contracts/execution-attempt-lifecycle/` (`CONTRACT.json` lists the SHA-256 of every file) |
 | Role | consumer |
 | Level claimed | `L` (structure and lifecycle rules) for every vendored fixture except the three DIVERGES below (a validated `unknown` observation on result `unknown`, which waits for a Control Plane that emits it, and the two invalid fixtures that carry it), and for two documented probe DIVERGES (`reasons_minimum` and the closed post-journal reason set, see Findings). Closed member sets and closed enumerations are enforced for the executor attempt rows, attempt events, result, recovery report, validated observation state and Control Plane attempt rows of a producer 2.0.0 export; the resolution journal events, journal inputs, resolution checks and check inputs are closed pydantic models that accept and preserve `x-` extensions. |
 | Test | `tests/test_contract_lifecycle_conformance.py`; the importer changes are in `src/agent_replay_bundle/importers.py` and `refusal_evidence.py` (P3 and P3b) |
@@ -67,6 +67,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `control-plane-attempt-identity-changed` | refuse: attempt_identity_changed | REFUSED | `attempt_identity_changed`: Control Plane attempt <id> changed its effect_id or decision_id between lifecycle rows |  |
 | `control-plane-attempt-undeclared-member` | refuse: undeclared_member | REFUSED | `undeclared_member`: attempts[0] has unsupported member(s): injected_member |  |
 | `control-plane-dropped-start-record` | refuse: missing_start_record | REFUSED | `missing_start_record`: Control Plane attempt <id> lifecycle lacks its attempted start record |  |
+| `control-plane-empty-attempts-ghost-result` | refuse: result_attempt_unresolved | DIVERGES | Moltbot export missing: attempt_events,attempts | refused, but before the contract's rule runs: the export import requires the `attempts` and `attempt_events` members (`Moltbot export missing: ...`... |
 | `control-plane-failed-after-acknowledged` | refuse: attempt_transition | REFUSED | `attempt_transition`: conflicting content under immutable terminal Control Plane attempt <id> |  |
 | `control-plane-start-row-reconciled-existing-false` | refuse: invalid_reconciled_marker | REFUSED | `invalid_reconciled_marker`: Control Plane attempt <id> carries an invalid reconciled_existing marker |  |
 | `effect-free-reconcile-claims-attempt` | refuse: effect_free_reconcile_claims_attempt | REFUSED | `effect_free_reconcile_claims_attempt`: an effect-free reconcile result cannot claim an attempt, acknowledgement or new effect |  |
@@ -75,8 +76,10 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `executed-without-observation` | refuse: executed_without_observation | REFUSED | `executed_without_observation`: an executed result must carry the observation that established it |  |
 | `executor-dropped-start-event` | refuse: missing_start_event | REFUSED | `missing_start_event`: executor attempt <id> events do not start with attempted |  |
 | `executor-dropped-terminal-event` | refuse: terminal_event_missing | REFUSED | `terminal_event_missing`: execution result status 'executed' contradicts the terminal attempt event 'attempted' |  |
+| `executor-events-out-of-order-without-attempts-member` | refuse: event_order | DIVERGES | Moltbot export missing: attempts | refused, but before the contract's rule runs: the export import requires the `attempts` and `attempt_events` members (`Moltbot export missing: ...`... |
 | `executor-failed-after-executed` | refuse: attempt_transition | REFUSED | `attempt_transition`: executor attempt <id> event 'failed' may not follow 'executed' |  |
 | `executor-failed-attempt-reopened` | refuse: attempt_transition | REFUSED | `attempt_transition`: executor attempt <id> event 'executed' may not follow 'failed' |  |
+| `executor-ghost-result-without-attempts-member` | refuse: result_attempt_unresolved | DIVERGES | Moltbot export missing: attempt_events,attempts | refused, but before the contract's rule runs: the export import requires the `attempts` and `attempt_events` members (`Moltbot export missing: ...`... |
 | `executor-terminal-failed-vs-status` | refuse: status_terminal_mismatch | REFUSED | `status_terminal_mismatch`: execution result status 'executed' contradicts the terminal attempt event 'failed' |  |
 | `executor-unknown-recovery-state-contradiction` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: recovery report observed-state contradiction |  |
 | `executor-unknown-validated-absent-state-mismatch` | refuse: unknown_state_mismatch | REFUSED | `unknown_state_mismatch`: unknown result observed-state contradiction with its validated observation |  |
@@ -118,7 +121,7 @@ expectation; a NOT-EXERCISED fixture is a test that asserts the stated reason.
 | `unpaired-surrogate-text` | refuse: schema_violation | REFUSED | `schema_violation`: input text is not valid Unicode (unpaired surrogate) |  |
 <!-- END FIXTURE TABLE -->
 
-Totals: 20 ACCEPTED, 52 REFUSED, 3 DIVERGES, 0 NOT-EXERCISED.
+Totals: 20 ACCEPTED, 52 REFUSED, 6 DIVERGES, 0 NOT-EXERCISED.
 
 ## Probes beyond the fixtures
 
@@ -250,6 +253,8 @@ python open-decision-evidence-standard/contracts/tools/vendor_contract.py copy \
   --dest tests/contracts/execution-attempt-lifecycle \
   --role consumer --level L --odes-commit <commit>
 ```
+
+Last refresh: 2026-10-22, ODES `59ca4c797b4c0700b581815a53b113a60bda1c67` (#136: the missing-attempts rule; `validate.py` `405812fe...`, `README.md` `336cab61...`, `schema.json` unchanged `1fc55d6f...`; three new invalid fixtures, which Replay refuses without the contract code, see DIVERGES above), with `--role consumer --level L`.
 
 `python open-decision-evidence-standard/contracts/tools/vendor_contract.py check --dest tests/contracts/execution-attempt-lifecycle`
 verifies the copy against its `CONTRACT.json`.

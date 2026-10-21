@@ -57,10 +57,14 @@ from .reconstruction import (
     RecordLink,
     SourceRecord,
     content_digest,
+    load_reconstruction_bundle_checked,
+    reconstruction_unretained_members,
     redact_reconstruction_bundle,
     sign_reconstruction_bundle,
     verify_content_digest,
+    verify_content_digest_raw,
     verify_reconstruction_hmac,
+    verify_reconstruction_hmac_raw,
 )
 from .redaction import redact_replay_bundle
 from .signing import (
@@ -85,6 +89,8 @@ __all__ = [
     "DerivationMetadata", "IntegrityMetadata", "ReconstructionBundle",
     "content_digest", "verify_content_digest", "redact_reconstruction_bundle",
     "sign_reconstruction_bundle", "verify_reconstruction_hmac",
+    "verify_reconstruction_hmac_raw", "verify_content_digest_raw",
+    "load_reconstruction_bundle_checked", "reconstruction_unretained_members",
     "ImportContractError", "import_legacy_control_plane_replay",
     "import_bounded_workflow", "LEGACY_PROFILE", "BOUNDED_PROFILE",
     "MOLTBOT_PROFILE", "CONTROL_PLANE_REVISION", "MOLTBOT_SAFE_REVISION",
