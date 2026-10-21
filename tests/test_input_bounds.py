@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from agent_replay_bundle.ingress import (
+    DuplicateMemberError,
     InputBoundsError,
     check_depth,
     load_json_bounded,
@@ -102,14 +103,32 @@ def test_verify_refuses_repeated_member(tmp_path):
     assert "duplicate member" in err
 
 
-def test_load_keeps_last_value_for_repeated_member(tmp_path):
+def test_load_refuses_repeated_member_by_default(tmp_path):
     raw = VALID.read_text(encoding="utf-8")
-    first = json.loads(raw)["bundle_id"]
     p = tmp_path / "dup.json"
     p.write_text('{"bundle_id": "first-value", ' + raw.strip()[1:], encoding="utf-8")
-    assert load_replay_bundle(p).bundle_id == first
+    with pytest.raises(DuplicateMemberError):
+        load_replay_bundle(p)
+    # explicit opt-out keeps the parser's last-value behaviour
+    assert load_json_bounded(p, reject_duplicates=False)["bundle_id"] == json.loads(raw)["bundle_id"]
 
 
+@pytest.mark.parametrize("command", ["validate", "summarize"])
+def test_cli_commands_refuse_repeated_member(tmp_path, command):
+    raw = VALID.read_text(encoding="utf-8")
+    p = tmp_path / "dup.json"
+    p.write_text(raw.strip()[:-1] + ', "bundle_id": "dup-last-wins"}', encoding="utf-8")
+    rc, out, err = run_arb(command, str(p))
+    assert rc == 2 and "duplicate member" in err and "dup-last-wins" not in out
+
+
+def test_cli_redact_refuses_repeated_member(tmp_path):
+    raw = VALID.read_text(encoding="utf-8")
+    p = tmp_path / "dup.json"
+    p.write_text(raw.strip()[:-1] + ', "bundle_id": "dup-last-wins"}', encoding="utf-8")
+    out_path = tmp_path / "out.json"
+    rc, out, err = run_arb("redact", str(p), "--out", str(out_path))
+    assert rc == 2 and "duplicate member" in err and not out_path.exists()
 def test_envelope_members_outside_signature_scope(tmp_path):
     """Pinned for a bundle-only signature (written before the envelope was covered; see tests/test_signing_envelope.py for the
     current form, where each of these changes is refused)."""
@@ -126,7 +145,8 @@ def test_envelope_members_outside_signature_scope(tmp_path):
     d["signature_metadata"]["key_id"] = "other"
     d["signature_metadata"]["signed_at"] = "2000-01-01T00:00:00Z"
     p.write_text(json.dumps(d))
-    assert run_arb("verify", str(p), "--secret", "s3")[0] == 0
+    assert run_arb("verify", str(p), "--secret", "s3")[0] == 1
+    assert run_arb("verify", str(p), "--secret", "s3", "--allow-unbound-envelope")[0] == 0
     assert run_arb("verify", str(p), "--secret", "s3", "--require-bound-envelope")[0] == 1
 
 
@@ -138,3 +158,11 @@ def test_envelope_members_are_inside_the_current_signature_scope(tmp_path):
         q = tmp_path / f"{member}.json"
         q.write_text(json.dumps(d))
         assert run_arb("verify", str(q), "--secret", "s3")[0] == 1
+
+
+def test_cli_verify_refuses_repeated_bundle_id(tmp_path):
+    p = _signed(tmp_path)
+    raw = p.read_text(encoding="utf-8")
+    p.write_text(raw.replace('"replay_bundle": {', '"replay_bundle": {"bundle_id": "dup-first", ', 1), encoding="utf-8")
+    rc, out, err = run_arb("verify", str(p), "--secret", "s3")
+    assert rc == 2 and "duplicate member" in err

@@ -24,6 +24,11 @@ _SENSITIVE_KEYS = {
 }
 
 
+#: Versions of the 0.1 replay-bundle format this validator checks (docs/bundle_format.md: default "0.1"). The 0.2.0
+#: reconstruction bundle is a different model with its own loader and is not validated here.
+SUPPORTED_BUNDLE_VERSIONS = frozenset({"0.1"})
+
+
 def _error(code: str, message: str, path: str | None = None) -> ValidationIssue:
     return ValidationIssue(severity=ValidationSeverity.error, code=code, message=message, path=path)
 
@@ -51,9 +56,16 @@ def validate_replay_bundle(bundle: AgentReplayBundle) -> ValidationReport:
     if not bundle.bundle_id:
         issues.append(_error("E001", "bundle_id must be non-empty.", "bundle_id"))
 
-    # 2. bundle_version must be non-empty
+    # 2. bundle_version must be non-empty and one of the supported versions
     if not bundle.bundle_version:
         issues.append(_error("E002", "bundle_version must be non-empty.", "bundle_version"))
+    elif bundle.bundle_version not in SUPPORTED_BUNDLE_VERSIONS:
+        issues.append(_error(
+            "E002",
+            f"bundle_version {bundle.bundle_version!r} is not a supported version "
+            f"(supported: {', '.join(sorted(SUPPORTED_BUNDLE_VERSIONS))}).",
+            "bundle_version",
+        ))
 
     # 3. run_id must be non-empty
     if not bundle.run_id:

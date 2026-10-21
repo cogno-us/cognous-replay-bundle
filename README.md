@@ -112,7 +112,7 @@ Status labels: **merged** = merged in this repository; **selected** = pinned in 
 | `arb redact ... [--task] [--scope] [--drop-signature]` | Also redact the task text, scope fields, or drop the embedded signature metadata (all off by default). | merged |
 | `arb sign <path> --secret <key> --out <file> [--key-id ID]` | Sign a bundle with HMAC-SHA256 (export integrity). | selected |
 | `arb verify <path> --secret <key>` | Verify a signed bundle. | selected |
-| `arb verify ... --require-bound-envelope` | Refuse a signature that covers the inner bundle only. | merged |
+| `arb verify ... --allow-unbound-envelope` | Accept an earlier signature that covers the inner bundle only (refused by default; `--require-bound-envelope` is the now-default behaviour, kept for existing invocations). | merged |
 | `arb check-examples` | Check every `examples/*.json`: 0.1 bundles are validated; the signed example and the reconstruction examples are checked structurally against their models only. | selected |
 
 ### Formats and contracts
@@ -222,7 +222,7 @@ Status labels used in this README: **merged** (reviewed and merged in the owning
 Each item below is a **known limit** documented in this repository.
 
 - Reconstruction does not reevaluate policy, renew authorization, repeat an effect or independently verify delivery. `reconstruction_complete` means the declared import contract was completely represented, not that an external effect was completed or verified ([import contract](docs/reconstruction_import.md#scope)).
-- HMAC signing is export integrity, not key management or non-repudiation. A current signature covers the inner bundle, `signed_bundle_id` and the signature metadata other than the value; an earlier bundle-only signature still verifies and is reported as such, and `--require-bound-envelope` refuses it. Members the models do not retain and the file bytes are not covered. A file signed by this version is not accepted by an earlier version ([signing](docs/signing.md)).
+- HMAC signing is export integrity, not key management or non-repudiation. A current signature covers the inner bundle, `signed_bundle_id` and the signature metadata other than the value; an earlier bundle-only signature is refused by default and is accepted, with a note, only with `--allow-unbound-envelope` (API `allow_unbound_envelope=True`). `arb verify` refuses a file carrying members the models do not retain; the file bytes are not covered. A file signed by this version is not accepted by an earlier version ([signing](docs/signing.md)).
 - Redaction replaces only the listed fields; other free text, scope fields (unless `--scope`), the task (unless `--task`) and embedded signature metadata (unless `--drop-signature`) are left as they were, inherited `redacted_fields` are copied unchecked, and a redaction claim is self-asserted ([redaction](docs/redaction.md)). A bundle in which nothing was redacted fails E025.
 - The validator's checks are narrow where the docs say so: W011 inspects top-level payload keys only; W013 compares only `checked_id` with `bundle_id`; authority records state what the producer reported and are checked only for `run_id` ([validation](docs/validation.md), [concepts](docs/concepts.md)).
 - Legacy 0.1 bundles and the legacy and 1.0.0 executor adapters, and the W3 and C8 mappings, have limits recorded as found, for example that the legacy validator does not reject duplicate identities ([known limitations](docs/reconstruction_import.md#known-limitations-of-legacy-and-non-v1-paths)).

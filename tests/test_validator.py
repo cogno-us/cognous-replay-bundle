@@ -123,6 +123,12 @@ class TestRequiredFieldErrors:
         report = validate_replay_bundle(bundle)
         assert "E002" in error_codes(report)
 
+    def test_unknown_bundle_version_is_refused(self):
+        for version in ("99.0-evil", "0.1.0", "0.2.0", "9.9.9"):
+            report = validate_replay_bundle(make_bundle(bundle_version=version))
+            assert "E002" in error_codes(report) and report.valid is False, version
+        assert validate_replay_bundle(make_bundle(bundle_version="0.1")).valid is True
+
     def test_empty_run_id(self):
         bundle = make_bundle(run_id="")
         report = validate_replay_bundle(bundle)

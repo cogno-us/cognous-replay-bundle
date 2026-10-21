@@ -24,7 +24,8 @@ def load_replay_bundle(path: str | Path) -> AgentReplayBundle:
         FileNotFoundError: If the file does not exist.
         InputBoundsError: If the file exceeds the byte budget or nesting limit
             (a ValueError subclass).
-        ValueError: If the file contains invalid JSON.
+        ValueError: If the file contains invalid JSON or an object that repeats a member name
+            (``DuplicateMemberError``).
         ValueError: If the JSON does not match the AgentReplayBundle schema.
     """
     path = Path(path)

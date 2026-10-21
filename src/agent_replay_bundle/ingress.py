@@ -101,14 +101,15 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def load_json_bounded(
     path: str | Path,
     *,
-    reject_duplicates: bool = False,
+    reject_duplicates: bool = True,
     max_bytes: int = MAX_INPUT_BYTES,
     max_depth: int = MAX_NESTING_DEPTH,
 ) -> Any:
     """Parse a JSON file within bounds.
 
-    Duplicate members keep the parser default (last one wins) unless
-    ``reject_duplicates`` is set.
+    A JSON object that repeats a member name is refused (``DuplicateMemberError``, a ``ValueError``) unless
+    ``reject_duplicates=False`` is passed explicitly: the parser would otherwise keep only the last value, so what is
+    validated would differ from what a reader of the file sees.
     """
     text = read_bounded_text(path, max_bytes=max_bytes, max_depth=max_depth)
     hook = _no_duplicates if reject_duplicates else None

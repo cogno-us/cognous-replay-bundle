@@ -27,7 +27,7 @@ A bundle is **valid** (`report.valid = True`) when no error-severity issues are 
 | Code | Description |
 |---|---|
 | E001 | `bundle_id` must be non-empty |
-| E002 | `bundle_version` must be non-empty |
+| E002 | `bundle_version` must be non-empty and one of the supported versions (`0.1`) |
 | E003 | `run_id` must be non-empty |
 | E004 | `frame.frame_id` must be non-empty |
 | E005 | `frame.actor` must be non-empty |
@@ -85,5 +85,7 @@ arb validate examples/customer_service_replay_bundle.json
 ```
 
 Exit codes: `0` = valid, `1` = invalid, `2` = file/parse/model error, `3` = input outside the bounds below.
+
+Duplicate members: a JSON object that repeats a member name is refused by every command and by `load_replay_bundle` (exit code `2`, `duplicate member name`), because the parser would otherwise keep only the last value.
 
 Input bounds: every command reads its file through one bounded reader. A file larger than 32 MiB (`MAX_INPUT_BYTES`) or nested deeper than 128 levels (`MAX_NESTING_DEPTH`) is refused before parsing with the typed error `InputBoundsError` (code `input_too_large` or `nesting_depth_exceeded`) and exit code `3`, which is distinct from the `1` of an invalid bundle.

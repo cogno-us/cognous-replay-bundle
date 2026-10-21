@@ -144,11 +144,11 @@ def cmd_verify(args: argparse.Namespace) -> int:
         InputBoundsError,
         load_json_bounded,
     )
-    from .signing import signature_coverage
+    from .signing import signature_coverage, unretained_members
     from .models import SignedReplayBundle
 
     try:
-        data = load_json_bounded(args.path, reject_duplicates=True)
+        data = load_json_bounded(args.path)
     except FileNotFoundError:
         print(f"Error: File not found: {_t(args.path)}", file=sys.stderr)
         sys.exit(2)
@@ -169,9 +169,16 @@ def cmd_verify(args: argparse.Namespace) -> int:
         sys.exit(2)
 
     coverage = signature_coverage(signed_bundle, args.secret)
+    if coverage is not None:
+        extra = unretained_members(data, signed_bundle.model_dump(mode="json"))
+        if extra:
+            shown = ", ".join(_t(path) for path in extra[:5]) + (f" (+{len(extra) - 5} more)" if len(extra) > 5 else "")
+            print(f"Signature INVALID: the file carries members the signature does not cover: {shown}")
+            return 1
     if coverage == "bundle_only":
-        if args.require_bound_envelope:
-            print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered")
+        if not args.allow_unbound_envelope:
+            print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered "
+                  "(re-sign the bundle, or pass --allow-unbound-envelope to accept an earlier bundle-only signature)")
             return 1
         print("Signature VALID")
         print("Note: this signature covers the inner bundle only; signed_bundle_id and the signature metadata are not covered.",
@@ -191,7 +198,7 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
     from .ingress import load_json_bounded
     from .loader import load_replay_bundle
     from .models import SignedReplayBundle
-    from .reconstruction import ReconstructionBundle
+    from .reconstruction import ReconstructionBundle, verify_content_digest
     from .validator import validate_replay_bundle
 
     examples_dir = Path(__file__).parent.parent.parent / "examples"
@@ -217,11 +224,16 @@ def cmd_check_examples(args: argparse.Namespace) -> int:
 
         if raw.get("bundle_version") == "0.2.0":
             try:
-                ReconstructionBundle.model_validate(raw)
-                print(f"  OK (reconstruction) {_t(name)}")
+                recon = ReconstructionBundle.model_validate(raw)
             except ValidationError as exc:
                 print(f"  FAIL             {_t(name)}: {_t(exc)}")
                 all_ok = False
+                continue
+            if not verify_content_digest(recon, required=False):
+                print(f"  FAIL             {_t(name)}: content-digest entry does not match the bundle content")
+                all_ok = False
+                continue
+            print(f"  OK (reconstruction) {_t(name)}")
             continue
 
         if name == "signed_replay_bundle.json":
@@ -295,8 +307,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify = sub.add_parser("verify", help="Verify a signed replay bundle.")
     p_verify.add_argument("path", help="Path to the signed bundle JSON file.")
     p_verify.add_argument("--secret", required=True, help="HMAC secret key.")
-    p_verify.add_argument("--require-bound-envelope", dest="require_bound_envelope", action="store_true", default=False,
-                          help="Refuse a signature that covers the inner bundle only (written before the envelope was covered).")
+    unbound = p_verify.add_mutually_exclusive_group()
+    unbound.add_argument("--allow-unbound-envelope", dest="allow_unbound_envelope", action="store_true", default=False,
+                         help="Accept an earlier signature that covers the inner bundle only (the envelope and signature "
+                              "metadata are then not authenticated). Without this option such a signature is refused.")
+    unbound.add_argument("--require-bound-envelope", dest="require_bound_envelope", action="store_true", default=False,
+                         help="Refuse a signature that covers the inner bundle only. This is now the default; the option is "
+                              "kept so existing invocations keep working.")
 
     # check-examples
     sub.add_parser("check-examples", help="Validate all example bundles.")

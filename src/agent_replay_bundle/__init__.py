@@ -59,6 +59,7 @@ from .reconstruction import (
     content_digest,
     redact_reconstruction_bundle,
     sign_reconstruction_bundle,
+    verify_content_digest,
     verify_reconstruction_hmac,
 )
 from .redaction import redact_replay_bundle
@@ -82,7 +83,7 @@ __all__ = [
     "ProducerProfile", "SourceRecord", "RecordLink", "CommitmentRecord",
     "ImportFinding", "ImportReport", "ReconstructionSemantics",
     "DerivationMetadata", "IntegrityMetadata", "ReconstructionBundle",
-    "content_digest", "redact_reconstruction_bundle",
+    "content_digest", "verify_content_digest", "redact_reconstruction_bundle",
     "sign_reconstruction_bundle", "verify_reconstruction_hmac",
     "ImportContractError", "import_legacy_control_plane_replay",
     "import_bounded_workflow", "LEGACY_PROFILE", "BOUNDED_PROFILE",
