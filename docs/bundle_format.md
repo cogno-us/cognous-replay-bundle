@@ -7,7 +7,7 @@ This document describes the structure and fields of the Agent Replay Bundle JSON
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `bundle_id` | string | yes | Unique identifier for this bundle |
-| `bundle_version` | string | no | Format version (default: "0.1") |
+| `bundle_version` | string | no | Format version (default: "0.1"; the validator accepts only `0.1`, error E002) |
 | `run_id` | string | yes | Identifier for the agent run |
 | `status` | enum | no | "complete", "partial", or "redacted" (default: "complete") |
 | `generated_at` | string | yes | ISO 8601 timestamp |

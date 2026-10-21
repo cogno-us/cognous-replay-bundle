@@ -27,7 +27,7 @@ A bundle is **valid** (`report.valid = True`) when no error-severity issues are 
 | Code | Description |
 |---|---|
 | E001 | `bundle_id` must be non-empty |
-| E002 | `bundle_version` must be non-empty |
+| E002 | `bundle_version` must be non-empty and one of the supported versions (`0.1`) |
 | E003 | `run_id` must be non-empty |
 | E004 | `frame.frame_id` must be non-empty |
 | E005 | `frame.actor` must be non-empty |
