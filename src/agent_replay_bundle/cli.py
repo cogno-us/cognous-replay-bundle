@@ -148,7 +148,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     from .models import SignedReplayBundle
 
     try:
-        data = load_json_bounded(args.path, reject_duplicates=True)
+        data = load_json_bounded(args.path)
     except FileNotFoundError:
         print(f"Error: File not found: {_t(args.path)}", file=sys.stderr)
         sys.exit(2)
