@@ -176,8 +176,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
             print(f"Signature INVALID: the file carries members the signature does not cover: {shown}")
             return 1
     if coverage == "bundle_only":
-        if args.require_bound_envelope:
-            print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered")
+        if not args.allow_unbound_envelope:
+            print("Signature NOT ACCEPTED: it covers the inner bundle only; the envelope and signature metadata are not covered "
+                  "(re-sign the bundle, or pass --allow-unbound-envelope to accept an earlier bundle-only signature)")
             return 1
         print("Signature VALID")
         print("Note: this signature covers the inner bundle only; signed_bundle_id and the signature metadata are not covered.",
@@ -301,8 +302,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify = sub.add_parser("verify", help="Verify a signed replay bundle.")
     p_verify.add_argument("path", help="Path to the signed bundle JSON file.")
     p_verify.add_argument("--secret", required=True, help="HMAC secret key.")
-    p_verify.add_argument("--require-bound-envelope", dest="require_bound_envelope", action="store_true", default=False,
-                          help="Refuse a signature that covers the inner bundle only (written before the envelope was covered).")
+    unbound = p_verify.add_mutually_exclusive_group()
+    unbound.add_argument("--allow-unbound-envelope", dest="allow_unbound_envelope", action="store_true", default=False,
+                         help="Accept an earlier signature that covers the inner bundle only (the envelope and signature "
+                              "metadata are then not authenticated). Without this option such a signature is refused.")
+    unbound.add_argument("--require-bound-envelope", dest="require_bound_envelope", action="store_true", default=False,
+                         help="Refuse a signature that covers the inner bundle only. This is now the default; the option is "
+                              "kept so existing invocations keep working.")
 
     # check-examples
     sub.add_parser("check-examples", help="Validate all example bundles.")

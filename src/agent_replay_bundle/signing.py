@@ -159,17 +159,18 @@ def verify_signed_replay_bundle(
     signed_bundle: SignedReplayBundle,
     secret: str,
     *,
-    allow_unbound_envelope: bool = True,
+    allow_unbound_envelope: bool = False,
 ) -> bool:
     """Verify the HMAC-SHA256 signature of a signed replay bundle.
 
     A signature written by this version covers the envelope and the signature metadata fields. A signature written before
-    that (bundle only) still verifies unless ``allow_unbound_envelope`` is False; ``signature_coverage`` says which form matched.
+    that (bundle only) is refused unless ``allow_unbound_envelope`` is True; ``signature_coverage`` says which form matched.
 
     Args:
         signed_bundle: The signed bundle to verify.
         secret: The HMAC secret key.
-        allow_unbound_envelope: Accept a bundle-only signature (default True).
+        allow_unbound_envelope: Accept a bundle-only signature (default False; the envelope and signature metadata of such a signature are
+            not authenticated).
 
     Returns:
         True if the signature is valid, False otherwise.

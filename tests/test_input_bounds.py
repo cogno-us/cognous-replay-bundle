@@ -145,7 +145,8 @@ def test_envelope_members_outside_signature_scope(tmp_path):
     d["signature_metadata"]["key_id"] = "other"
     d["signature_metadata"]["signed_at"] = "2000-01-01T00:00:00Z"
     p.write_text(json.dumps(d))
-    assert run_arb("verify", str(p), "--secret", "s3")[0] == 0
+    assert run_arb("verify", str(p), "--secret", "s3")[0] == 1
+    assert run_arb("verify", str(p), "--secret", "s3", "--allow-unbound-envelope")[0] == 0
     assert run_arb("verify", str(p), "--secret", "s3", "--require-bound-envelope")[0] == 1
 
 

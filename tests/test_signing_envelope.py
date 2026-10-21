@@ -44,7 +44,8 @@ def test_control_a_new_signature_verifies_and_reports_envelope_coverage():
 
 def test_control_a_bundle_only_signature_still_verifies_and_is_reported_as_such():
     signed = legacy_sign(make_bundle(), "s3")
-    assert verify_signed_replay_bundle(signed, "s3") is True
+    assert verify_signed_replay_bundle(signed, "s3") is False  # refused by default
+    assert verify_signed_replay_bundle(signed, "s3", allow_unbound_envelope=True) is True
     assert signature_coverage(signed, "s3") == "bundle_only"
     assert verify_signed_replay_bundle(signed, "s3", allow_unbound_envelope=False) is False
     assert verify_signed_replay_bundle(signed, "other") is False
@@ -54,7 +55,7 @@ def test_control_a_bundle_only_signature_keeps_its_documented_limit():
     """The earlier limit, pinned for earlier signatures only: its envelope members are not covered."""
     signed = legacy_sign(make_bundle(), "s3")
     other = changed(signed, lambda d: d.update(signed_bundle_id="other"))
-    assert verify_signed_replay_bundle(other, "s3") is True and signature_coverage(other, "s3") == "bundle_only"
+    assert verify_signed_replay_bundle(other, "s3", allow_unbound_envelope=True) is True and signature_coverage(other, "s3") == "bundle_only"
 
 
 # ---------------------------------------------------------------------------------------------------- refusals
@@ -111,6 +112,8 @@ def test_cli_accepts_a_bundle_only_signature_with_a_note_and_can_refuse_it(tmp_p
     from agent_replay_bundle.loader import load_replay_bundle
     path = _write(tmp_path, legacy_sign(load_replay_bundle(VALID), "s3"))
     rc, text, err = run_arb("verify", str(path), "--secret", "s3")
+    assert rc == 1 and "NOT ACCEPTED" in text and "--allow-unbound-envelope" in text
+    rc, text, err = run_arb("verify", str(path), "--secret", "s3", "--allow-unbound-envelope")
     assert rc == 0 and "VALID" in text and "not covered" in err
     rc, text, err = run_arb("verify", str(path), "--secret", "s3", "--require-bound-envelope")
     assert rc == 1 and "INVALID" not in text.replace("NOT ACCEPTED", "") and "not covered" in (text + err)

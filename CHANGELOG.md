@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bundle-only signatures refused by default (2026-10-22, no contract change, all stays `0.1.0-draft`): `verify_signed_replay_bundle(..., allow_unbound_envelope=...)` now defaults to `False` and `arb verify` refuses a signature that covers the inner bundle only (`Signature NOT ACCEPTED`, exit 1). The earlier behaviour stays available explicitly: `arb verify --allow-unbound-envelope` / `allow_unbound_envelope=True`. `--require-bound-envelope` is still accepted (now the default). Current-form signatures are unaffected. Two tests and one CLI test that relied on the old default now pass the explicit option.
+
 - Unknown `bundle_version` refused (2026-10-22, no contract change, all stays `0.1.0-draft`): the 0.1 validator reports E002 for any `bundle_version` other than `0.1` (the version the format documents) instead of accepting any non-empty string. Every shipped 0.1 example and fixture declares `0.1`. Not changed: duplicate `action_id`s are still not rejected, as docs/reconstruction_import.md records.
 
 - `arb verify` refuses unsigned extra members (2026-10-22, no contract change, all stays `0.1.0-draft`): when the signature matches but the raw JSON holds a member that the models did not retain (an unknown field at any depth, or at the top level of the signed envelope), `verify` prints `Signature INVALID: the file carries members the signature does not cover: <paths>` and exits 1 instead of `Signature VALID`. New helper `signing.unretained_members(raw, dump)`. The models are unchanged (no `extra='forbid'`), so `validate`, `load` and every consumer of the models behave as before; `verify_signed_replay_bundle` on a parsed model is unchanged. See docs/signing.md.
