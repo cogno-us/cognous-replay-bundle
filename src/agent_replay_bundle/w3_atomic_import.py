@@ -131,7 +131,7 @@ def import_w2_atomic_failure_history(
             raise AtomicEvidenceContractError("observation must be object")
         if "effect_id" in observation and observation["effect_id"] != effect_id:
             raise AtomicEvidenceContractError("observation effect identity contradiction")
-        if observation.get("retry_eligible") is True:
+        if "retry_eligible" in observation and observation["retry_eligible"] is not False:
             raise AtomicEvidenceContractError("atomic W2 evidence cannot grant retry authority")
         records.append(SourceRecord(
             record_id=f"{W2_ATOMIC_PROFILE}:observation:0",

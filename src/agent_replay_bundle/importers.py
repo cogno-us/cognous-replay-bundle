@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from datetime import datetime
 from typing import Any
@@ -1686,7 +1687,7 @@ def _validate_executor_attempt_rows(source: dict[str, Any],
             raise ImportContractError(f"moltbot.attempt_events[{i}] event_id is repeated or out of order", "event_order")
         last_id = event_id
         created = raw.get("created_at")
-        if isinstance(created, bool) or not isinstance(created, (int, float)) or (last_time is not None and created < last_time):
+        if isinstance(created, bool) or not isinstance(created, (int, float)) or not math.isfinite(created) or (last_time is not None and created < last_time):
             raise ImportContractError(f"moltbot.attempt_events[{i}] created_at is missing or out of order", "event_order")
         last_time = created
         per_attempt.setdefault(raw.get("attempt_id"), []).append(raw)

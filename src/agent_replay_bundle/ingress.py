@@ -98,6 +98,14 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
+class NonFiniteNumberError(ValueError):
+    """A JSON document contained NaN, Infinity or -Infinity, which are not JSON."""
+
+
+def _reject_constant(name: str) -> Any:
+    raise NonFiniteNumberError(f"non-finite JSON number is not accepted: {name}")
+
+
 def load_json_bounded(
     path: str | Path,
     *,
@@ -113,4 +121,4 @@ def load_json_bounded(
     """
     text = read_bounded_text(path, max_bytes=max_bytes, max_depth=max_depth)
     hook = _no_duplicates if reject_duplicates else None
-    return json.loads(text, object_pairs_hook=hook)
+    return json.loads(text, object_pairs_hook=hook, parse_constant=_reject_constant)
