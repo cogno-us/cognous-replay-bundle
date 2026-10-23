@@ -1779,6 +1779,11 @@ ROUTE_B_EXECUTION_EVIDENCE_MEMBERS = frozenset({"local_authority_effect_profile"
 ROUTE_B_AUTHORITY_PROFILE = "urn:cognous:profiles:local-authority-effect:0.1.0-proposed"
 
 
+def _denial_failure_class_admitted(security: bool, recovery_report: bool, result: dict[str, Any]) -> bool:
+    """failure_class may accompany a denial only: security-generation profile, no recovery report, denied and not attempted."""
+    return bool(security) and not recovery_report and result.get('status') == 'denied' and not result.get('attempted')
+
+
 def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[str, Any], effect: str,
                                          decision_id: str, op: dict[str, Any]) -> None:
     """F-28: control_plane_evidence of a normal route-B execution (all four members, bound to the result).
@@ -1936,12 +1941,14 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         if recovery_report:
             # Route B post-commit failure: the executor names the failure it recorded (reference only).
             allowed |= {'failure_record_id', 'failure_class'}
-        denial = not recovery_report and result.get('status') == 'denied' and not result.get('attempted')
-        if security and denial:
+        if _denial_failure_class_admitted(security, recovery_report, result):
             # Route B pre-dispatch denial: the executor names the failure record it wrote (reference only) and its class.
             allowed.add('failure_class')
-            if 'failure_class' in evidence and not (isinstance(evidence['failure_class'], str) and evidence['failure_class'] in RUNTIME_FAILURE_CLASSES):
-                raise ImportContractError('invalid executor failure class')
+            if 'failure_class' in evidence:
+                if not (isinstance(evidence['failure_class'], str) and evidence['failure_class'] in RUNTIME_FAILURE_CLASSES):
+                    raise ImportContractError('invalid executor failure class')
+                if 'failure_record_id' not in evidence:
+                    raise ImportContractError('executor failure class requires its failure reference')
         route_b_members = set(evidence) & ROUTE_B_EXECUTION_EVIDENCE_MEMBERS
         if route_b_members:
             # Route B (atomic local authority) normal execution: the executor names the claim and the local authority

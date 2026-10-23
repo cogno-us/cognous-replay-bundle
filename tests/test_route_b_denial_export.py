@@ -74,10 +74,21 @@ def test_a_class_outside_the_runtime_set_is_refused(value):
         run(cp, proposal, executor)
 
 
-def test_failure_class_without_failure_record_id_is_admitted_as_a_class_only_reference():
+def test_failure_class_without_failure_record_id_is_refused():
     cp, proposal, executor = load()
     mutate_evidence(executor, failure_record_id=None)
-    assert run(cp, proposal, executor).status == "reconstruction_complete"
+    with pytest.raises(ImportContractError, match="requires its failure reference"):
+        run(cp, proposal, executor)
+
+
+def test_class_only_evidence_is_refused_in_a_non_security_position_too(monkeypatch):
+    cp, proposal, executor = load()
+    mutate_evidence(executor, failure_record_id=None)
+    p2 = I.BOUNDED_P2_PROFILE
+    monkeypatch.setattr(I, "SECURITY_RUNTIME_BOUNDED_PROFILES", I.SECURITY_RUNTIME_BOUNDED_PROFILES - {p2})
+    monkeypatch.setattr(I, "BOUNDED_REFUSAL_PROFILE", p2)
+    with pytest.raises(ImportContractError, match=REFUSED):
+        run(cp, proposal, executor)
 
 
 def test_an_undeclared_member_next_to_failure_class_is_refused():
@@ -148,4 +159,41 @@ def test_a_profile_outside_the_security_set_does_not_admit_failure_class(monkeyp
     monkeypatch.setattr(I, "SECURITY_RUNTIME_BOUNDED_PROFILES", I.SECURITY_RUNTIME_BOUNDED_PROFILES - {p2})
     monkeypatch.setattr(I, "BOUNDED_REFUSAL_PROFILE", p2)  # the typed-refusal checks still run for it, as for the refusal profile
     with pytest.raises(ImportContractError, match=REFUSED):
+        run(cp, proposal, executor)
+
+
+def test_the_runtime_failure_class_set_is_exactly_the_six_runtime_values():
+    assert I.RUNTIME_FAILURE_CLASSES == frozenset({"policy_denial", "authority_hold", "malformed_input", "capability_unavailable",
+                                                   "evaluation_error", "dispatch_error"})
+
+
+# The admission predicate, each clause on its own: all other clauses true, this one false (no failure_record_id involved).
+DENIED = {"status": "denied", "attempted": False}
+
+
+def test_predicate_admits_only_when_every_clause_holds():
+    assert I._denial_failure_class_admitted(True, False, DENIED) is True
+
+
+def test_predicate_security_gate_clause():
+    assert I._denial_failure_class_admitted(False, False, DENIED) is False
+
+
+def test_predicate_not_a_recovery_report_clause():
+    assert I._denial_failure_class_admitted(True, True, DENIED) is False
+
+
+@pytest.mark.parametrize("status", ["unknown", "executed", "failed", "partial", "observed", "reconciled", None])
+def test_predicate_status_denied_clause(status):
+    assert I._denial_failure_class_admitted(True, False, {"status": status, "attempted": False}) is False
+
+
+def test_predicate_not_attempted_clause():
+    assert I._denial_failure_class_admitted(True, False, {"status": "denied", "attempted": True}) is False
+
+
+def test_unknown_is_not_converted_into_a_denial():
+    cp, proposal, executor = load()
+    executor["execution_result"]["status"] = "unknown"
+    with pytest.raises(ImportContractError):
         run(cp, proposal, executor)
