@@ -19,7 +19,7 @@
   },
   "resolution_checks": [
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "stage": "decision",
     "evaluated_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
@@ -178,7 +178,7 @@
     "reasons": []
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "stage": "decision",
     "evaluated_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
@@ -337,7 +337,7 @@
     "reasons": []
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "stage": "effect",
     "evaluated_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
@@ -496,7 +496,7 @@
     "reasons": []
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "stage": "effect",
     "evaluated_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
@@ -670,7 +670,7 @@
      },
      "unknown": []
     },
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "result": "authorized",
     "reasons": [],
@@ -892,7 +892,7 @@
      },
      "unknown": []
     },
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "result": "authorized",
     "reasons": [],
@@ -1105,9 +1105,9 @@
   "refusals": [],
   "attempts": [
    {
-    "attempt_id": "89ea5ccf-7592-4b30-acaf-b618e3d91dcf",
+    "attempt_id": "cb4c41c1-52e6-4f8e-867d-eee567cdd1cb",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "started_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
     "status": "attempted",
@@ -1115,9 +1115,9 @@
     "error": null
    },
    {
-    "attempt_id": "89ea5ccf-7592-4b30-acaf-b618e3d91dcf",
+    "attempt_id": "cb4c41c1-52e6-4f8e-867d-eee567cdd1cb",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "started_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
     "status": "acknowledged",
@@ -1139,9 +1139,9 @@
     "error": null
    },
    {
-    "attempt_id": "ba8ec558-89c5-4892-8c00-9b2ae926847c",
+    "attempt_id": "315fc253-3b02-48c0-9190-39b5c6853ad8",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "started_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
     "status": "attempted",
@@ -1149,9 +1149,9 @@
     "error": null
    },
    {
-    "attempt_id": "ba8ec558-89c5-4892-8c00-9b2ae926847c",
+    "attempt_id": "315fc253-3b02-48c0-9190-39b5c6853ad8",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "started_at": "2026-10-05T19:00:00+00:00",
     "time_source": "test_override",
     "status": "acknowledged",
@@ -1343,13 +1343,13 @@
   ],
   "check_events": [
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "opened",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1365,13 +1365,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1395,13 +1395,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1428,13 +1428,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1461,13 +1461,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1493,13 +1493,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1525,13 +1525,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1563,13 +1563,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1596,13 +1596,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1634,13 +1634,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1678,13 +1678,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1713,13 +1713,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1746,13 +1746,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "037a286c-94af-4219-a6bb-ee347fd58631",
+    "check_id": "5885371c-68e0-46a5-a26a-5444a388d8c1",
     "phase": "completed",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "fb6b7754-dfe9-4800-b04b-a7db3e94fc6f"
+     "pid": "30505",
+     "token": "e2d5b3a5-cce1-475f-aa40-e6c08d2cae92"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
     "decision_id": null,
@@ -1768,13 +1768,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "opened",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1790,13 +1790,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1820,13 +1820,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1853,13 +1853,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1886,13 +1886,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1918,13 +1918,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1950,13 +1950,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -1988,13 +1988,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2021,13 +2021,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2059,13 +2059,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2103,13 +2103,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2138,13 +2138,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "input",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2171,13 +2171,13 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "ad8adc64-5094-4e7d-b3c9-bbc5a0b76a0c",
+    "check_id": "2e895679-e313-4f8b-b698-0696f6de63fc",
     "phase": "completed",
     "stage": "decision",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "bb4ce7bd-05e9-474c-ba10-10d4249d7a38"
+     "pid": "30505",
+     "token": "04ecfceb-47a6-41f9-8af9-945aaac7d81b"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
     "decision_id": null,
@@ -2193,16 +2193,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "opened",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2215,16 +2215,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2245,16 +2245,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2278,16 +2278,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2311,16 +2311,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2343,16 +2343,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2375,16 +2375,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2413,16 +2413,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2446,16 +2446,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2484,16 +2484,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2528,16 +2528,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2563,16 +2563,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2596,16 +2596,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "phase": "completed",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "68848716-2956-4534-9521-9e340651cc94"
+     "pid": "30505",
+     "token": "7830ea87-a1f4-4efa-b6c5-20447c56821e"
     },
     "proposal_commitment": "sha256:ab2e3da4e90d0d7966ae1f2f3778a68c2abfb189439a55e1089bfb48fd7ccd22",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2618,16 +2618,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "opened",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2640,16 +2640,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2670,16 +2670,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2703,16 +2703,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2736,16 +2736,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2768,16 +2768,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2800,16 +2800,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2838,16 +2838,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2871,16 +2871,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2909,16 +2909,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2953,16 +2953,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -2988,16 +2988,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "input",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -3021,16 +3021,16 @@
     "reason_vocabulary_version": "runtime-authority-reasons/0.1"
    },
    {
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "phase": "completed",
     "stage": "effect",
     "recorded_at": "2026-10-05T19:00:00+00:00",
     "owner": {
-     "pid": "2206",
-     "token": "8329e758-b7ab-418c-bbb6-a1194cd97846"
+     "pid": "30505",
+     "token": "ac4bbc09-95d2-475d-ac0e-032cbca46881"
     },
     "proposal_commitment": "sha256:c811b5f61ec229716bb56d0de891ef9d12d4161c7fdce07bd34cfdc6824f57a6",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
     "action_class": {
      "class_id": "synthetic-irreversible",
@@ -3065,12 +3065,12 @@
   ],
   "attempt_joins": [
    {
-    "join_id": "6541750d-940b-45c8-bc5a-e96e3709e4a4",
+    "join_id": "4f9c35bd-e921-463e-858f-f46b47d99f17",
     "operation_id": "op-order-100/refund-1",
-    "attempt_id": "89ea5ccf-7592-4b30-acaf-b618e3d91dcf",
-    "check_id": "f6363ed4-a123-4032-a9d5-3c1b09c5902d",
+    "attempt_id": "cb4c41c1-52e6-4f8e-867d-eee567cdd1cb",
+    "check_id": "92462d4b-f47d-494c-8445-335101d0e20b",
     "effect_id": "sha256:a5fbb00cf6ce97be8fab1b7517f0e74b95aa305c49656f8f5b15e19174452ff8",
-    "decision_id": "3999cb2c-7790-43fa-86c4-8be788a41625",
+    "decision_id": "e2c6c4f7-2bbc-4a99-90a7-1d941a579b73",
     "grant_id": "urn:cognous:grant:routine-1",
     "grant_revision": "1",
     "resolver_id": "synthetic-resolver",
@@ -3082,12 +3082,12 @@
     "time_source": "test_override"
    },
    {
-    "join_id": "f73446ce-ea90-4f8e-8141-4c890cec4c0a",
+    "join_id": "7feb2b4b-41e9-4e1f-8610-2d4ac8f20139",
     "operation_id": "op-order-100/refund-2",
-    "attempt_id": "ba8ec558-89c5-4892-8c00-9b2ae926847c",
-    "check_id": "52fe581f-8387-4e06-82e5-87a2604b5d51",
+    "attempt_id": "315fc253-3b02-48c0-9190-39b5c6853ad8",
+    "check_id": "b2841f20-ce2a-4828-b881-233e5ed7982a",
     "effect_id": "sha256:2f05fb0adaf4052e6338bb5ad739e4b1fa5f28a7c515fca170fa189327873a01",
-    "decision_id": "400a4849-56fe-4d8d-80bd-da724ebcc65e",
+    "decision_id": "b471b87e-789e-457b-b958-098a5aaed634",
     "grant_id": "urn:cognous:grant:routine-1",
     "grant_revision": "1",
     "resolver_id": "synthetic-resolver",
@@ -3101,7 +3101,7 @@
   ],
   "merge_records": [
    {
-    "merge_id": "98cd5213-3c4b-4082-9546-2ae7b93e20c1",
+    "merge_id": "7205daf9-af74-4d74-96b4-159ce8dda8d5",
     "survivor_operation_id": "op-order-100/refund-1",
     "folded_operation_ids": [
      "op-order-100/refund-2"
@@ -3116,14 +3116,14 @@
     "reason": "same refund, filed twice",
     "outcome": "merged",
     "reasons": [],
-    "compensation_obligation_id": "f14b3dfd-b01d-4b28-af63-5768583d8cda",
+    "compensation_obligation_id": "634e307a-2537-4613-9087-b87928d67790",
     "recorded_at": "2026-10-05T19:00:00+00:00"
    }
   ],
   "compensation_obligations": [
    {
-    "obligation_id": "f14b3dfd-b01d-4b28-af63-5768583d8cda",
-    "merge_id": "98cd5213-3c4b-4082-9546-2ae7b93e20c1",
+    "obligation_id": "634e307a-2537-4613-9087-b87928d67790",
+    "merge_id": "7205daf9-af74-4d74-96b4-159ce8dda8d5",
     "survivor_operation_id": "op-order-100/refund-1",
     "operation_ids": [
      "op-order-100/refund-1",

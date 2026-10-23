@@ -1,4 +1,4 @@
-"""Capture executor-paired runs: Control Plane 6093aca7 run record + proposal + runtime 62a5cc15 export, per scenario.
+"""Capture executor-paired runs: Control Plane run record + proposal + runtime export, per scenario.
 
 Not a test and not vendored into the package. Run with a Control Plane checkout at 6093aca7 and a runtime checkout at 62a5cc15 on
 the path (both installed or on PYTHONPATH), from the control plane checkout:
@@ -96,10 +96,6 @@ def atomic_flow(identity):
     assert d.result == "authorized", d.reasons
     env, pol = envelope_and_policy(p, d)
     ex = AtomicLocalControlPlaneExecutor(workflow=f, destination=dest, policy=pol, operation_identity=identity)
-    # The record is taken before claim issuance: the Control Plane's own claim issuance journals a decision-stage check next to
-    # a claim-stage resolution check, which Replay refuses at every generation (finding, see the PR); the claim is still the
-    # Control Plane's own, only its record is left out.
-    before_claim = f.records.load().model_dump(mode="json")
     claim = ex.provision_claim(proposal=p, decision=d, now=NOW, claim_id="claim-1")
     result = ex.execute(envelope=env, claim_id="claim-1")
     export = export_execution_artifacts(env, result, dest, repository_revision=REVISION)
@@ -107,7 +103,8 @@ def atomic_flow(identity):
     keyed = dest._connect().execute("SELECT COUNT(*) FROM operation_effects_v1").fetchone()[0] if "operation_effects_v1" in tables else None
     print("operation key rows at the destination:", keyed)
     assert (keyed == 1) if identity else (keyed is None)
-    return p, f, result, export, before_claim
+    # Control Plane 7a4bcd40 journals the claim check at stage claim (PR #83), so the full post-claim record is captured.
+    return p, f, result, export, f.records.load().model_dump(mode="json")
 
 
 for name, fn, identity, profiles in (("adapter-default", adapter_flow, False, []), ("adapter-operation-identity", adapter_flow, True, ["operation-identity/0.1"]),

@@ -1,4 +1,4 @@
-"""Programme-2 generation 0a41faa9: the N4 profiles (merge-record, reversibility, dedupe-ttl), the reason registry label 0.2, and
+"""Programme-2 generation 7a4bcd40: the N4 profiles (merge-record, reversibility, dedupe-ttl), the reason registry label 0.2, and
 the executor pairing with the runtime ec728da6.
 
 The valid cases are REAL run records and exports written by the Control Plane's and the runtime's own flows
@@ -29,17 +29,18 @@ N4_LISTS = {"merge_records": "merge_record", "compensation_obligations": "compen
             "snapshot_uses": "snapshot_use", "dedupe_escalations": "dedupe_escalation"}
 CP_O_5C47 = "5c474ba83a1477df93dec92d076f8e62b0a98ae1"  # the previous Control Plane tie, replaced not kept
 CP_O_2BAC = "2bac7875391cad0a431fa0d75208b7ade39743e3"  # an earlier Control Plane tie, replaced not kept
+CP_O_0A41 = "0a41faa972699f7ec3063967a14cd9bdd3e67d27"  # the previous Control Plane tie (before the claim-journal repair), replaced not kept
 CP_O_E77F = "e77fe0ee8714617899592528e660a80fbb2e864a"  # the previous Control Plane tie, replaced not kept
 LABEL_01, LABEL_02 = "runtime-authority-reasons/0.1", "runtime-authority-reasons/0.2"
 
 
 # ------------------------------------------------------------------------------------------------ the generation tie
 def test_generation_is_the_new_control_plane_revision_and_the_old_one_is_not_kept():
-    assert I.CONTROL_PLANE_P2_REVISION == "0a41faa972699f7ec3063967a14cd9bdd3e67d27"
-    assert I.BOUNDED_P2_PROFILE == "control-plane-programme2-profiles@0a41faa9"
+    assert I.CONTROL_PLANE_P2_REVISION == "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c"
+    assert I.BOUNDED_P2_PROFILE == "control-plane-programme2-profiles@7a4bcd40"
     assert I.MOLTBOT_P2_REVISION == "ec728da6dc301a664b331ac8986afd6e850a1273"
     assert I.MANIFEST_P2_REVISION == "fa170815ef96a54c233d0dd9da821b60debabf8b"
-    for old in (CP_O_E77F, CP_O_5C47, CP_O_2BAC, "128eaa5e36fdff772fdc709581712dbeac046db3", "3755c71a20eab1a41135967b682342c809929572", "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb", "6093aca7b945698e89c0d8ac7c75306375e1a298"):  # the earlier ties are replaced
+    for old in (CP_O_0A41, CP_O_E77F, CP_O_5C47, CP_O_2BAC, "128eaa5e36fdff772fdc709581712dbeac046db3", "3755c71a20eab1a41135967b682342c809929572", "3cd17ead6b24301290ad1e50ae4b22bbd93c12fb", "6093aca7b945698e89c0d8ac7c75306375e1a298"):  # the earlier ties are replaced
         assert old not in vars(I).values()
         with pytest.raises(ImportContractError, match="unsupported Control Plane revision"):
             import_bounded_workflow(run("default-path"), control_plane_revision=old)

@@ -1,34 +1,34 @@
 {
- "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
- "producer": {
-  "control_plane": "0a41faa972699f7ec3063967a14cd9bdd3e67d27",
-  "runtime": "ec728da6dc301a664b331ac8986afd6e850a1273",
-  "python": "3.13",
-  "note": "control plane main 0a41faa9 and runtime main ec728da6, with the action manifest main fa170815. The export shape of every member is identical to the previous pairing's captures (checked by comparing the member sets of every exported document after normalising identifiers, timestamps and the process id). Re-captured with the unchanged capture script; the previous pairings fc034d14, 7170da59, 11de097c, 62a5cc15, c4a05883 and 6b16962d (with Control Plane 2bac7875), 79f39166 (with Control Plane 5c474ba8) and cab4d9ab (with Control Plane e77fe0ee) are replaced, not kept"
- },
- "captured_on": "2026-10-22",
- "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
- "scenarios": {
-  "adapter-default": "PinnedControlPlaneExecutor, profiles off",
-  "adapter-operation-identity": "PinnedControlPlaneExecutor, operation-identity/0.1 on, OperationIdentityEffectiveGrantDestination",
-  "atomic-default": "AtomicLocalControlPlaneExecutor, no operation key (default)",
-  "atomic-operation-key": "AtomicLocalControlPlaneExecutor(operation_identity=True) with OperationIdentityAtomicAuthorityEffectDestination (one operation key row verified at the destination)"
- },
- "atomic_record_note": "For the atomic scenarios the Control Plane run record is the one taken after the decision and before claim issuance. The Control Plane's own claim issuance (provision_local_execution_claim) opens a decision-stage journal check next to a claim-stage resolution check, and Replay refuses that record at P4 and at this generation alike (journal_check_reused); that is a finding, not changed here.",
- "sha256": {
-  "adapter-default/control_plane_run.json": "c11db4ab00db6c6b6c285eb1f102f6b81a6cc05455632e08fc0794e2a76c2750",
-  "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-default/executor.json": "85b60cb1dc9b047f449155a4242ef0f5f63b19cf53b93857ab04ff8fb2a2ac51",
-  "adapter-operation-identity/control_plane_run.json": "0a69b9bb47cf2ebf2da15ba8a34af8ccd3598f0b3fb4cc4f2ec7dd9c7ebad09f",
-  "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "adapter-operation-identity/executor.json": "50350e074ccb58e99b8515556c47cecb43643a0b827d279c521bf6ed0ae95880",
-  "atomic-default/control_plane_run.json": "5e691cf6ddcb62a239ebb8ef84f7de8c5f0bdf43617762e75b31aef45effc283",
-  "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-default/executor.json": "3fd88e163d07b724b4523b3ccf39361e1a9a74c9b7498360bea78aefcf3edc06",
-  "atomic-operation-key/control_plane_run.json": "9696a73a5f8bffe66744cf2673ca67541e860ac2da41cc0668482bfa52cf4d40",
-  "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
-  "atomic-operation-key/executor.json": "5ac9c4df0f25f2337487e439235eb9433c9510a8ef117ed96e7d3bc211d2f806"
- },
- "script_sha256": "8f93066e8cd6bc68c9fdead16b44ca7e89a2cb80db7812b8b0fe4748dd72304c",
- "script_note": "capture_paired.py code unchanged since the fc034d14 capture; its docstring still names the earlier revisions"
+  "source": "real exports: Control Plane run record and proposal from the Control Plane's own flow helpers (setup_flow, operation-identity enable) driven through the runtime's own executors, then export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
+  "producer": {
+    "control_plane": "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c",
+    "runtime": "ec728da6dc301a664b331ac8986afd6e850a1273",
+    "python": "3.13",
+    "note": "control plane main 7a4bcd40 (0a41faa9 plus the claim-journal repair, PR #83) and runtime main ec728da6, with the action manifest fa170815. Re-captured with capture_paired.py; the previous pairing with Control Plane 0a41faa9 is replaced, not kept"
+  },
+  "captured_on": "2026-10-23",
+  "script": "capture_paired.py (PYTHONPATH=src:.:<runtime checkout> python capture_paired.py <out-dir> <runtime-revision>, from the control plane checkout)",
+  "scenarios": {
+    "adapter-default": "PinnedControlPlaneExecutor, profiles off",
+    "adapter-operation-identity": "PinnedControlPlaneExecutor, operation-identity/0.1 on, OperationIdentityEffectiveGrantDestination",
+    "atomic-default": "AtomicLocalControlPlaneExecutor, no operation key (default)",
+    "atomic-operation-key": "AtomicLocalControlPlaneExecutor(operation_identity=True) with OperationIdentityAtomicAuthorityEffectDestination (one operation key row verified at the destination)"
+  },
+  "atomic_record_note": "For the atomic scenarios the Control Plane run record is now the full record after claim issuance and execution. At 0a41faa9 that record was refused (journal_check_reused) because claim issuance journalled a second decision-stage check; Control Plane 7a4bcd40 journals it at stage claim with its own check id, so the record was captured unchanged after the claim.",
+  "sha256": {
+    "adapter-default/control_plane_run.json": "190f0881258564a546a84033fc606bf396bac928d64ccb7748e4b693d97bed00",
+    "adapter-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+    "adapter-default/executor.json": "e5bece125799a9af3880fffc8b7aa106ede2790db21e3e07d07bd37873400019",
+    "adapter-operation-identity/control_plane_run.json": "0ea12bc746969e2418479a5f803ece726e720a20bb20e44b0be0435de05fb3a7",
+    "adapter-operation-identity/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+    "adapter-operation-identity/executor.json": "db07daaa461636fcb77b1473f37035907f488f282489b426569f9c7934afd8fa",
+    "atomic-default/control_plane_run.json": "8e774c06eae9e027c7aa5dbb2c9fa0e6056a007991b1f20aee8a82cb8e8ce804",
+    "atomic-default/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+    "atomic-default/executor.json": "3a7f6942ed4c10e9d89ced28c97ee1efe3c9556dfffa6136f302cf2641974ea9",
+    "atomic-operation-key/control_plane_run.json": "7279333b9e3396ba697d296362e07da6b7d8cf915aa95f237f2ff5aac744f2f7",
+    "atomic-operation-key/proposal.json": "ae6f275c3f5a8fb417b74c7907bff014da6aa09b92e9839973dc86345de1c973",
+    "atomic-operation-key/executor.json": "5f2c7e172f06e55808fb35999099a325abeeb3ef6bc36741cd2dc50a729bc0a5"
+  },
+  "script_sha256": "2adb25ae5977b559d23c50bb660db7b2991a808a811e7b18e6c5ce5ead820792",
+  "script_note": "capture_paired.py: the atomic flow now returns the record after claim issuance (it returned the pre-claim record at 0a41faa9); otherwise unchanged; docstring revisions removed"
 }
