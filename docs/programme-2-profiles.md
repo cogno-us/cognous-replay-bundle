@@ -1,10 +1,10 @@
 # Programme-2 opt-in profiles (operation identity, rule revision, freshness, merge record, reversibility, dedupe)
 
 Replay accepts and retains the run-record members of the opt-in Control Plane profiles for one exact revision, Control Plane
-`0a41faa972699f7ec3063967a14cd9bdd3e67d27` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
+`7a4bcd40b3b49e61ff3c294dcca53b52f460b22c` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
 `ec728da6dc301a664b331ac8986afd6e850a1273` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
-`128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8), `3cd17ead`, `6093aca7`, `2bac7875`, `5c474ba8` and `e77fe0ee`; every earlier tie is replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
-as before; with every profile off the new generation imports a run exactly as the previous one does.
+`128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8), `3cd17ead`, `6093aca7`, `2bac7875`, `5c474ba8`, `e77fe0ee` and `0a41faa9`; every earlier tie is replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
+as before. Control Plane `7a4bcd40` is `0a41faa9` plus the claim-journal repair (Control Plane #83): claim issuance journals its check at stage `claim` with its own check id, so a record taken after claim issuance imports (at `0a41faa9` it was refused with `journal_check_reused`). With every profile off the new generation imports a run exactly as the previous one does.
 
 | Profile | Members Replay accepts and retains |
 |---|---|

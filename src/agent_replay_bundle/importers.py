@@ -77,18 +77,18 @@ MOLTBOT_P4_REVISION = "3024ef6e6ecf7da22e5f4fdf90d873f93b2a55c9"
 MANIFEST_P4_REVISION = MANIFEST_F5B_REVISION
 BOUNDED_P4_PROFILE = "control-plane-security-runtime@26a7e659"
 MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
-# Programme-2 generation (opt-in profiles): Control Plane 0a41faa9 (e77fe0ee plus the later main commits, itself 5c474ba8 plus the later main commits, itself 2bac7875 plus later main commits, itself 6093aca7 plus later main commits; main after operation identity N1, rule revision N2, freshness
+# Programme-2 generation (opt-in profiles): Control Plane 7a4bcd40 (0a41faa9 plus the claim-journal repair, PR #83: the claim check is journalled at stage claim with its own check id; 0a41faa9 is replaced, not kept; 0a41faa9 was e77fe0ee plus the later main commits, itself 5c474ba8 plus the later main commits, itself 2bac7875 plus later main commits, itself 6093aca7 plus later main commits; main after operation identity N1, rule revision N2, freshness
 # N3, the N5 witness/holder inventory, merge-record/reversibility/dedupe-ttl N4, the 0.1/0.2 reason registry split, strict JSON J3,
-# the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to e77fe0ee, 5c474ba8, 2bac7875, 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
+# the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to 0a41faa9, e77fe0ee, 5c474ba8, 2bac7875, 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
 # generation is one exact revision, never a range). Same import semantics as P4 for a
 # profile-off run (byte-identical records), plus the members of the opt-in profiles when a run carries them (see
 # programme2_profiles.py). The executor pairing is the runtime ec728da6 (cab4d9ab plus the later main commits, itself 79f39166 plus the later main commits), with the action manifest fa170815: an executor
 # export of any other runtime revision is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with
 # them at end-of-alpha (P5).
-CONTROL_PLANE_P2_REVISION = "0a41faa972699f7ec3063967a14cd9bdd3e67d27"
+CONTROL_PLANE_P2_REVISION = "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c"
 MOLTBOT_P2_REVISION = "ec728da6dc301a664b331ac8986afd6e850a1273"
 MANIFEST_P2_REVISION = "fa170815ef96a54c233d0dd9da821b60debabf8b"
-BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@0a41faa9"
+BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@7a4bcd40"
 MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@ec728da6"
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
@@ -1773,8 +1773,15 @@ def _validate_result_contract(result: dict[str, Any], observation: Any, kind: st
 ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = True
 
 
+# Closed failure_class set of the Runtime typed failure record (engine/safe_executor.py record_failure at ec728da6).
+RUNTIME_FAILURE_CLASSES = frozenset({"policy_denial", "authority_hold", "malformed_input", "capability_unavailable", "evaluation_error", "dispatch_error"})
 ROUTE_B_EXECUTION_EVIDENCE_MEMBERS = frozenset({"local_authority_effect_profile", "claim_id", "linearized_at", "authority_receipt"})
 ROUTE_B_AUTHORITY_PROFILE = "urn:cognous:profiles:local-authority-effect:0.1.0-proposed"
+
+
+def _denial_failure_class_admitted(security: bool, recovery_report: bool, result: dict[str, Any]) -> bool:
+    """failure_class may accompany a denial only: security-generation profile, no recovery report, denied and not attempted."""
+    return bool(security) and not recovery_report and result.get('status') == 'denied' and not result.get('attempted')
 
 
 def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[str, Any], effect: str,
@@ -1934,6 +1941,14 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         if recovery_report:
             # Route B post-commit failure: the executor names the failure it recorded (reference only).
             allowed |= {'failure_record_id', 'failure_class'}
+        if _denial_failure_class_admitted(security, recovery_report, result):
+            # Route B pre-dispatch denial: the executor names the failure record it wrote (reference only) and its class.
+            allowed.add('failure_class')
+            if 'failure_class' in evidence:
+                if not (isinstance(evidence['failure_class'], str) and evidence['failure_class'] in RUNTIME_FAILURE_CLASSES):
+                    raise ImportContractError('invalid executor failure class')
+                if 'failure_record_id' not in evidence:
+                    raise ImportContractError('executor failure class requires its failure reference')
         route_b_members = set(evidence) & ROUTE_B_EXECUTION_EVIDENCE_MEMBERS
         if route_b_members:
             # Route B (atomic local authority) normal execution: the executor names the claim and the local authority
