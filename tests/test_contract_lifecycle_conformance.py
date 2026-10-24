@@ -1291,7 +1291,7 @@ def test_captured_exports_satisfy_the_new_result_rules():
             assert not result["attempted"] and result["attempt_id"] is None, path
         if result["status"] == "executed":
             assert result["observation"], path
-    assert seen == 10  # five earlier captures, the four programme-2 paired captures (tests/fixtures/programme2_paired) and the route B denial capture (route_b_post_commit/denied)
+    assert seen == 11  # five earlier captures, the four programme-2 paired captures (tests/fixtures/programme2_paired) and the two route B denial captures (route_b_post_commit/denied, denied_approval_revoked)
 
 
 # ---- extensions on journal events/inputs, checks/check inputs and Control Plane attempt rows (decision 16) ----
