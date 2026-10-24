@@ -1,6 +1,9 @@
 {
-  "source": "real exports of a route B pre-dispatch denial: Control Plane run record and proposal from the Control Plane's own flow (setup_flow, operation-identity enabled, decide, AtomicLocalControlPlaneExecutor.provision_claim), the authoritative grant status then revoked at the atomic destination (set_grant_status), AtomicLocalControlPlaneExecutor.execute denied, export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited",
-  "producer": {"control_plane": "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c", "runtime": "ec728da6dc301a664b331ac8986afd6e850a1273"},
-  "captured_on": "2026-10-23",
-  "note": "executor control_plane_evidence carries failure_record_id and failure_class (authority_hold); status denied, attempted false"
+  "source": "real exports of a route B pre-dispatch denial: Control Plane run record and proposal from the Control Plane's own flow (setup_flow, operation-identity enabled, decide, AtomicLocalControlPlaneExecutor.provision_claim), the authoritative grant status then revoked at the atomic destination (set_grant_status), AtomicLocalControlPlaneExecutor.execute denied, export_execution_artifacts; synthetic data, throwaway stores, nothing hand-edited; re-captured with capture_revocation.py (scenario denied-grant-revoked, amount 10.0)",
+  "producer": {
+    "control_plane": "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c",
+    "runtime": "c5e97e87dd239c821b1b4a406a55dcd03c5bc61f"
+  },
+  "captured_on": "2026-10-24",
+  "note": "executor control_plane_evidence carries failure_record_id and failure_class (authority_hold); status denied, attempted false; re-captured at runtime c5e97e87 (provisional development pin, UNQUALIFIED); equal to the ec728da6 capture after normalising ids, epoch times and pid except repository.revision and provenance.source_asserted.repository_revision"
 }

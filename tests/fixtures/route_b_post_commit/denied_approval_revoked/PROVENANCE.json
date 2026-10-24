@@ -1,0 +1,9 @@
+{
+  "source": "real export of a route B pre-dispatch denial: as denied/, but the approval (not the grant) is revoked at the atomic destination after claim issuance; capture_revocation.py scenario denied-approval-revoked, amount 10.0; synthetic data, throwaway stores, nothing hand-edited",
+  "producer": {
+    "control_plane": "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c",
+    "runtime": "c5e97e87dd239c821b1b4a406a55dcd03c5bc61f"
+  },
+  "captured_on": "2026-10-24",
+  "note": "executor result status denied, attempted false, error 'authoritative approval state invalid', failure_class authority_hold; at runtime F3 (c5e97e87) a revoked approval_ref cannot be re-activated, so the later re-activation scenario also exports this denial"
+}

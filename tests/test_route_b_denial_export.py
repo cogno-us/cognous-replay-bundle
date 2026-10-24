@@ -197,3 +197,17 @@ def test_unknown_is_not_converted_into_a_denial():
     executor["execution_result"]["status"] = "unknown"
     with pytest.raises(ImportContractError):
         run(cp, proposal, executor)
+
+
+def test_runtime_f3_approval_revocation_denial_export_imports():
+    """Runtime c5e97e87 (F3): a revoked approval_ref is terminal, so the execution after a revoke (and a refused re-activation) is the
+    same typed denial export as any other route B denial. The fixture is a real export; Replay's import contract is unchanged."""
+    base = BASE.parent / "denied_approval_revoked"
+    cp, proposal, executor = (json.loads((base / n).read_text()) for n in ("control_plane_run.json", "proposal.json", "executor.json"))
+    result = executor["execution_result"]
+    assert (result["status"], result["attempted"], result["acknowledged"], result["error"]) == ("denied", False, False, "authoritative approval state invalid")
+    assert executor["control_plane_evidence"]["failure_class"] == "authority_hold"
+    assert executor["repository"]["revision"] == I.MOLTBOT_P2_REVISION
+    bundle = run(cp, proposal, executor)
+    assert bundle.status == "reconstruction_complete" and all(r.complete for r in bundle.import_reports)
+    assert not any(r.record_type == "executor_observation" for r in bundle.records)

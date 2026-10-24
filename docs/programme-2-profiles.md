@@ -2,7 +2,7 @@
 
 Replay accepts and retains the run-record members of the opt-in Control Plane profiles for one exact revision, Control Plane
 `7a4bcd40b3b49e61ff3c294dcca53b52f460b22c` (constants `CONTROL_PLANE_P2_REVISION`, `BOUNDED_P2_PROFILE`), paired with the runtime
-`ec728da6dc301a664b331ac8986afd6e850a1273` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`). The generation was first tied to Control Plane
+`c5e97e87dd239c821b1b4a406a55dcd03c5bc61f` (`MOLTBOT_P2_REVISION`, `MOLTBOT_P2_PROFILE`; provisional development pin, UNQUALIFIED, non-authorizing). The generation was first tied to Control Plane
 `128eaa5e` (Replay 8e32975d), then to `3755c71a` (Replay 3c056cf8), `3cd17ead`, `6093aca7`, `2bac7875`, `5c474ba8`, `e77fe0ee` and `0a41faa9`; every earlier tie is replaced, not kept (one exact revision, never a range). Every earlier generation behaves exactly
 as before. Control Plane `7a4bcd40` is `0a41faa9` plus the claim-journal repair (Control Plane #83): claim issuance journals its check at stage `claim` with its own check id, so a record taken after claim issuance imports (at `0a41faa9` it was refused with `journal_check_reused`). With every profile off the new generation imports a run exactly as the previous one does.
 
@@ -29,7 +29,7 @@ Earlier generations still accept `/0.1` only. Replay does not check that a label
 
 ## Executor pairing
 
-The runtime `ec728da6` (main after `cab4d9ab`, which was main after `79f39166`, which was main after `6b16962d`, which was main after `c4a05883`, which was main after `62a5cc15`, which was main after #121; `11de097c` was main after #116: atomic-route grant status monotonicity, envelope binding, strict instants, exception class names only; the earlier ties were `fc034d14`, `7170da59`, `11de097c`, `62a5cc15`, `c4a05883`, `6b16962d`, `79f39166` and `cab4d9ab`, replaced not kept, and an export of any of them is now refused) exports the same producer contract as
+The runtime `c5e97e87` (main after `ec728da6`, F3 runtime #144: revoked is terminal per approval_ref on the atomic destination, so a revoked approval cannot be re-activated and its execution stays denied; only `engine/local_authority_effect.py` changed; the export shape is byte-identical apart from `repository.revision` and `provenance.source_asserted.repository_revision`; `ec728da6` was main after `cab4d9ab`, which was main after `79f39166`, which was main after `6b16962d`, which was main after `c4a05883`, which was main after `62a5cc15`, which was main after #121; `11de097c` was main after #116: atomic-route grant status monotonicity, envelope binding, strict instants, exception class names only; the earlier ties were `fc034d14`, `7170da59`, `11de097c`, `62a5cc15`, `c4a05883`, `6b16962d`, `79f39166` and `cab4d9ab`, replaced not kept, and an export of any of them is now refused) exports the same producer contract as
 before; its export is accepted only with this Control Plane revision, and an export of any other runtime revision (`3024ef6e`,
 `4a83b175`, ...) is refused as an unsupported combination with it, and the reverse. The key itself is not in the export.
 Captured pairs: `tests/fixtures/programme2_paired` (adapter route and atomic route, default and with operation identity).
@@ -52,7 +52,7 @@ contract rule is applied: `undeclared_member` (an unknown member is refused, nev
 - It does not re-derive the producer's decisions, verify any signer, or check the ODES sidecar contracts in full. That is the
   verifier's and the ODES validators' work. Replay checks structure and the references a retained record must still satisfy.
 - It cannot tell that a profile was on: a record from which every profile member was removed is a profile-off record.
-- Only the runtime `ec728da6` is paired with this generation; any other executor export is refused as an unsupported combination.
+- Only the runtime `c5e97e87` is paired with this generation; any other executor export is refused as an unsupported combination.
 - Under freshness the observation time is judged against the service clock at reconciliation (`reconciled_at`), as the producer
   does; staleness is still relative to the evaluation time.
 - A run with no decision (only extension or revision refusals) is refused as before ("resolution journal missing"), except a run

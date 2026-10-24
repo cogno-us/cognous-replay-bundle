@@ -82,14 +82,14 @@ MOLTBOT_P4_PROFILE = "moltbot-safe-executor-producer-2.0.0@3024ef6e"
 # the opt-in terminal-revocation profile and strict instant parsing). It replaces the earlier ties to 0a41faa9, e77fe0ee, 5c474ba8, 2bac7875, 6093aca7, 3cd17ead, 3755c71a and 128eaa5e (this
 # generation is one exact revision, never a range). Same import semantics as P4 for a
 # profile-off run (byte-identical records), plus the members of the opt-in profiles when a run carries them (see
-# programme2_profiles.py). The executor pairing is the runtime ec728da6 (cab4d9ab plus the later main commits, itself 79f39166 plus the later main commits), with the action manifest fa170815: an executor
+# programme2_profiles.py). The executor pairing is the runtime c5e97e87 (ec728da6 plus the F3 terminal approval revocation, runtime #144; PROVISIONAL DEVELOPMENT PIN, UNQUALIFIED; ec728da6 is replaced, not kept; ec728da6 was cab4d9ab plus the later main commits, itself 79f39166 plus the later main commits), with the action manifest fa170815: an executor
 # export of any other runtime revision is refused as an unsupported combination. Alpha scaffolding like the other pins; removed with
 # them at end-of-alpha (P5).
 CONTROL_PLANE_P2_REVISION = "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c"
-MOLTBOT_P2_REVISION = "ec728da6dc301a664b331ac8986afd6e850a1273"
+MOLTBOT_P2_REVISION = "c5e97e87dd239c821b1b4a406a55dcd03c5bc61f"
 MANIFEST_P2_REVISION = "fa170815ef96a54c233d0dd9da821b60debabf8b"
 BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@7a4bcd40"
-MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@ec728da6"
+MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@c5e97e87"
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
@@ -1773,7 +1773,7 @@ def _validate_result_contract(result: dict[str, Any], observation: Any, kind: st
 ENFORCE_UNKNOWN_WITH_VALIDATED_OBSERVATION = True
 
 
-# Closed failure_class set of the Runtime typed failure record (engine/safe_executor.py record_failure at ec728da6).
+# Closed failure_class set of the Runtime typed failure record (engine/safe_executor.py record_failure at c5e97e87; F3 left the set unchanged).
 RUNTIME_FAILURE_CLASSES = frozenset({"policy_denial", "authority_hold", "malformed_input", "capability_unavailable", "evaluation_error", "dispatch_error"})
 ROUTE_B_EXECUTION_EVIDENCE_MEMBERS = frozenset({"local_authority_effect_profile", "claim_id", "linearized_at", "authority_receipt"})
 ROUTE_B_AUTHORITY_PROFILE = "urn:cognous:profiles:local-authority-effect:0.1.0-proposed"
