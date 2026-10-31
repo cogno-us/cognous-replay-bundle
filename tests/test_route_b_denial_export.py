@@ -18,6 +18,7 @@ from agent_replay_bundle.importers import ImportContractError, import_bounded_wo
 
 BASE = Path(__file__).parent / "fixtures" / "route_b_post_commit" / "denied"
 P2_SHA = "7a4bcd40b3b49e61ff3c294dcca53b52f460b22c"
+CUR_SHA = "b19c47ddd020409d24e52e70b11359c46265edbb"
 OLD_P2_SHA = "0a41faa972699f7ec3063967a14cd9bdd3e67d27"
 REFUSED = "unsupported typed refusal executor evidence field"
 
@@ -127,7 +128,9 @@ def test_failure_class_on_a_non_denied_result_without_a_report_is_refused(status
 
 
 def test_the_pin_is_the_merged_control_plane_and_the_defective_one_is_not_kept():
-    assert I.CONTROL_PLANE_P2_REVISION == P2_SHA and I.PROGRAMME2_CP_REVISIONS == frozenset({P2_SHA})
+    assert I.CONTROL_PLANE_P2_REVISION == P2_SHA
+    # Explicit exact set: the historical P2 pin plus the one exact current-generation pin (added beside it), nothing else.
+    assert I.PROGRAMME2_CP_REVISIONS == frozenset({P2_SHA, CUR_SHA})
     cp, proposal, executor = load()
     with pytest.raises(ImportContractError, match="unsupported Control Plane revision"):
         run(cp, proposal, executor, revision=OLD_P2_SHA)
@@ -144,8 +147,11 @@ def test_an_old_pin_record_with_the_reused_claim_journal_is_still_refused():
         run(cp, proposal, executor)
 
 
-def test_the_four_security_profiles_are_exactly_the_gate():
-    assert I.SECURITY_RUNTIME_BOUNDED_PROFILES == frozenset({I.BOUNDED_SECURITY_PROFILE, I.BOUNDED_F5B_PROFILE, I.BOUNDED_P4_PROFILE, I.BOUNDED_P2_PROFILE})
+def test_the_five_security_profiles_are_exactly_the_gate():
+    """The four historical security profiles plus the one current-generation profile, as explicit literal ids."""
+    assert I.SECURITY_RUNTIME_BOUNDED_PROFILES == frozenset({I.BOUNDED_SECURITY_PROFILE, I.BOUNDED_F5B_PROFILE, I.BOUNDED_P4_PROFILE, I.BOUNDED_P2_PROFILE,
+                                                             "control-plane-current-stack@b19c47dd"})
+    assert (I.BOUNDED_P2_PROFILE, I.BOUNDED_CUR_PROFILE) == ("control-plane-programme2-profiles@7a4bcd40", "control-plane-current-stack@b19c47dd")
     for other in (I.BOUNDED_REFUSAL_PROFILE, I.BOUNDED_RUNTIME_AUTHORITY_PROFILE):
         assert other not in I.SECURITY_RUNTIME_BOUNDED_PROFILES
 

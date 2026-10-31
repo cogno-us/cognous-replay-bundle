@@ -90,10 +90,21 @@ MOLTBOT_P2_REVISION = "c5e97e87dd239c821b1b4a406a55dcd03c5bc61f"
 MANIFEST_P2_REVISION = "fa170815ef96a54c233d0dd9da821b60debabf8b"
 BOUNDED_P2_PROFILE = "control-plane-programme2-profiles@7a4bcd40"
 MOLTBOT_P2_PROFILE = "moltbot-safe-executor-producer-2.0.0@c5e97e87"
-PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION})
-SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION})
-SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE})
-CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION)
+# Current generation (CUR), added BESIDE the Programme-2 generation above, which is unchanged: Control Plane b19c47dd (b19c47ddd020409d24e52e70b11359c46265edbb)
+# paired with the runtime f7a55e2a (f7a55e2a8494801e49193f9f46935f0a971c248d) and the action manifest fa170815. One exact pairing, CUR <-> CUR only (never a range,
+# prefix or "latest"); the P2 and earlier pins are not renamed, reused or relabelled. PROVISIONAL DEVELOPMENT PIN, UNQUALIFIED (inherited from P2).
+# Supported scope: the plain bounded run (the same six runtime_authority members under label runtime-authority-reasons/0.1). NOT supported, still refused
+# fail-closed under every generation: runtime_authority.effective_configuration, the policy-binding members, the reason label 0.3, selection_refusal and
+# authorization-pin evidence.
+CONTROL_PLANE_CUR_REVISION = "b19c47ddd020409d24e52e70b11359c46265edbb"
+MOLTBOT_CUR_REVISION = "f7a55e2a8494801e49193f9f46935f0a971c248d"
+MANIFEST_CUR_REVISION = "fa170815ef96a54c233d0dd9da821b60debabf8b"
+BOUNDED_CUR_PROFILE = "control-plane-current-stack@b19c47dd"
+MOLTBOT_CUR_PROFILE = "moltbot-safe-executor-producer-2.0.0@f7a55e2a"
+PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
+SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
+SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE, BOUNDED_CUR_PROFILE})
+CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
 BOUNDED_V2_PERSISTENCE_PROFILE = "control-plane-bounded-run@248d8996"
@@ -101,7 +112,7 @@ MOLTBOT_V2_PROFILE = "moltbot-safe-executor-producer-2.0.0@177354e9"
 # Every 2.0 executor profile fails closed on a dangling/ambiguous explicit attempt reference.
 STRICT_ACK_PROFILES = frozenset({MOLTBOT_V2_PROFILE, MOLTBOT_MERGED_PROFILE, MOLTBOT_REFUSAL_PROFILE,
                                  MOLTBOT_RUNTIME_AUTHORITY_PROFILE, MOLTBOT_SECURITY_PROFILE,
-                                 MOLTBOT_F5B_PROFILE, MOLTBOT_P4_PROFILE, MOLTBOT_P2_PROFILE})
+                                 MOLTBOT_F5B_PROFILE, MOLTBOT_P4_PROFILE, MOLTBOT_P2_PROFILE, MOLTBOT_CUR_PROFILE})
 PRODUCER_COMPATIBILITY = {
     "1.0.0": (MOLTBOT_SAFE_REVISION, CONTROL_PLANE_REVISION, MOLTBOT_PROFILE),
     "2.0.0": (MOLTBOT_V2_REVISION, CONTROL_PLANE_V2_REVISION, MOLTBOT_V2_PROFILE),
@@ -596,6 +607,9 @@ def _moltbot_contract(source: dict[str, Any]) -> dict[str, Any]:
     if version == "2.0.0" and revision == MOLTBOT_P2_REVISION:
         supported_revision, cp_revision, profile = MOLTBOT_P2_REVISION, CONTROL_PLANE_P2_REVISION, MOLTBOT_P2_PROFILE
         compatible_cp_revisions = [CONTROL_PLANE_P2_REVISION]
+    if version == "2.0.0" and revision == MOLTBOT_CUR_REVISION:
+        supported_revision, cp_revision, profile = MOLTBOT_CUR_REVISION, CONTROL_PLANE_CUR_REVISION, MOLTBOT_CUR_PROFILE
+        compatible_cp_revisions = [CONTROL_PLANE_CUR_REVISION]
     if revision != supported_revision:
         raise ImportContractError("unsupported Moltbot producer repository revision")
     if repository.get("revision_status") not in {"source_asserted", "unavailable"}:
@@ -695,6 +709,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_F5B_REVISION: BOUNDED_F5B_PROFILE,
         CONTROL_PLANE_P4_REVISION: BOUNDED_P4_PROFILE,
         CONTROL_PLANE_P2_REVISION: BOUNDED_P2_PROFILE,
+        CONTROL_PLANE_CUR_REVISION: BOUNDED_CUR_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
@@ -1053,7 +1068,8 @@ def import_bounded_workflow(
             "manifest_revision": {CONTROL_PLANE_SECURITY_REVISION: MANIFEST_SECURITY_REVISION,
                                   CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION,
                                   CONTROL_PLANE_P4_REVISION: MANIFEST_P4_REVISION,
-                                  CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
+                                  CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION,
+                                  CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
