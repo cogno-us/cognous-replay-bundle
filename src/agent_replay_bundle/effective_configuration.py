@@ -7,8 +7,13 @@ cross-checked against digests recorded from the real Control Plane in ``tests/te
 
 What a pass establishes: the member has exactly the frozen shape, every value is inside its structural domain, ``digest`` is the recomputation over the domain, the version and
 the member's own ``members``, the family rows are the Control Plane family table (slot, family id, Registry contract version, schema revision, composition order), the scope
-agrees with the decision's ``binding.action_id`` and (when a proposal is supplied) with the proposal's ``tenant_id`` and ``action_id``, ``effective_profile_digest`` equals the
+agrees with the decision's ``binding.action_id`` and ``binding.tenant_id`` and (when a proposal is supplied) with the proposal's ``tenant_id`` and ``action_id``, ``effective_profile_digest`` equals the
 decision's ``catalogue_digest`` when not null, the member is present on every authorized decision and on no other, and one run carries one configuration.
+
+Explicit, tested non-detections (no decision field carries them and the record holds no input to recompute them): scope.institution_id, scope.consumer_id and
+scope.authority_domain; host_profile_digest; every family effective_policy_digest (Registry material is not in the record); and effective_profile_digest when it is null (the
+tie to catalogue_digest then does not exist; a non-null value cannot be recomputed from family digests, it is a hash of the profile). A resealed edit of any of these passes.
+"Stale" is covered only by the effective_profile_digest == catalogue_digest tie: there is no time or revision binding.
 
 What it does NOT establish (stated, never inferred): that the configuration is the one in force, that the Registry material was genuine or at which Registry revision
 (neither is carried in the record), that a signature or trust snapshot was verified, or that the Control Plane or the Registry is qualified. BUILDER_TESTED upstream; the
@@ -155,6 +160,10 @@ def check_run(decisions: list, proposal: Any, refuse) -> None:
         scope = record["members"]["scope"]
         if scope["action_id"] != binding.get("action_id"):
             refuse("effective_configuration scope.action_id differs from the decision's binding.action_id", "schema_violation")
+        # The decision's own binding carries tenant_id for every tenant-aware (Registry-governed) decision (bounded.py binding_extra); bind to it even without a proposal.
+        if binding.get("tenant_id") != scope["tenant_id"]:
+            refuse("effective_configuration scope.tenant_id differs from the decision's binding.tenant_id", "schema_violation")
+        # The proposal comparison is the Control Plane's _gl_revalidate rule; its action_id half is redundant with the binding check above (kept as defence in depth).
         if isinstance(proposal, dict) and (proposal.get("tenant_id") != scope["tenant_id"] or proposal.get("action_id") != scope["action_id"]):
             refuse("effective_configuration scope differs from the proposal's tenant_id/action_id", "schema_violation")
         effective = record["members"]["effective_profile_digest"]

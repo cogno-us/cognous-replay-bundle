@@ -147,7 +147,7 @@ def test_an_old_pin_record_with_the_reused_claim_journal_is_still_refused():
         run(cp, proposal, executor)
 
 
-def test_the_five_security_profiles_are_exactly_the_gate():
+def test_the_six_security_profiles_are_exactly_the_gate():
     """The four historical security profiles, the current-generation profile and the separate Registry-governed effective-configuration profile (six), as explicit literal ids."""
     assert I.SECURITY_RUNTIME_BOUNDED_PROFILES == frozenset({I.BOUNDED_SECURITY_PROFILE, I.BOUNDED_F5B_PROFILE, I.BOUNDED_P4_PROFILE, I.BOUNDED_P2_PROFILE,
                                                              "control-plane-current-stack@b19c47dd",

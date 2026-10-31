@@ -286,7 +286,7 @@ def test_a_swapped_member_from_another_configuration_with_its_own_valid_digest_i
 
 def test_scope_must_agree_with_the_proposal_and_the_decision_even_when_the_digest_is_recomputed():
     cp, proposal = load()
-    refused(reseal(cp, lambda m: m["scope"].__setitem__("tenant_id", "tenant-beta")), proposal, "differs from the proposal", "schema_violation")
+    refused(reseal(cp, lambda m: m["scope"].__setitem__("tenant_id", "tenant-beta")), proposal, "differs from the decision's binding.tenant_id", "schema_violation")
     refused(reseal(cp, lambda m: m["scope"].__setitem__("action_id", "urn:cognous:action:other")), proposal, "scope.action_id differs", "schema_violation")
     # a proposal that names another tenant or action than the configuration's scope
     wrong = copy.deepcopy(proposal)
@@ -445,9 +445,10 @@ def test_two_different_configurations_in_one_run_are_refused_and_equal_ones_pass
         _check([_decision(a, "d2", member(b)), a["decisions"][0]], proposal)
 
 
-def test_the_full_importer_refuses_a_two_decision_run_before_the_profile_is_consulted():
+def test_the_full_importer_refuses_a_two_decision_run_with_different_configurations_as_conflicting():
     cp, proposal = load()
-    cp["decisions"].append(_decision(cp, "d2", member(cp)))
+    other, _ = load("governed_age_only")
+    cp["decisions"].append(_decision(cp, "d2", member(other)))
     with pytest.raises(ImportContractError):
         run(cp, proposal)
 
@@ -541,3 +542,54 @@ def test_no_other_generation_imports_a_governed_record_even_with_the_member_remo
     for label in HISTORICAL_LABELS:
         with pytest.raises(ImportContractError):
             import_bounded_workflow(copy.deepcopy(cp), proposal=proposal, control_plane_revision=label)
+
+
+# ------------------------------------------------------------------------------------------------ F1 / F2 (review of PR #81)
+def test_the_real_binding_carries_the_tenant_the_member_is_bound_to():
+    for name in SCENARIOS:
+        cp, proposal = load(name)
+        assert cp["decisions"][0]["binding"]["tenant_id"] == member(cp)["members"]["scope"]["tenant_id"] == proposal["tenant_id"] == "tenant-alpha"
+
+
+@pytest.mark.parametrize("with_proposal", [True, False])
+def test_a_resealed_foreign_tenant_is_refused_with_and_without_a_proposal(with_proposal):
+    cp, proposal = load()
+    forged = reseal(cp, lambda m: m["scope"].__setitem__("tenant_id", "tenant-evil"))
+    refused(forged, proposal if with_proposal else None, "differs from the decision's binding.tenant_id|differs from the proposal", "schema_violation")
+    if not with_proposal:
+        refused(forged, None, "binding.tenant_id", "schema_violation")
+
+
+@pytest.mark.parametrize("with_proposal", [True, False])
+def test_member_and_proposal_agreeing_on_a_tenant_the_decision_does_not_carry_is_refused(with_proposal):
+    cp, proposal = load()
+    cp["decisions"][0]["binding"]["tenant_id"] = "tenant-other"
+    refused(cp, proposal if with_proposal else None, "binding.tenant_id", "schema_violation")
+    cp, proposal = load()
+    del cp["decisions"][0]["binding"]["tenant_id"]
+    refused(cp, proposal if with_proposal else None, "binding.tenant_id", "schema_violation")
+
+
+def test_a_null_observation_policy_is_a_valid_member_the_control_plane_permits():
+    cp, proposal = load()
+    ok = reseal(cp, lambda m: m.__setitem__("observation_policy", None))
+    assert run(ok, proposal).import_reports[0].adapter_profile == GOVERNED_PROFILE
+    assert EC.record_defect(member(ok)) is None
+
+
+@pytest.mark.parametrize("edit", [lambda m: m["scope"].__setitem__("institution_id", "urn:cognous:institution:other"),
+                                  lambda m: m["scope"].__setitem__("consumer_id", "consumer-other"),
+                                  lambda m: m["scope"].__setitem__("authority_domain", "other-domain"),
+                                  lambda m: m.__setitem__("host_profile_digest", "sha256:" + "d" * 64),
+                                  lambda m: m["families"][0].__setitem__("effective_policy_digest", "sha256:" + "e" * 64),
+                                  lambda m: m.__setitem__("families", [])])
+def test_known_non_detection_fields_no_decision_field_carries_pass_when_resealed(edit):
+    """EXPLICIT NON-DETECTION: institution_id, consumer_id, authority_domain, host_profile_digest, family digests and the family set are not carried by any decision
+    field nor recomputable from the record; a resealed edit is accepted. Documented in effective_configuration.py and the PR body."""
+    cp, proposal = load()
+    assert run(reseal(cp, edit), proposal).import_reports[0].adapter_profile == GOVERNED_PROFILE
+
+
+def test_a_null_effective_profile_digest_removes_the_catalogue_tie_known_non_detection():
+    cp, proposal = load()
+    assert run(reseal(cp, lambda m: m.__setitem__("effective_profile_digest", None)), proposal).import_reports[0].adapter_profile == GOVERNED_PROFILE
