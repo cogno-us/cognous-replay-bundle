@@ -178,7 +178,7 @@ def _freeze(value):
 MAX_MATCH_WORK = 4_000_000
 
 
-def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
+def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effective_configuration=False):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
         if not ok: raise ImportContractError('typed refusal profile: '+reason, code)
@@ -361,9 +361,16 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False):
                         'expected_effective_grant_digest','effective_grant_derivation_version'}
                     # operation-identity/0.1: issuer-supplied identity, always as a pair.
                     fields=base_fields|({'operation_id','operation_issuer'}&set(authority) if profiles else set())
-                    require(set(authority)==fields,'runtime authority fields unsupported','undeclared_member')
+                    # Registry-governed effective-configuration profile (explicitly selected only; see effective_configuration.py): the member is admitted ONLY on an
+                    # authorized decision and only when the caller selected the profile. Everywhere else the closed member set below refuses it, unchanged.
+                    if effective_configuration and d.get('result')=='authorized' and 'effective_configuration' in authority:
+                        fields=fields|{'effective_configuration'}
+                    require(set(authority)==fields or (effective_configuration and d.get('result')=='authorized' and 'effective_configuration' not in authority),'runtime authority fields unsupported','undeclared_member')
                     for field in ['approval_commitment','required_inputs_digest','catalogue_digest']:
                         require(isinstance(authority.get(field),str) and re.fullmatch(r'sha256:[a-f0-9]{64}',authority[field]),'runtime authority commitment invalid')
+            if effective_configuration:
+                from .effective_configuration import check_run
+                check_run(cp['decisions'],proposal,lambda message,code=None:require(False,message,code))
             require(isinstance(cp.get('vocabulary_changes',[]),list),'vocabulary changes malformed')
             for change in cp.get('vocabulary_changes',[]):
                 require(set(change)=={'change_id','previous_version','version','registry_digest','kind','previous_codes','codes','acknowledged_by','acknowledged_at'},'vocabulary change fields unsupported')

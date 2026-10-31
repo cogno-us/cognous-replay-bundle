@@ -73,12 +73,13 @@ def test_the_current_pins_are_in_every_generation_set_beside_p2_and_nowhere_else
     assert CUR_CP in I.SECURITY_RUNTIME_CP_REVISIONS and CUR_CP in I.CONTROL_PLANE_SUPPORTED_V2_REVISIONS and CUR_CP in I.PROGRAMME2_CP_REVISIONS
     assert I.SECURITY_RUNTIME_CP_REVISIONS == frozenset({I.CONTROL_PLANE_SECURITY_REVISION, I.CONTROL_PLANE_F5B_REVISION, I.CONTROL_PLANE_P4_REVISION, P2_CP, CUR_CP})
     assert I.SECURITY_RUNTIME_BOUNDED_PROFILES == frozenset({I.BOUNDED_SECURITY_PROFILE, I.BOUNDED_F5B_PROFILE, I.BOUNDED_P4_PROFILE,
-                                                             "control-plane-programme2-profiles@7a4bcd40", CUR_BOUNDED})
+                                                             "control-plane-programme2-profiles@7a4bcd40", CUR_BOUNDED,
+                                                             "control-plane-current-stack-registry-governed-effective-configuration-0.1@b19c47dd"})
     assert CUR_MOLTBOT in I.STRICT_ACK_PROFILES and "moltbot-safe-executor-producer-2.0.0@c5e97e87" in I.STRICT_ACK_PROFILES
     assert I.CONTROL_PLANE_SUPPORTED_V2_REVISIONS.count(CUR_CP) == 1 and I.CONTROL_PLANE_SUPPORTED_V2_REVISIONS.count(P2_CP) == 1
     assert [r for r in I.CONTROL_PLANE_SUPPORTED_V2_REVISIONS if r.startswith("b19c47dd")] == [CUR_CP]
     assert not any(v for k, v in vars(I).items() if isinstance(v, str) and ("b19c47dd" in v or "f7a55e2a" in v) and k not in {
-        "CONTROL_PLANE_CUR_REVISION", "MOLTBOT_CUR_REVISION", "BOUNDED_CUR_PROFILE", "MOLTBOT_CUR_PROFILE"})
+        "CONTROL_PLANE_CUR_REVISION", "MOLTBOT_CUR_REVISION", "BOUNDED_CUR_PROFILE", "MOLTBOT_CUR_PROFILE", "BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE"})
 
 
 # ------------------------------------------------------------------------------------------------ the nine real scenarios
