@@ -18,6 +18,10 @@ Agent Replay Bundle is a schema, validator, redaction helper, and signing helper
 - It does not provide key management
 - It does not store or transmit data
 
+## Registry-governed effective configuration: assurance labels
+
+`import_bounded_workflow` with the explicit Registry-governed profile is **structural-only** by default (marker `internal_consistency_only_registry_source_revision_unverified`): a record whose configuration was edited and whose digest was recomputed is accepted. Passing the keyword-only `expected_effective_configuration_digest` selects fail-closed **CALLER-TRUSTED CONFIGURATION MATCH** (marker `caller_trusted_configuration_match`, `registry_authenticated: false`): the record's digest must equal a digest the caller obtained independently of the record (its own trusted Control Plane host configuration, or an operator-held pin). Replay cannot tell where the string came from; a value copied from the record under test proves nothing. Neither mode authenticates the Registry origin or source revision, and neither is qualification. Signed selection receipts remain a separate pre-adoption requirement.
+
 ## HMAC signing
 
 HMAC-SHA256 signing in this library is **export integrity**, not production key management. The signature checks that the parsed inner `replay_bundle` matches what was signed with a given secret; a signature written by the current version also covers `signed_bundle_id` and the outer signature fields other than the value, while a bundle-only signature written by an earlier version leaves those envelope fields uncovered, and members the models do not retain and the file bytes are not covered (see docs/signing.md). It does not:

@@ -15,6 +15,9 @@ scope.authority_domain; host_profile_digest; every family effective_policy_diges
 tie to catalogue_digest then does not exist; a non-null value cannot be recomputed from family digests, it is a hash of the profile). A resealed edit of any of these passes.
 "Stale" is covered only by the effective_profile_digest == catalogue_digest tie: there is no time or revision binding.
 
+Optional CALLER-TRUSTED MATCH (``import_bounded_workflow(..., expected_effective_configuration_digest=...)``, fail-closed once the parameter is passed at all): after every check above, the record digest must equal a
+digest the caller supplies independently of the record; this detects a resealed substitution but only as far as the caller's source is trusted, and Replay cannot tell where the string came from.
+
 What it does NOT establish (stated, never inferred): that the configuration is the one in force, that the Registry material was genuine or at which Registry revision
 (neither is carried in the record), that a signature or trust snapshot was verified, or that the Control Plane or the Registry is qualified. BUILDER_TESTED upstream; the
 digest is a redundant self-consistency commitment over unsigned local JSON, not an authenticator.
@@ -137,8 +140,18 @@ def record_defect(record: Any) -> str | None:
     return None
 
 
-def check_run(decisions: list, proposal: Any, refuse) -> None:
-    """Run-level checks for the selected profile. ``refuse(message, code=None)`` raises the importer's typed refusal. Called after the base member check, once per run."""
+def expected_defect(expected: Any) -> str | None:
+    """None when a caller-supplied expected digest is well formed (same predicate as the Control Plane: exact ``sha256:`` + 64 lowercase hex, not all zero), else the typed reason."""
+    if expected is None:
+        return "effective_configuration_expected_missing"
+    return None if _digest(expected) else "effective_configuration_expected_malformed"
+
+
+def check_run(decisions: list, proposal: Any, refuse, expected: str | None = None) -> None:
+    """Run-level checks for the selected profile. ``refuse(message, code=None)`` raises the importer's typed refusal. Called after the base member check, once per run.
+
+    ``expected`` (already validated by ``expected_defect``; ``None`` = structural-only) is the caller-trusted digest. It is compared LAST, after the structure, the
+    recomputed digest and every consistency check above have passed, so a mismatch refuses before any decision is accepted. CALLER-TRUSTED match only, not authentication."""
     configuration = None
     for d in decisions:
         binding = d.get("binding") or {}
@@ -173,3 +186,9 @@ def check_run(decisions: list, proposal: Any, refuse) -> None:
             configuration = record
         elif record != configuration:
             refuse("conflicting effective_configuration within one run (more than one configuration)", "schema_violation")
+    if expected is not None:
+        if configuration is None:
+            refuse("no authorized decision carries effective_configuration; a caller-trusted match is impossible", "effective_configuration_record_missing")
+        # configuration["digest"] was just verified equal to the recomputation over its own members (record_defect), and one run carries one configuration.
+        if configuration["digest"] != expected:
+            refuse("effective_configuration digest differs from the caller-trusted expected digest", "effective_configuration_expected_mismatch")
