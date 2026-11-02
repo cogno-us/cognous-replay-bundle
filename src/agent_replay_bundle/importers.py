@@ -734,6 +734,13 @@ def import_bounded_workflow(
     ``control_plane_profile=REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE`` (same rules: exact string, current-generation revision, ``registry_evidence_trust`` required, never
     inferred) is the same authenticated admission over the structural shape of a real ``GovernedAgeWorkflow`` record: the resolution journal, the per-decision runtime-authority
     vocabulary members and every ``runtime_authority`` member except ``effective_configuration`` must be ABSENT (else ``undeclared_member``); nothing is added to the record.
+    Enforced exactly: no top-level ``check_events``/``vocabulary_changes`` or programme-2 ledger key (present-but-empty included) and no active programme-2 profile
+    (``active_profiles`` empty); no ``reason_vocabulary_version``, ``rule_identity``, ``reopen_conditions``, ``check_events``, ``evaluated_at``, ``recorded_at``, ``deadline``,
+    ``age_bound_seconds``, ``approval_commitment``, ``check_id``, ``operation_id`` or ``operation_issuer`` member on a decision, on its binding or on an attempt; the binding's
+    ``runtime_authority`` is exactly ``{effective_configuration}``. Rows are validated with the strict legacy models (a real effect-time refusal row, which carries
+    ``recorded_at``, is accepted). Other unknown top-level members keep their pre-existing handling. The bundle's ``adapter_profile``/``producer_profile_id`` are SHARED with the
+    older authenticated selector (no new marker keys); only ``metadata.control_plane_profile`` distinguishes the F4 shape. ``reverify_retained_registry_evidence`` does not
+    support F4 bundles (it re-runs the older selector and fails closed).
     """
     if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
