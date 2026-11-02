@@ -478,6 +478,12 @@ def test_pack_end_to_end_freshness_block_when_the_pack_knows_the_generation():
     imp = pytest.importorskip("agent_governance_evidence_pack.importer")
     if not hasattr(imp, "P2_REVISIONS"):
         pytest.skip("installed Evidence Pack does not list the programme-2 generation")
+    # Listing a generation is not enough: the installed Replay must be the exact
+    # historical Replay revision that Evidence Pack accepts for that generation.
+    # Current-generation Replay is deliberately incompatible with this P2 tuple.
+    from agent_governance_evidence_pack.importer import _installed_replay_revision
+    if _installed_replay_revision() != imp.P2_REVISIONS["replay"]:
+        pytest.skip("optional P2 Pack integration requires its exact pinned Replay revision")
     manifest = {"manifest_version": "1.1", "manifest_id": "m",
                 "actions": [{"action_id": "a", "review_requirement": "none", "reliance_requirement": "none"}], "tools": []}
     bundle = do_import(run("all-three-expired-before-dispatch")).model_dump(mode="json")
