@@ -548,12 +548,17 @@ def success_markers(tr: ValidatedTrust, admissions: list[dict], profile: str = R
 
 # ----------------------------------------------------------------------------------------------------------------------------------- retained bundles
 def reverify_retained_registry_evidence(bundle: Any, *, registry_evidence_trust: Any, proposal: dict | None = None):
-    """Re-run the FULL authenticated admission over a retained bundle with trust the operator supplies NOW.
+    """
+    Re-run the FULL authenticated admission over a retained bundle with trust the operator supplies NOW.
 
     The selector and profile are hard-coded here and the Control Plane format label is the module constant; NOTHING in the bundle's metadata (``control_plane_profile``,
     ``registry_selection_admitted_by_injected_verifier``, ``registry_evidence`` ...) is used as input. The retained ``registry_evidence[*].admission_binding_digest`` values
     are compared (as data) with the freshly recomputed ones: a difference, or a different decision set, is ``registry_evidence_binding_mismatch``. A bundle with no stored
-    values is simply verified afresh. Returns the fresh bundle whose markers come from this call."""
+    values is simply verified afresh. Returns the fresh bundle whose markers come from this call.
+
+    LIMITATION: bundles produced under REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE are NOT re-verifiable with this function (it re-runs the older selector, which needs the
+    resolution journal an F4 record does not have); it fails closed with ImportContractError.
+    """
     from .importers import CONTROL_PLANE_CUR_REVISION, import_bounded_workflow
     from .refusal_evidence import extend_retained_inputs
     dumped = bundle.model_dump(mode="json") if hasattr(bundle, "model_dump") else bundle

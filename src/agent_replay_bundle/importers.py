@@ -829,12 +829,13 @@ def import_bounded_workflow(
     if extended:
         from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
         EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
+        cp_as_persisted = cp  # (the F4 selector validates the record before the local defaults below)
         if authority:
             cp = dict(cp)
             cp.setdefault("vocabulary_changes", [])
             if programme2:
                 cp.setdefault("check_events", [])  # a run of check_lease_unavailable holds has no journal events (freshness/0.1)
-        unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
+        unfinished = validate_run(cp_as_persisted if f4_shape else cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
                               expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None, f4_governed=f4_shape)
         if authenticated:
             admissions = _admit_registry_evidence(cp["decisions"], validated_trust)  # after the structural checks, before any decision is accepted; the verifier is called here only

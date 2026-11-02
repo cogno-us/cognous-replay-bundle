@@ -250,7 +250,11 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
             lease_only=profiles and bool(cp['decisions']) and all(
                 d.get('result')=='hold' and d.get('reasons')==['check_lease_unavailable'] and d.get('binding') is None for d in cp['decisions'])
             if f4_governed:
-                require(cp.get('check_events', [])==[] and cp.get('vocabulary_changes', [])==[], 'f4 governed record carries runtime-authority journal members', 'undeclared_member')
+                # Closed absence (F4 selector only): no runtime-authority journal or ledger, no programme-2 / freshness profile activation, in any form (present-but-empty included).
+                from .programme2_profiles import active_profiles
+                f4_ledgers=('check_events','vocabulary_changes','operations','operation_renewals','attempt_joins','rule_revisions','rule_revision_refusals','age_extensions',
+                            'age_extension_refusals','recovery_runs','merge_records','compensation_obligations','snapshot_uses','dedupe_escalations')
+                require(not any(k in cp for k in f4_ledgers) and not active_profiles(cp), 'f4 governed record carries runtime-authority journal or ledger members', 'undeclared_member')
             else:
                 require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
             checks={};completions=[];open_at={};close_at={};terminal=set()
@@ -355,7 +359,12 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
             unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:
                 accepted_labels=('runtime-authority-reasons/0.1','runtime-authority-reasons/0.2') if profiles else ('runtime-authority-reasons/0.1',)
-                if f4_governed: require('reason_vocabulary_version' not in d and 'rule_identity' not in d and 'reopen_conditions' not in d, 'f4 governed decision carries runtime-authority members', 'undeclared_member')
+                if f4_governed:
+                    f4_banned=('reason_vocabulary_version','rule_identity','reopen_conditions','check_events','evaluated_at','recorded_at','deadline','age_bound_seconds','approval_commitment','check_id',
+                               'operation_id','operation_issuer')
+                    require(not any(m in d for m in f4_banned), 'f4 governed decision carries runtime-authority members', 'undeclared_member')
+                    require(not any(m in (d.get('binding') or {}) for m in f4_banned), 'f4 governed binding carries runtime-authority members', 'undeclared_member')
+                    require(not any(isinstance(a,dict) and m in a for a in cp.get('attempts',[]) if isinstance(cp.get('attempts'),list) for m in f4_banned), 'f4 governed attempt carries runtime-authority members', 'undeclared_member')
                 else: require(d.get('reason_vocabulary_version') in accepted_labels,'decision vocabulary missing')
                 binding=d.get('binding') or {}
                 if binding and f4_governed:

@@ -132,6 +132,25 @@ def test_old_selector_on_the_same_record_is_still_refused_as_before():
     ("approval_commitment added", lambda c: _dec(c)["binding"]["runtime_authority"].__setitem__("approval_commitment", "sha256:" + "0" * 64), "undeclared_member"),
     ("profile member added", lambda c: _dec(c)["binding"]["runtime_authority"].__setitem__("profile", "runtime-authority/0.1"), "undeclared_member"),
     ("arbitrary extra runtime_authority member", lambda c: _dec(c)["binding"]["runtime_authority"].__setitem__("zzz", 1), "undeclared_member"),
+    ("check_events present-but-empty", lambda c: c.__setitem__("check_events", []), "undeclared_member"),
+    ("vocabulary_changes present-but-empty", lambda c: c.__setitem__("vocabulary_changes", []), "undeclared_member"),
+    ("programme-2 ledger present-but-empty (operations)", lambda c: c.__setitem__("operations", []), "undeclared_member"),
+    ("programme-2 ledger present-but-empty (rule_revisions)", lambda c: c.__setitem__("rule_revisions", []), "undeclared_member"),
+    ("programme-2 ledger present-but-empty (age_extensions)", lambda c: c.__setitem__("age_extensions", []), "undeclared_member"),
+    ("freshness activation via decision evaluated_at", lambda c: _dec(c).__setitem__("evaluated_at", "2026-10-05T19:00:00+00:00"), "undeclared_member"),
+    ("freshness activation via attempt evaluated_at", lambda c: c["attempts"][0].__setitem__("evaluated_at", "2026-10-05T19:00:00+00:00"), "undeclared_member"),
+    ("decision recorded_at", lambda c: _dec(c).__setitem__("recorded_at", "2026-10-05T19:00:00+00:00"), "undeclared_member"),
+    ("attempt recorded_at", lambda c: c["attempts"][0].__setitem__("recorded_at", "2026-10-05T19:00:00+00:00"), "undeclared_member"),
+    ("decision deadline", lambda c: _dec(c).__setitem__("deadline", "2026-10-05T19:00:00+00:00"), "undeclared_member"),
+    ("decision age_bound_seconds", lambda c: _dec(c).__setitem__("age_bound_seconds", 5), "undeclared_member"),
+    ("decision approval_commitment", lambda c: _dec(c).__setitem__("approval_commitment", "sha256:" + "0" * 64), "undeclared_member"),
+    ("decision check_id", lambda c: _dec(c).__setitem__("check_id", "x"), "undeclared_member"),
+    ("decision check_events", lambda c: _dec(c).__setitem__("check_events", []), "undeclared_member"),
+    ("binding rule_identity", lambda c: _dec(c)["binding"].__setitem__("rule_identity", "r"), "undeclared_member"),
+    ("binding reason_vocabulary_version", lambda c: _dec(c)["binding"].__setitem__("reason_vocabulary_version", "runtime-authority-reasons/0.1"), "undeclared_member"),
+    ("binding reopen_conditions", lambda c: _dec(c)["binding"].__setitem__("reopen_conditions", []), "undeclared_member"),
+    ("binding check_events", lambda c: _dec(c)["binding"].__setitem__("check_events", []), "undeclared_member"),
+    ("attempt rule_identity", lambda c: c["attempts"][0].__setitem__("rule_identity", "r"), "undeclared_member"),
     ("selection_evidence removed", lambda c: _dec(c).pop("selection_evidence"), "selection_evidence_missing"),
 ])
 def test_structural_and_admission_refusals_are_typed_and_caused_by_the_mutation(name, mutate, code):
@@ -209,10 +228,44 @@ def test_selector_misuse_is_refused_like_the_existing_selector():
 
 
 def test_selection_evidence_is_still_refused_under_every_other_selector_and_revision():
-    assert _import() is not None
-    for rev, selector in ((CUR, None), (CUR, S.OLD_SELECTOR)):
-        with pytest.raises(ImportContractError):
-            I.import_bounded_workflow(copy.deepcopy(REAL), proposal=copy.deepcopy(PROPOSAL), control_plane_revision=rev, control_plane_profile=selector)
+    assert _import() is not None  # control positive: it is admitted only under the F4 selector on CUR
+    revisions = (I.CONTROL_PLANE_REVISION, *sorted(set(I.CONTROL_PLANE_SUPPORTED_V2_REVISIONS)))
+    for rev in revisions:
+        for selector in (None, S.OLD_SELECTOR, REGISTRY_AUTHENTICATED_SELECTION_PROFILE):
+            kw = {}
+            if selector == REGISTRY_AUTHENTICATED_SELECTION_PROFILE and rev == CUR:
+                kw["registry_evidence_trust"] = _trust()
+            if selector in (S.OLD_SELECTOR, REGISTRY_AUTHENTICATED_SELECTION_PROFILE) and rev != CUR:
+                with pytest.raises(ImportContractError) as exc:
+                    I.import_bounded_workflow(copy.deepcopy(REAL), proposal=copy.deepcopy(PROPOSAL), control_plane_revision=rev, control_plane_profile=selector, **kw)
+                assert str(exc.value) == "unsupported Control Plane profile selector", (rev, selector)
+                continue
+            # the structural check or the named-key guard refuses first; the cause is asserted, and the guard itself is pinned below
+            with pytest.raises(ImportContractError) as exc:
+                I.import_bounded_workflow(copy.deepcopy(REAL), proposal=copy.deepcopy(PROPOSAL), control_plane_revision=rev, control_plane_profile=selector, **kw)
+            assert any(m in str(exc.value) for m in ("resolution journal missing", "runtime authority fields unsupported", "selection_evidence is admitted only",
+                                                     "unsupported", "missing")), (rev, selector, str(exc.value))
+            assert exc.value.code in (None, "undeclared_member"), (rev, selector, exc.value.code)
+
+
+def test_named_key_guard_cause_for_selection_evidence_outside_the_authenticated_profiles():
+    # a structurally valid legacy-shaped record carrying selection_evidence: the NAMED-KEY GUARD (not a structural check) is the cause
+    cp, proposal = S.f4_run()
+    assert _import(cp, proposal, trust=S.make_trust(), selector=S.SELECTOR) is not None
+    with pytest.raises(ImportContractError) as exc:  # plain current profile: the closed runtime_authority member set refuses first
+        I.import_bounded_workflow(copy.deepcopy(cp), proposal=copy.deepcopy(proposal), control_plane_revision=CUR)
+    assert exc.value.code == "undeclared_member" and "runtime authority fields unsupported" in str(exc.value)
+    with pytest.raises(ImportContractError) as exc:  # governed (older) selector admits effective_configuration, so the named-key guard is the cause
+        I.import_bounded_workflow(copy.deepcopy(cp), proposal=copy.deepcopy(proposal), control_plane_revision=CUR, control_plane_profile=S.OLD_SELECTOR)
+    assert exc.value.code == "undeclared_member" and "selection_evidence is admitted only under the authenticated-selection profile" in str(exc.value)
+
+
+def test_reverify_retained_registry_evidence_refuses_an_f4_bundle_fail_closed():
+    from agent_replay_bundle.registry_evidence import reverify_retained_registry_evidence
+    bundle = _import()
+    assert bundle.metadata["control_plane_profile"] == F4
+    with pytest.raises(ImportContractError):
+        reverify_retained_registry_evidence(bundle, registry_evidence_trust=_trust(), proposal=copy.deepcopy(PROPOSAL))
 
 
 def test_presence_of_selection_evidence_never_selects_the_f4_profile():
@@ -222,7 +275,13 @@ def test_presence_of_selection_evidence_never_selects_the_f4_profile():
     assert "resolution journal missing" in str(exc.value)
 
 
-def test_f4_flag_is_off_by_default_in_validate_run():
-    import inspect
-    from agent_replay_bundle import refusal_evidence as RE
-    assert inspect.signature(RE.validate_run).parameters["f4_governed"].default is False
+def test_default_path_is_unchanged_and_all_real_fixtures_still_import_under_the_f4_selector():
+    # behavioural: the legacy path still refuses the real record at the journal check; the F4 path imports each of the three real fixtures
+    for cp, proposal in ((REAL, PROPOSAL), (REFUSAL, REFUSAL_PROPOSAL)):
+        with pytest.raises(ImportContractError) as exc:
+            I.import_bounded_workflow(copy.deepcopy(cp), proposal=copy.deepcopy(proposal), control_plane_revision=CUR)
+        if cp is REAL:
+            assert "resolution journal missing" in str(exc.value) and exc.value.code is None
+        assert _import(cp, proposal, _trust(cp)) is not None
+    # the hold-only fixture is refused for want of evidence, not for structure
+    _refused("selection_evidence_missing", HOLD, HOLD_PROPOSAL, trust=_trust(HOLD))
