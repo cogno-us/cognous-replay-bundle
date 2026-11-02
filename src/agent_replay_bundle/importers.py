@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Any
 
 from .effective_configuration import REGISTRY_GOVERNED_PROFILE
+from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence, exact_snapshot as _exact_registry_snapshot,
+                                success_markers as _registry_success_markers, validate_trust as _validate_registry_trust)
 from .instants import parse_instant
 from .programme2_profiles import freshness_on
 from .reconstruction import (
@@ -110,6 +112,7 @@ BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE = "control-plane-current-stack-registry-go
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE, BOUNDED_CUR_PROFILE, BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE})
+# The authenticated-selection profile is deliberately NOT added to the pinned set above (tests pin it exactly and monkeypatch it); the pairing code adds it at use time.
 CONTROL_PLANE_SUPPORTED_V2_REVISIONS = (*CONTROL_PLANE_V2_REVISIONS, CONTROL_PLANE_MERGED_REVISION, CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION)
 MOLTBOT_V2_REVISION = "177354e959cc78c59c1a776f018cfbfbf28c927b"
 BOUNDED_V2_PROFILE = "control-plane-bounded-run@2ea9528e"
@@ -693,6 +696,8 @@ def _check_record_bounds(value: Any) -> None:
 
 #: Default of ``expected_effective_configuration_digest``: "not passed" (structural-only). Any other value, ``None`` included, selects fail-closed trusted-match mode.
 _EXPECTED_UNSET: Any = object()
+#: Default of ``registry_evidence_trust``: "not passed". Any other value (``None``, ``""``, a dict, a verdict-shaped object ...) selects fail-closed authenticated mode.
+_REGISTRY_EVIDENCE_UNSET: Any = object()
 
 
 def import_bounded_workflow(
@@ -703,6 +708,7 @@ def import_bounded_workflow(
     control_plane_revision: str = CONTROL_PLANE_REVISION,
     control_plane_profile: str | None = None,
     expected_effective_configuration_digest: Any = _EXPECTED_UNSET,
+    registry_evidence_trust: Any = _REGISTRY_EVIDENCE_UNSET,
 ) -> ReconstructionBundle:
     """Import bounded Control Plane events and optional Moltbot destination evidence.
 
@@ -717,14 +723,53 @@ def import_bounded_workflow(
     tell where the string came from, so a value copied from the record under test proves nothing. Success establishes only ``caller_trusted_configuration_match``:
     the record's configuration equals what the caller trusts. It is NOT Registry authentication (``registry_authenticated`` is False) and the Registry origin and
     source revision stay unverified.
+
+    ``control_plane_profile=REGISTRY_AUTHENTICATED_SELECTION_PROFILE`` (exact string, current-generation revision) together with ``registry_evidence_trust=`` (a
+    ``RegistryEvidenceTrust``, see registry_evidence.py) selects the AUTHENTICATED-SELECTION profile (RW-01-F4-PoC). Both are required: the selector without the keyword is
+    ``registry_evidence_trust_missing``, the keyword without the selector is ``registry_evidence_unsupported_profile`` and the selector with
+    ``expected_effective_configuration_digest`` is ``registry_evidence_conflicting_modes``; the presence of ``selection_evidence`` never selects the profile. The mode never
+    falls back to structural-only or to the caller-trusted match. Success establishes claim A only (the injected, unattested verifier admitted the selection signature at the
+    operator time); ``registry_authenticated`` stays False and claim B (the decision itself) is not made. Replay holds no cryptography.
+
+    ``control_plane_profile=REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE`` (same rules: exact string, current-generation revision, ``registry_evidence_trust`` required, never
+    inferred) is the same authenticated admission over the structural shape of a real ``GovernedAgeWorkflow`` record: the resolution journal, the per-decision runtime-authority
+    vocabulary members and every ``runtime_authority`` member except ``effective_configuration`` must be ABSENT (else ``undeclared_member``); nothing is added to the record.
+    Enforced exactly: no top-level ``check_events``/``vocabulary_changes`` or programme-2 ledger key (present-but-empty included) and no active programme-2 profile
+    (``active_profiles`` empty); no ``reason_vocabulary_version``, ``rule_identity``, ``reopen_conditions``, ``check_events``, ``evaluated_at``, ``recorded_at``, ``deadline``,
+    ``age_bound_seconds``, ``approval_commitment``, ``check_id``, ``operation_id`` or ``operation_issuer`` member on a decision, on its binding or on an attempt; the binding's
+    ``runtime_authority`` is exactly ``{effective_configuration}``. Rows are validated with the strict legacy models (a real effect-time refusal row, which carries
+    ``recorded_at``, is accepted). Other unknown top-level members keep their pre-existing handling. The bundle's ``adapter_profile``/``producer_profile_id`` are SHARED with the
+    older authenticated selector (no new marker keys); only ``metadata.control_plane_profile`` distinguishes the F4 shape. ``reverify_retained_registry_evidence`` does not
+    support F4 bundles (it re-runs the older selector and fails closed).
     """
     if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
     registry_governed = False
+    authenticated = False
+    f4_shape = False
     if control_plane_profile is not None:
-        if type(control_plane_profile) is not str or control_plane_profile != REGISTRY_GOVERNED_PROFILE or control_plane_revision != CONTROL_PLANE_CUR_REVISION:
+        if type(control_plane_profile) is str and control_plane_profile == REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE and control_plane_revision == CONTROL_PLANE_CUR_REVISION:
+            authenticated = True  # F4 structural shape; same authenticated admission, explicit selector only, never inferred from the record
+            f4_shape = True
+        elif type(control_plane_profile) is str and control_plane_profile == REGISTRY_AUTHENTICATED_SELECTION_PROFILE and control_plane_revision == CONTROL_PLANE_CUR_REVISION:
+            authenticated = True  # implies every Registry-governed structural check; never inferred, never a fallback
+        elif type(control_plane_profile) is not str or control_plane_profile != REGISTRY_GOVERNED_PROFILE or control_plane_revision != CONTROL_PLANE_CUR_REVISION:
             raise ImportContractError("unsupported Control Plane profile selector")
         registry_governed = True
+    trust_passed = registry_evidence_trust is not _REGISTRY_EVIDENCE_UNSET
+    validated_trust = None
+    if trust_passed and not authenticated:
+        raise ImportContractError("registry_evidence_trust is valid only with the explicitly selected authenticated-selection profile",
+                                  code="registry_evidence_unsupported_profile")
+    if authenticated:
+        if expected_effective_configuration_digest is not _EXPECTED_UNSET:
+            raise ImportContractError("the authenticated-selection profile and expected_effective_configuration_digest are exclusive modes",
+                                      code="registry_evidence_conflicting_modes")
+        if not trust_passed:
+            raise ImportContractError("the authenticated-selection profile requires registry_evidence_trust (no structural-only fallback)",
+                                      code="registry_evidence_trust_missing")
+        validated_trust = _validate_registry_trust(registry_evidence_trust)  # before any record is read
+    admissions = None
     trusted_match = expected_effective_configuration_digest is not _EXPECTED_UNSET
     if trusted_match:
         from .effective_configuration import expected_defect
@@ -751,7 +796,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_CUR_REVISION: BOUNDED_CUR_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if registry_governed:
-        bounded_profile = BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE
+        bounded_profile = BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE if authenticated else BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE
     if moltbot_export is not None:
         contract = _moltbot_contract(moltbot_export)
         expected_cps = contract.get(
@@ -762,6 +807,8 @@ def import_bounded_workflow(
             raise ImportContractError("unsupported executor/Control Plane revision combination")
         contract["control_plane_revision"] = control_plane_revision
     cp = _obj(control_plane_record, "control_plane_record")
+    if authenticated:
+        cp = _exact_registry_snapshot(cp)  # M-1: one exact-type copy feeds BOTH admission and persistence
     programme2 = control_plane_revision in PROGRAMME2_CP_REVISIONS
     if repaired:
         _validate_repaired_run(cp, profiles=programme2)
@@ -789,13 +836,16 @@ def import_bounded_workflow(
     if extended:
         from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
         EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
+        cp_as_persisted = cp  # (the F4 selector validates the record before the local defaults below)
         if authority:
             cp = dict(cp)
             cp.setdefault("vocabulary_changes", [])
             if programme2:
                 cp.setdefault("check_events", [])  # a run of check_lease_unavailable holds has no journal events (freshness/0.1)
-        unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
-                              expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None)
+        unfinished = validate_run(cp_as_persisted if f4_shape else cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
+                              expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None, f4_governed=f4_shape)
+        if authenticated:
+            admissions = _admit_registry_evidence(cp["decisions"], validated_trust)  # after the structural checks, before any decision is accepted; the verifier is called here only
         if programme2:
             _validate_programme2_members(cp)
             from .programme2_profiles import PROFILE_LISTS
@@ -862,6 +912,10 @@ def import_bounded_workflow(
     bound_decision_ids: list[str] = []
     for i, raw in enumerate(cp["decisions"]):
         raw = _obj(raw, f"decisions[{i}]")
+        # Named-key guard (E-3): ``selection_evidence`` is reserved BY NAME and is admitted only on an authorized decision of the authenticated-selection profile; under every
+        # other profile and revision it is refused, never silently retained. No wider closure of the decision member set.
+        if "selection_evidence" in raw and not (authenticated and raw.get("result") == "authorized"):
+            raise ImportContractError("selection_evidence is admitted only under the authenticated-selection profile on authorized decisions", code="undeclared_member")
         did = raw.get("decision_id")
         if not isinstance(did, str) or not did:
             raise ImportContractError(f"decisions[{i}].decision_id required")
@@ -1113,10 +1167,11 @@ def import_bounded_workflow(
                                   CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION,
                                   CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
+            **(_registry_success_markers(validated_trust, admissions, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE if f4_shape else REGISTRY_AUTHENTICATED_SELECTION_PROFILE) if authenticated else {}),
             **({"control_plane_profile": REGISTRY_GOVERNED_PROFILE,
                 **({"effective_configuration_verification": "caller_trusted_configuration_match", "registry_authenticated": False,
                     "registry_origin": "registry_origin_unverified"} if trusted_match else
-                   {"effective_configuration_verification": "internal_consistency_only_registry_source_revision_unverified"})} if registry_governed else {}),
+                   {"effective_configuration_verification": "internal_consistency_only_registry_source_revision_unverified"})} if registry_governed and not authenticated else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
     )
@@ -1994,9 +2049,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
     route_b_members: set[str] = set()
-    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES} for r in cp_records):
+    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records):
         allowed = {'attempt', 'reconciliation', 'refusal'}
-        security = any(r.producer_profile_id in SECURITY_RUNTIME_BOUNDED_PROFILES for r in cp_records)
+        security = any(r.producer_profile_id in {*SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records)
         if security:
             allowed.add('failure_record_id')
         recovery_report = bool(observation) and _is_recovery_observation(observation)

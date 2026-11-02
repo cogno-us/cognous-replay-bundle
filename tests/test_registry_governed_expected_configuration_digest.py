@@ -289,9 +289,13 @@ def test_R1_N09b_the_unset_sentinel_is_private_and_not_a_valid_expected_value():
 def test_the_parameter_is_keyword_only_and_the_only_new_public_signature_change():
     import inspect
     params = inspect.signature(import_bounded_workflow).parameters
-    assert list(params) == ["control_plane_record", "proposal", "moltbot_export", "control_plane_revision", "control_plane_profile", "expected_effective_configuration_digest"]
+    # RW-01-F4-PoC (C3): deliberate, minimal signature-pin update - the ONE new keyword "registry_evidence_trust" is appended (keyword-only, private-sentinel default).
+    assert list(params) == ["control_plane_record", "proposal", "moltbot_export", "control_plane_revision", "control_plane_profile", "expected_effective_configuration_digest",
+                            "registry_evidence_trust"]
     assert params["expected_effective_configuration_digest"].kind is inspect.Parameter.KEYWORD_ONLY
     assert params["expected_effective_configuration_digest"].default is I._EXPECTED_UNSET
+    assert params["registry_evidence_trust"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["registry_evidence_trust"].default is I._REGISTRY_EVIDENCE_UNSET
 
 
 def test_refusal_semantics_of_existing_negative_records_are_preserved_in_trusted_mode():
