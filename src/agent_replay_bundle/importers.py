@@ -691,6 +691,10 @@ def _check_record_bounds(value: Any) -> None:
             stack.extend((c, depth + 1) for c in children)
 
 
+#: Default of ``expected_effective_configuration_digest``: "not passed" (structural-only). Any other value, ``None`` included, selects fail-closed trusted-match mode.
+_EXPECTED_UNSET: Any = object()
+
+
 def import_bounded_workflow(
     control_plane_record: dict[str, Any],
     *,
@@ -698,11 +702,21 @@ def import_bounded_workflow(
     moltbot_export: dict[str, Any] | None = None,
     control_plane_revision: str = CONTROL_PLANE_REVISION,
     control_plane_profile: str | None = None,
+    expected_effective_configuration_digest: Any = _EXPECTED_UNSET,
 ) -> ReconstructionBundle:
     """Import bounded Control Plane events and optional Moltbot destination evidence.
 
     ``control_plane_profile`` is ``None`` (every plain profile, unchanged) or exactly ``REGISTRY_GOVERNED_PROFILE`` with the current-generation revision; any other
     value, or that value with another revision, is refused. It is the only way to admit ``runtime_authority.effective_configuration``.
+
+    ``expected_effective_configuration_digest`` selects CALLER-TRUSTED MATCH mode and is valid only with ``REGISTRY_GOVERNED_PROFILE``. Omitted (the default) the import is
+    structural-only, exactly as before (marker ``internal_consistency_only_registry_source_revision_unverified``). Passed AT ALL, including ``None`` or ``""``, the
+    import is fail-closed: the value must be ``sha256:`` plus 64 lowercase hex (not all zero) and equal the record's effective-configuration digest, else
+    ``ImportContractError`` (codes ``effective_configuration_expected_missing|malformed|mismatch|unsupported_profile|record_missing``); there is no downgrade to structural-only.
+    The CALLER must obtain the value independently of the imported record (its own trusted Control Plane host configuration, or an operator-held pin); Replay cannot
+    tell where the string came from, so a value copied from the record under test proves nothing. Success establishes only ``caller_trusted_configuration_match``:
+    the record's configuration equals what the caller trusts. It is NOT Registry authentication (``registry_authenticated`` is False) and the Registry origin and
+    source revision stay unverified.
     """
     if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
@@ -711,6 +725,15 @@ def import_bounded_workflow(
         if type(control_plane_profile) is not str or control_plane_profile != REGISTRY_GOVERNED_PROFILE or control_plane_revision != CONTROL_PLANE_CUR_REVISION:
             raise ImportContractError("unsupported Control Plane profile selector")
         registry_governed = True
+    trusted_match = expected_effective_configuration_digest is not _EXPECTED_UNSET
+    if trusted_match:
+        from .effective_configuration import expected_defect
+        if not registry_governed:
+            raise ImportContractError("expected_effective_configuration_digest is valid only with the explicitly selected Registry-governed profile",
+                                      code="effective_configuration_expected_unsupported_profile")
+        expected_problem = expected_defect(expected_effective_configuration_digest)
+        if expected_problem is not None:
+            raise ImportContractError("expected_effective_configuration_digest refused (" + expected_problem + ")", code=expected_problem)
     _check_record_bounds(control_plane_record)
     _check_record_bounds(proposal)
     _check_record_bounds(moltbot_export)
@@ -771,7 +794,8 @@ def import_bounded_workflow(
             cp.setdefault("vocabulary_changes", [])
             if programme2:
                 cp.setdefault("check_events", [])  # a run of check_lease_unavailable holds has no journal events (freshness/0.1)
-        unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed)
+        unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
+                              expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None)
         if programme2:
             _validate_programme2_members(cp)
             from .programme2_profiles import PROFILE_LISTS
@@ -1090,7 +1114,9 @@ def import_bounded_workflow(
                                   CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
             **({"control_plane_profile": REGISTRY_GOVERNED_PROFILE,
-                "effective_configuration_verification": "internal_consistency_only_registry_source_revision_unverified"} if registry_governed else {}),
+                **({"effective_configuration_verification": "caller_trusted_configuration_match", "registry_authenticated": False,
+                    "registry_origin": "registry_origin_unverified"} if trusted_match else
+                   {"effective_configuration_verification": "internal_consistency_only_registry_source_revision_unverified"})} if registry_governed else {}),
             "alvorada_revision": ALVORADA_REVISION,
         },
     )

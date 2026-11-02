@@ -178,7 +178,7 @@ def _freeze(value):
 MAX_MATCH_WORK = 4_000_000
 
 
-def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effective_configuration=False):
+def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effective_configuration=False, expected_effective_configuration_digest=None):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
         if not ok: raise ImportContractError('typed refusal profile: '+reason, code)
@@ -370,7 +370,7 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
                         require(isinstance(authority.get(field),str) and re.fullmatch(r'sha256:[a-f0-9]{64}',authority[field]),'runtime authority commitment invalid')
             if effective_configuration:
                 from .effective_configuration import check_run
-                check_run(cp['decisions'],proposal,lambda message,code=None:require(False,message,code))
+                check_run(cp['decisions'],proposal,lambda message,code=None:require(False,message,code),expected=expected_effective_configuration_digest)
             require(isinstance(cp.get('vocabulary_changes',[]),list),'vocabulary changes malformed')
             for change in cp.get('vocabulary_changes',[]):
                 require(set(change)=={'change_id','previous_version','version','registry_digest','kind','previous_codes','codes','acknowledged_by','acknowledged_at'},'vocabulary change fields unsupported')
