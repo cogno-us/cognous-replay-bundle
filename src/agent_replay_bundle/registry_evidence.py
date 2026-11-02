@@ -62,7 +62,7 @@ MARKER_CLAIM = "A_selection_signature_per_injected_verifier"
 MARKER_SNAPSHOT_ATTESTATION = "operator_supplied_unattested"
 MARKER_SCOPE = "decision_time_only"
 MARKER_REVISION_ATTESTATION = "operator_declared_unattested"
-MARKER_VERIFIED_CLAIMS = ["selection_signature_by_snapshot_key", "record_binding", "issuer_grant_scope_operation", "time_window_at_T", "snapshot_floors_if_supplied",
+MARKER_CLAIMS_ASSERTED_BY_VERIFIER_VERDICT = ["selection_signature_by_snapshot_key", "record_binding", "issuer_grant_scope_operation", "time_window_at_T", "snapshot_floors_if_supplied",
                           "effective_policy_digest_matches_signed_bound_over_operator_host_ages"]
 MARKER_NOT_VERIFIED = ["verifier_genuineness", "cp_decision_fields_not_covered_by_signature", "action_id_not_in_signed_statement", "selection_is_latest",
                        "effect_time_validity", "snapshot_correctness_independence", "substitution_by_other_genuine_selection", "real_world_issuer_identity"]
@@ -73,7 +73,7 @@ SUCCESS_MARKER_KEYS = frozenset({
     "control_plane_profile", "effective_configuration_verification", "registry_authenticated", "registry_origin", "registry_selection_verification",
     "registry_selection_admitted_by_injected_verifier", "registry_authentication_claim", "control_plane_decision_authenticated", "registry_trust_snapshot_attestation",
     "registry_trust_snapshot_id", "registry_trust_snapshot_version", "registry_floors_applied", "registry_verified_as_of", "registry_verified_time_mode",
-    "registry_verified_scope", "registry_verified_claims", "registry_not_verified", "registry_declared_source_revisions", "registry_evidence", "claim_scope_note",
+    "registry_verified_scope", "registry_claims_asserted_by_verifier_verdict", "registry_not_verified", "registry_declared_source_revisions", "registry_evidence", "claim_scope_note",
 })
 
 _HEX40 = re.compile(r"\A[0-9a-f]{40}\Z")
@@ -114,7 +114,7 @@ def _int(v: Any, lo: int, hi: int = SCALAR_MAX) -> bool:
 
 # ----------------------------------------------------------------------------------------------------------------------------------- the trust object
 class RegistryEvidenceVerifier(Protocol):
-    """What the enforcing consumer injects. Constructed by the operator from pinned Registry code (``registry_successor.v2_verified_selection.RegistryEvidenceVerifierV2``);
+    """What the enforcing consumer injects. Constructed by the operator from pinned Registry code (``registry_consumer/evidence_verifier.py::RegistryEvidenceVerifierV2`` in the Registry repository; it is NOT in ``registry_successor``);
     Replay cannot tell it from a stub. ``request`` is the plain dict built by ``build_request``; the return value must be the closed verdict dict."""
     def verify_selection_evidence(self, request: Mapping[str, Any]) -> Mapping[str, Any]: ...
 
@@ -428,6 +428,30 @@ def binding_digest(*, decision_id: str, ec: Mapping[str, Any], ev: Mapping[str, 
     return "sha256:" + hashlib.sha256(canonical_bytes(body)).hexdigest()  # canonical_bytes sees hashes and ids only, never a carried text
 
 
+# ----------------------------------------------------------------------------------------------------------------------------------- one exact-type snapshot (M-1)
+_EXACT_SCALARS = (str, int, float, bool, type(None))
+
+
+def exact_snapshot(value: Any, depth: int = 0) -> Any:
+    """Rebuild ``value`` from exact ``dict``/``list``/``str``/``int``/``float``/``bool``/``None`` only. Any subclass (a dict whose reads vary, a str subclass ...) or other type is
+    a typed ``schema_violation``. The result is the ONE object used for both admission and persistence, so the text that is verified is the text that is stored."""
+    if depth > 200:
+        _refuse("schema_violation", "record nesting too deep for the authenticated profile")
+    kind = type(value)
+    if kind is dict:
+        out = {}
+        for key, item in dict.items(value):
+            if type(key) is not str:
+                _refuse("schema_violation", "authenticated profile: non-str key in the record")
+            out[key] = exact_snapshot(item, depth + 1)
+        return out
+    if kind is list:
+        return [exact_snapshot(item, depth + 1) for item in list.__iter__(value)]
+    if kind in _EXACT_SCALARS:
+        return value
+    _refuse("schema_violation", "authenticated profile: the record holds a non-exact type (subclass or foreign object)")
+
+
 # ----------------------------------------------------------------------------------------------------------------------------------- admission
 def _configuration(decision: Mapping[str, Any]) -> dict | None:
     binding = decision.get("binding")
@@ -473,12 +497,15 @@ def admit(decisions: Any, tr: ValidatedTrust) -> list[dict]:
     for d, ev, ec, row in prepared:
         members = ec["members"]
         host = dict(zip(HOST_AGE_KEYS, tr.host_ages))
-        request = build_request(ev, tr, host)
+        # Echo expectations are computed from local immutable values BEFORE the call and never from the request the verifier receives (L-1); the verifier gets its own copy.
+        expected = {"selection_text": ev["selection_text"], "record_text": ev["record_text"], "family": ev["family"], "registry_contract": ev["contract_version"],
+                    "verification_time_utc": tr.time_utc_text}
+        row_digest, scalars = row["effective_policy_digest"], {k: members["f4_scalars"][k] for k in HOST_AGE_KEYS}
         try:
-            verdict = tr.verify(request)
+            verdict = tr.verify(build_request(ev, tr, host))
         except Exception:
             _refuse("registry_evidence_verifier_error", "the verifier raised")
-        checked = check_verdict(verdict, request, tr, row["effective_policy_digest"], members["f4_scalars"])
+        checked = check_verdict(verdict, expected, tr, row_digest, scalars)
         decision_id = d.get("decision_id")
         result.append({
             "decision_id": decision_id, "family": ev["family"], "registry_contract": ev["contract_version"], "issuer_id": checked["issuer_id"],
@@ -508,7 +535,7 @@ def success_markers(tr: ValidatedTrust, admissions: list[dict]) -> dict:
         "registry_verified_as_of": tr.time_utc_text,
         "registry_verified_time_mode": "now" if tr.time_mode == "now" else "as_of_historical",
         "registry_verified_scope": MARKER_SCOPE,
-        "registry_verified_claims": list(MARKER_VERIFIED_CLAIMS),
+        "registry_claims_asserted_by_verifier_verdict": list(MARKER_CLAIMS_ASSERTED_BY_VERIFIER_VERDICT),
         "registry_not_verified": list(MARKER_NOT_VERIFIED),
         "registry_declared_source_revisions": {"control_plane": tr.cp_revision, "registry": tr.registry_revision, "attestation": MARKER_REVISION_ATTESTATION},
         "registry_evidence": [dict(a) for a in admissions],

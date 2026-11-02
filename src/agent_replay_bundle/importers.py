@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from .effective_configuration import REGISTRY_GOVERNED_PROFILE
-from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence,
+from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence, exact_snapshot as _exact_registry_snapshot,
                                 success_markers as _registry_success_markers, validate_trust as _validate_registry_trust)
 from .instants import parse_instant
 from .programme2_profiles import freshness_on
@@ -792,6 +792,8 @@ def import_bounded_workflow(
             raise ImportContractError("unsupported executor/Control Plane revision combination")
         contract["control_plane_revision"] = control_plane_revision
     cp = _obj(control_plane_record, "control_plane_record")
+    if authenticated:
+        cp = _exact_registry_snapshot(cp)  # M-1: one exact-type copy feeds BOTH admission and persistence
     programme2 = control_plane_revision in PROGRAMME2_CP_REVISIONS
     if repaired:
         _validate_repaired_run(cp, profiles=programme2)

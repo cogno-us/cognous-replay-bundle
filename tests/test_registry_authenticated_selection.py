@@ -86,7 +86,7 @@ def test_N01_valid_evidence_is_admitted_through_the_real_enforcement_boundary_an
         "registry_verified_as_of": "2026-11-02T12:00:00Z",
         "registry_verified_time_mode": "as_of_historical",
         "registry_verified_scope": "decision_time_only",
-        "registry_verified_claims": ["selection_signature_by_snapshot_key", "record_binding", "issuer_grant_scope_operation", "time_window_at_T", "snapshot_floors_if_supplied",
+        "registry_claims_asserted_by_verifier_verdict": ["selection_signature_by_snapshot_key", "record_binding", "issuer_grant_scope_operation", "time_window_at_T", "snapshot_floors_if_supplied",
                                      "effective_policy_digest_matches_signed_bound_over_operator_host_ages"],
         "registry_not_verified": ["verifier_genuineness", "cp_decision_fields_not_covered_by_signature", "action_id_not_in_signed_statement", "selection_is_latest",
                                   "effect_time_validity", "snapshot_correctness_independence", "substitution_by_other_genuine_selection", "real_world_issuer_identity"],
@@ -628,11 +628,13 @@ BIG = "x" * 65537
     pytest.param(lambda e: {**e, "operation_id": ""}, id="empty-operation"), pytest.param(lambda e: {**e, "operation_id": 5}, id="operation-int"),
     pytest.param(lambda e: {**e, 7: "x"}, id="non-str-key"), pytest.param(lambda e: {**e, "trust_snapshot": {"id": "x"}}, id="trust-smuggled"),
     pytest.param(lambda e: {**e, "authenticated": True}, id="authenticated-smuggled")])
-def test_N11_malformed_evidence_is_refused_before_the_verifier_is_called(ev_edit):
+def test_N11_malformed_evidence_is_refused_before_the_verifier_is_called(ev_edit, request):
     cp, proposal = f4_run()
     cp["decisions"][0]["selection_evidence"] = ev_edit(cp["decisions"][0]["selection_evidence"])
     trust = make_trust()
-    refused(cp, proposal, "selection_evidence_malformed", trust=trust, calls=0)
+    # bytes / non-str keys are foreign types: the M-1 exact-type snapshot refuses them first with the existing typed code schema_violation
+    code = "schema_violation" if any(i in request.node.name for i in ("text-bytes", "non-str-key")) else "selection_evidence_malformed"
+    refused(cp, proposal, code, trust=trust, calls=0)
 
 
 @pytest.mark.parametrize("text", ["ok\ud800", "\udfff", "a\udc00b"])
@@ -655,7 +657,10 @@ def test_N11_a_str_subclass_text_is_malformed():
         pass
     cp, proposal = f4_run()
     cp["decisions"][0]["selection_evidence"]["selection_text"] = Text(SELECTION)
-    refused(cp, proposal, "selection_evidence_malformed", trust=make_trust(), calls=0)
+    refused(cp, proposal, "schema_violation", trust=make_trust(), calls=0)  # the exact-type snapshot (M-1) refuses it first
+    with pytest.raises(ImportContractError) as caught:  # and the admission layer's own shape gate refuses it too
+        RE.admit(cp["decisions"], RE.validate_trust(make_trust()))
+    assert caught.value.code == "selection_evidence_malformed"
 
 
 def test_N11_the_size_limit_is_exactly_65536_utf8_bytes():
@@ -1283,3 +1288,124 @@ def test_cross_check_the_control_plane_golden_carried_evidence_shape_is_accepted
     trust = make_trust(expected_operation_id=golden["operation_id"], expected_context=RegistryExpectedContext(**{**CTX, "operation": golden["operation_id"]}))
     refused(cp, proposal, "registry_evidence_unverified:signature_invalid", trust=trust, calls=1)  # the stub knows no signer; shape passed
     assert trust.verifier.calls[0]["selection_text"] == golden["selection_text"] and trust.verifier.calls[0]["record_text"] == golden["record_text"]
+
+
+# ============================================================================================================== review conditions M-1 / L-1 (independent review of PR #84)
+class ShiftyDecision(dict):
+    """The reviewer's probe: the first read of ``selection_evidence`` returns the genuine signed pair, while the stored content (what iteration/``items`` yield) is forged."""
+    def __init__(self, stored, genuine):
+        super().__init__(stored)
+        self._genuine, self._reads = genuine, 0
+
+    def __getitem__(self, key):
+        if key == "selection_evidence":
+            self._reads += 1
+            return self._genuine if self._reads == 1 else dict.__getitem__(self, key)
+        return dict.__getitem__(self, key)
+
+    def get(self, key, default=None):
+        return self[key] if key in self else default
+
+
+@pytest.mark.parametrize("variant", ["getitem-get", "items-only"])
+def test_M1_a_dict_subclass_decision_whose_reads_vary_is_refused_and_nothing_forged_is_persisted(variant):
+    cp, proposal = f4_run()
+    genuine = copy.deepcopy(cp["decisions"][0]["selection_evidence"])
+    forged_decision = copy.deepcopy(cp["decisions"][0])
+    forged_decision["selection_evidence"]["selection_text"] = '{"forged":"selection"}'
+    forged_decision["selection_evidence"]["record_text"] = '{"forged":"record"}'
+    cp["decisions"][0] = ShiftyDecision(forged_decision, genuine)
+    trust = make_trust()
+    result = None
+    with pytest.raises(ImportContractError) as caught:
+        result = do_import_raw(cp, proposal, trust)
+    assert result is None and caught.value.code == "schema_violation"
+    assert trust.verifier.calls == []  # refused before any verification
+
+
+def do_import_raw(cp, proposal, trust):
+    """Like do_import but WITHOUT the deepcopy (a deepcopy would normalise the subclass away)."""
+    return I.import_bounded_workflow(cp, proposal=proposal, control_plane_revision=S.CUR_CP, control_plane_profile=SELECTOR, registry_evidence_trust=trust)
+
+
+@pytest.mark.parametrize("where", ["decision", "evidence", "text", "list", "binding"])
+def test_M1_every_subclass_in_the_record_is_refused_under_the_authenticated_profile(where):
+    class D(dict):
+        pass
+
+    class L(list):
+        pass
+
+    class T(str):
+        pass
+    cp, proposal = f4_run()
+    d = cp["decisions"][0]
+    if where == "decision":
+        cp["decisions"][0] = D(d)
+    elif where == "evidence":
+        d["selection_evidence"] = D(d["selection_evidence"])
+    elif where == "text":
+        d["selection_evidence"]["selection_text"] = T(SELECTION)
+    elif where == "list":
+        cp["decisions"] = L(cp["decisions"])
+    else:
+        d["binding"] = D(d["binding"])
+    trust = make_trust()
+    result = None
+    with pytest.raises(ImportContractError) as caught:
+        result = do_import_raw(cp, proposal, trust)
+    assert result is None and caught.value.code in ("schema_violation", "selection_evidence_malformed")
+    assert trust.verifier.calls == []
+
+
+def test_M1_the_persisted_decision_is_the_exact_snapshot_that_was_verified_even_if_the_caller_mutates_the_input_during_verification():
+    cp, proposal = f4_run()
+    target = cp["decisions"][0]["selection_evidence"]
+
+    def mutate(verdict, request):
+        target["selection_text"] = '{"forged":"after-verification"}'
+        target["record_text"] = '{"forged":"after-verification"}'
+    trust = make_trust(verifier=LogicOnlyStubVerifier(mutate=mutate))
+    bundle = I.import_bounded_workflow(cp, proposal=proposal, control_plane_revision=S.CUR_CP, control_plane_profile=SELECTOR, registry_evidence_trust=trust)
+    persisted = next(r.data for r in bundle.records if r.record_type == "runtime_decision")["selection_evidence"]
+    assert (persisted["selection_text"], persisted["record_text"]) == (SELECTION, RECORD) == (trust.verifier.calls[0]["selection_text"], trust.verifier.calls[0]["record_text"])
+    assert bundle.metadata["registry_evidence"][0]["selection_id"] == "sel-f4-001"
+
+
+def test_M1_plain_exact_typed_input_is_unchanged_by_the_snapshot_and_other_modes_never_snapshot():
+    cp, proposal = f4_run()
+    bundle = do_import(cp, proposal, trust=make_trust())
+    assert [r.data for r in bundle.records if r.record_type == "runtime_decision"] == cp["decisions"]
+    class D(dict):
+        pass
+    legacy_cp, legacy_proposal = S.load("governed_executed")
+    legacy_cp["decisions"][0] = D(legacy_cp["decisions"][0])
+    assert I.import_bounded_workflow(legacy_cp, proposal=legacy_proposal, control_plane_revision=S.CUR_CP, control_plane_profile=S.OLD_SELECTOR)  # legacy behaviour untouched
+
+
+def test_L1_a_verifier_that_rewrites_its_request_cannot_change_what_replay_compares_against():
+    """Defence in depth against a lying verifier (NF-2 still applies): echo expectations are fixed before the call and the verifier receives its own copy."""
+    cp, proposal = f4_run()
+
+    def rewrite(verdict, request):
+        request["selection_text"], request["record_text"] = S.ALT_SELECTION, S.ALT_RECORD
+        request["family"], request["verification_time_utc"] = "other", "2000-01-01T00:00:00Z"
+        request["host_policy"]["status_max_age_seconds"] = 1
+        request["expected_context"]["tenant"] = "evil"
+        # a self-consistent verdict for the ALTERNATIVE pair
+        verdict.update(selection_text_sha256=S.sha(S.ALT_SELECTION), record_text_sha256=S.sha(S.ALT_RECORD), family="other", verification_time_utc="2000-01-01T00:00:00Z")
+    trust = make_trust(verifier=LogicOnlyStubVerifier(mutate=rewrite))
+    refused(cp, proposal, "registry_evidence_input_echo_mismatch", trust=trust, calls=1)
+    # and the operator's trust object / a second run are unaffected by what the stub did to its request copy
+    assert admitted(cp, proposal).metadata["registry_evidence"][0]["selection_id"] == "sel-f4-001"
+
+
+def test_L3_the_verifier_protocol_docstring_names_the_real_adapter_path():
+    doc = RE.RegistryEvidenceVerifier.__doc__
+    assert "registry_consumer/evidence_verifier.py::RegistryEvidenceVerifierV2" in doc and "registry_successor.v2_verified_selection" not in doc
+
+
+def test_L4_the_verifier_asserted_claims_marker_is_renamed_and_the_old_name_is_gone():
+    meta = admitted().metadata
+    assert "registry_claims_asserted_by_verifier_verdict" in meta and "registry_verified_claims" not in meta
+    assert "registry_verified_claims" not in RE.SUCCESS_MARKER_KEYS
