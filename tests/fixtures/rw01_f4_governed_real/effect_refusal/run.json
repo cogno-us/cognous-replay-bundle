@@ -1,0 +1,763 @@
+{
+  "run_id": "run-1",
+  "input_time_floors": {
+    "sha256:7052a5b98597102f45a2c4ab494a5e1006ff104c4b86e5222e2b59f330c30418": "2026-10-05T19:00:00+00:00",
+    "sha256:4d8e3965e23d0c43249d12bd33f98502d07aa9b8675d4e94deeef9194b96eccc": "2026-10-05T19:00:00+00:00",
+    "sha256:bb70894893d767f392df7aea0070fff70716cb6b934ea3664ba852518b781eda": "2026-10-05T19:00:00+00:00",
+    "sha256:759e6cc704cb5cda55ed8925b417f92ff0f83b8d81ed7959ddc439d3d01ba75b": "2026-10-05T19:00:00+00:00",
+    "sha256:e25ac65c4ed37739a2ab3e879dc2435ddb4df8687db4c6665e8cff3a835513cc": "2026-10-05T19:00:00+00:00",
+    "sha256:7357f30a03d77811d73178b90d4e8c7d343cc0879fa341d529623ef70db9b793": "2026-10-05T19:00:00+00:00",
+    "sha256:74437776fe13ee871e8efddb996b26b2deb270f19bb09854f8f09d6b76b80b5c": "2026-10-05T19:00:00+00:00",
+    "sha256:6e2ad318158316fbe204f27531f5d59e0588a8e1338eb41b36917b88b7067de6": "2026-10-05T19:00:00+00:00"
+  },
+  "resolution_checks": [
+    {
+      "check_id": "e56a449a-ab31-412c-8ae5-9f3a93c27ae4",
+      "stage": "decision",
+      "evaluated_at": "2026-10-05T19:00:00+00:00",
+      "time_source": "test_override",
+      "inputs": [
+        {
+          "input_type": "manifest",
+          "input_id": "refund-integration-pilot-v1",
+          "expected": {},
+          "observed": {},
+          "record_commitment": "sha256:4d1ad6c96bc242c63998231b4df3ad7c86dc2e5e59cdae63afe7bff86e60f6ac",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "authority_context",
+          "input_id": "urn:cognous:alvorada:public-stack-profile:0.1.0",
+          "expected": {},
+          "observed": {
+            "schema_version": "0.1.0",
+            "interface_status": "proposed_pending_governor_review"
+          },
+          "record_commitment": "sha256:d8b79e6cf33bcf309d4cbcab31b6c34f4770c951eeb2a59200241379a60354c0",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "role_mapping",
+          "input_id": "urn:cognous:institution:synthetic-customer-service",
+          "expected": {},
+          "observed": {
+            "version": "roles-v1",
+            "digest": "sha256:f8a8db156df7087ddf34be1ed77fc86fa20ba7668deb87a9b3a5bd0a6ace496d"
+          },
+          "record_commitment": "sha256:fc884333b0da586ae781c0c4289729465659c719c0e4602758ddbf7a2bdcb89e",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "identity",
+          "input_id": "urn:cognous:identity:refund-agent-1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:5eee426c0827b2b01acc16f0acf3bd13fcfc315ad851c406822dc3242a0b18d3",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "mandate",
+          "input_id": "urn:cognous:issuance:1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:d023eb722343620d7b2d4e622e0283008d72c903ef81c15d9b3dbaada7648091",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "grant",
+          "input_id": "urn:cognous:grant:routine-1",
+          "expected": {
+            "revision": "1",
+            "status": "active"
+          },
+          "observed": {
+            "revision": "1",
+            "status": "active",
+            "version": "status-v1",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:8daea02e21724227460d64bca84ce18225ab73360165d0152b817ec77c49cafa",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "conflict",
+          "input_id": "urn:cognous:authority-requirement:refund-routine-v1",
+          "expected": {},
+          "observed": {
+            "state": "clear",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:b469c2e823a75ebd9ba5b0f315c1a092e9ef8d257e684f03a9c00765a065e2ec",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "policy",
+          "input_id": "urn:cognous:policy:refund-policy",
+          "expected": {
+            "version": "1.0",
+            "status": "active"
+          },
+          "observed": {
+            "status": "active",
+            "version": "1.0",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:11febbc447bc658a68c4104318eea0328924a3c2e37b44be0d172c6eb098b756",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "approval",
+          "input_id": "urn:cognous:approval:t1-1",
+          "expected": {
+            "grant_revision": "1",
+            "status": "active",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "observed": {
+            "status": "active",
+            "observed_at": "2026-10-05T19:00:00+00:00",
+            "grant_revision": "1",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "record_commitment": "sha256:1bac3378d0a52ab6d1b87235bb8da1d9ee2825861509ccc9f0f32a4e84965443",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:refund-entitlement",
+          "expected": {
+            "state": "current"
+          },
+          "observed": {
+            "state": "current",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:63d6aca326420f9a77819a5dd2e82db72d9c6754e5e1f3a8bc866b70aa358cbf",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:optional-context",
+          "expected": {},
+          "observed": {
+            "state": "unknown",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:9918ca9a4e1da9eee69322d6c0b107f215773957e569ee85e5ca1abb94c267cd",
+          "missing": false,
+          "previous_observed_at": null
+        }
+      ],
+      "reasons": []
+    },
+    {
+      "check_id": "59d3316a-9bb0-4e72-a941-f7d52ef10f75",
+      "stage": "effect",
+      "evaluated_at": "2026-10-05T19:00:00+00:00",
+      "time_source": "test_override",
+      "inputs": [
+        {
+          "input_type": "manifest",
+          "input_id": "refund-integration-pilot-v1",
+          "expected": {},
+          "observed": {},
+          "record_commitment": "sha256:4d1ad6c96bc242c63998231b4df3ad7c86dc2e5e59cdae63afe7bff86e60f6ac",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "authority_context",
+          "input_id": "urn:cognous:alvorada:public-stack-profile:0.1.0",
+          "expected": {},
+          "observed": {
+            "schema_version": "0.1.0",
+            "interface_status": "proposed_pending_governor_review"
+          },
+          "record_commitment": "sha256:d8b79e6cf33bcf309d4cbcab31b6c34f4770c951eeb2a59200241379a60354c0",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "role_mapping",
+          "input_id": "urn:cognous:institution:synthetic-customer-service",
+          "expected": {},
+          "observed": {
+            "version": "roles-v1",
+            "digest": "sha256:f8a8db156df7087ddf34be1ed77fc86fa20ba7668deb87a9b3a5bd0a6ace496d"
+          },
+          "record_commitment": "sha256:fc884333b0da586ae781c0c4289729465659c719c0e4602758ddbf7a2bdcb89e",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "identity",
+          "input_id": "urn:cognous:identity:refund-agent-1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:5eee426c0827b2b01acc16f0acf3bd13fcfc315ad851c406822dc3242a0b18d3",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "mandate",
+          "input_id": "urn:cognous:issuance:1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:d023eb722343620d7b2d4e622e0283008d72c903ef81c15d9b3dbaada7648091",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "grant",
+          "input_id": "urn:cognous:grant:routine-1",
+          "expected": {
+            "revision": "1",
+            "status": "active"
+          },
+          "observed": {
+            "revision": "1",
+            "status": "active",
+            "version": "status-v1",
+            "observed_at": "2026-10-05T18:51:40+00:00"
+          },
+          "record_commitment": "sha256:9fb6ec4231a34548e3f230a9bfec852303456846ba3f81f59b1ba3c3fdbed615",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "conflict",
+          "input_id": "urn:cognous:authority-requirement:refund-routine-v1",
+          "expected": {},
+          "observed": {
+            "state": "clear",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:b469c2e823a75ebd9ba5b0f315c1a092e9ef8d257e684f03a9c00765a065e2ec",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "policy",
+          "input_id": "urn:cognous:policy:refund-policy",
+          "expected": {
+            "version": "1.0",
+            "status": "active"
+          },
+          "observed": {
+            "status": "active",
+            "version": "1.0",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:11febbc447bc658a68c4104318eea0328924a3c2e37b44be0d172c6eb098b756",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "approval",
+          "input_id": "urn:cognous:approval:t1-1",
+          "expected": {
+            "grant_revision": "1",
+            "status": "active",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "observed": {
+            "status": "active",
+            "observed_at": "2026-10-05T19:00:00+00:00",
+            "grant_revision": "1",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "record_commitment": "sha256:1bac3378d0a52ab6d1b87235bb8da1d9ee2825861509ccc9f0f32a4e84965443",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:refund-entitlement",
+          "expected": {
+            "state": "current"
+          },
+          "observed": {
+            "state": "current",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:63d6aca326420f9a77819a5dd2e82db72d9c6754e5e1f3a8bc866b70aa358cbf",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:optional-context",
+          "expected": {},
+          "observed": {
+            "state": "unknown",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:9918ca9a4e1da9eee69322d6c0b107f215773957e569ee85e5ca1abb94c267cd",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        }
+      ],
+      "reasons": [
+        "grant_status_stale_or_future",
+        "input_observation_time_regressed"
+      ]
+    }
+  ],
+  "closeouts": [],
+  "decisions": [
+    {
+      "decision_id": "88af096e-6939-48bb-be74-775c17bc775e",
+      "effect_id": "sha256:f42a2866e8359b1adca34c53c91f5f56b375203b6957fd7408f70d211629452a",
+      "result": "authorized",
+      "reasons": [],
+      "decided_at": "2026-10-05T19:00:00+00:00",
+      "time_source": "test_override",
+      "operation_horizon": {
+        "source": "runtime_proposal",
+        "proposal_commitment": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+        "not_before": null,
+        "expires_at": null
+      },
+      "binding": {
+        "runtime_authority": {
+          "effective_configuration": {
+            "version": "effective-configuration-binding/0.1",
+            "digest": "sha256:544b7319a061acb1b8f194d01aaa0327e6723daebb1ec6a9c804bae274e8ad9b",
+            "members": {
+              "scope": {
+                "consumer_id": "consumer-test",
+                "tenant_id": "tenant-alpha",
+                "action_id": "urn:cognous:action:refund-issue-routine-v1",
+                "institution_id": "urn:cognous:institution:synthetic-customer-service",
+                "authority_domain": "customer-refunds"
+              },
+              "host_profile_digest": null,
+              "effective_profile_digest": null,
+              "f4_scalars": {
+                "status_max_age_seconds": 60,
+                "approval_max_age_seconds": 60
+              },
+              "other_scalars": {
+                "clock_tolerance_seconds": 5,
+                "identity_max_age_seconds": 60,
+                "mandate_max_age_seconds": 60
+              },
+              "observation_policy": {
+                "max_age_seconds": 300,
+                "clock_tolerance_seconds": 5
+              },
+              "families": [
+                {
+                  "slot": "f4_ages",
+                  "family_id": "f4-control-plane-age-bounds",
+                  "contract_version": "r08-v2",
+                  "family_schema_revision": null,
+                  "effective_policy_digest": "sha256:a17569ebacb26731c770d0bc32bf66c47afe51d627fd9a9f09894cadc57aaa4f"
+                }
+              ]
+            }
+          }
+        },
+        "proposal_commitment": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+        "manifest_id": "refund-integration-pilot-v1",
+        "manifest_version": "1.1",
+        "manifest_digest": "sha256:4d1ad6c96bc242c63998231b4df3ad7c86dc2e5e59cdae63afe7bff86e60f6ac",
+        "actor": "urn:cognous:identity:refund-agent-1",
+        "principal": "urn:cognous:principal:refund-service",
+        "action_id": "urn:cognous:action:refund-issue-routine-v1",
+        "adapter_id": "urn:cognous:adapter:synthetic-refund-v1",
+        "target": "urn:cognous:synthetic-account:customer-001",
+        "payload_commitment": "sha256:6b782ebbcc034edeca4069b31aa4d8cbc9d3eeaf3b2034ab989bb430de962c0e",
+        "requested_permissions": [
+          "refund.issue.routine"
+        ],
+        "amount": 50.0,
+        "unit": "USD",
+        "effects": 1,
+        "authority_context_id": "urn:cognous:authority-context:pilot-1",
+        "authority_context_version": "0.1.0",
+        "authority_context_status": "proposed_pending_governor_review",
+        "requirement_id": "urn:cognous:authority-requirement:refund-routine-v1",
+        "requirement_commitment": "sha256:6590406e701b51e637c87953860d1ceb72d8da0af87311048f152e0ee2b8ccb6",
+        "grant_id": "urn:cognous:grant:routine-1",
+        "grant_revision": "1",
+        "policy_versions": [
+          {
+            "ref": "urn:cognous:policy:refund-policy",
+            "version": "1.0"
+          }
+        ],
+        "role_mapping_version": "roles-v1",
+        "role_mapping_digest": "sha256:f8a8db156df7087ddf34be1ed77fc86fa20ba7668deb87a9b3a5bd0a6ace496d",
+        "effective_max_effects": 1,
+        "generation": "bounded-authorization-effect/0.2",
+        "tenant_id": "tenant-alpha"
+      },
+      "resolution_inputs": [
+        {
+          "input_type": "manifest",
+          "input_id": "refund-integration-pilot-v1",
+          "expected": {},
+          "observed": {},
+          "record_commitment": "sha256:4d1ad6c96bc242c63998231b4df3ad7c86dc2e5e59cdae63afe7bff86e60f6ac",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "authority_context",
+          "input_id": "urn:cognous:alvorada:public-stack-profile:0.1.0",
+          "expected": {},
+          "observed": {
+            "schema_version": "0.1.0",
+            "interface_status": "proposed_pending_governor_review"
+          },
+          "record_commitment": "sha256:d8b79e6cf33bcf309d4cbcab31b6c34f4770c951eeb2a59200241379a60354c0",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "role_mapping",
+          "input_id": "urn:cognous:institution:synthetic-customer-service",
+          "expected": {},
+          "observed": {
+            "version": "roles-v1",
+            "digest": "sha256:f8a8db156df7087ddf34be1ed77fc86fa20ba7668deb87a9b3a5bd0a6ace496d"
+          },
+          "record_commitment": "sha256:fc884333b0da586ae781c0c4289729465659c719c0e4602758ddbf7a2bdcb89e",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "identity",
+          "input_id": "urn:cognous:identity:refund-agent-1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:5eee426c0827b2b01acc16f0acf3bd13fcfc315ad851c406822dc3242a0b18d3",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "mandate",
+          "input_id": "urn:cognous:issuance:1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:d023eb722343620d7b2d4e622e0283008d72c903ef81c15d9b3dbaada7648091",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "grant",
+          "input_id": "urn:cognous:grant:routine-1",
+          "expected": {
+            "revision": "1",
+            "status": "active"
+          },
+          "observed": {
+            "revision": "1",
+            "status": "active",
+            "version": "status-v1",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:8daea02e21724227460d64bca84ce18225ab73360165d0152b817ec77c49cafa",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "conflict",
+          "input_id": "urn:cognous:authority-requirement:refund-routine-v1",
+          "expected": {},
+          "observed": {
+            "state": "clear",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:b469c2e823a75ebd9ba5b0f315c1a092e9ef8d257e684f03a9c00765a065e2ec",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "policy",
+          "input_id": "urn:cognous:policy:refund-policy",
+          "expected": {
+            "version": "1.0",
+            "status": "active"
+          },
+          "observed": {
+            "status": "active",
+            "version": "1.0",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:11febbc447bc658a68c4104318eea0328924a3c2e37b44be0d172c6eb098b756",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "approval",
+          "input_id": "urn:cognous:approval:t1-1",
+          "expected": {
+            "grant_revision": "1",
+            "status": "active",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "observed": {
+            "status": "active",
+            "observed_at": "2026-10-05T19:00:00+00:00",
+            "grant_revision": "1",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "record_commitment": "sha256:1bac3378d0a52ab6d1b87235bb8da1d9ee2825861509ccc9f0f32a4e84965443",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:refund-entitlement",
+          "expected": {
+            "state": "current"
+          },
+          "observed": {
+            "state": "current",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:63d6aca326420f9a77819a5dd2e82db72d9c6754e5e1f3a8bc866b70aa358cbf",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:optional-context",
+          "expected": {},
+          "observed": {
+            "state": "unknown",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:9918ca9a4e1da9eee69322d6c0b107f215773957e569ee85e5ca1abb94c267cd",
+          "missing": false,
+          "previous_observed_at": null
+        }
+      ],
+      "selection_evidence": {
+        "version": "selection-evidence/0.1",
+        "contract_version": "r08-v2",
+        "family": "f4-control-plane-age-bounds",
+        "operation_id": "refund-issue-routine",
+        "verified_at": "2026-10-05T19:00:00+00:00",
+        "record_text": "{\"contract_version\": \"r08-v2\", \"evaluator\": {\"binding\": \"registered-code-reference\", \"evaluator_id\": \"engine.safe_executor.LocalExecutionPolicy.check\", \"source_blob_id\": \"2fc880dae37eac76e5074533435740ce0684209d\", \"source_sha256\": \"sha256:940e781934542a7acd7bbe2f6833f9d329325d94b49425afd9d2bedcf23c5b68\"}, \"family\": \"f4-control-plane-age-bounds\", \"kind\": \"record\", \"non_authorizing\": true, \"payload\": {\"approval_max_age_seconds\": 90, \"status_max_age_seconds\": 120}, \"payload_digest\": \"sha256:2d3369176490b10c0f2ed253741f5b392c5d7a04134925ddc4ad120c08103c32\", \"provenance\": {\"authored_at\": \"2026-10-25T00:00:00Z\", \"authored_by\": \"test-author\", \"decision_ref\": \"decision-test-1\"}, \"record_digest\": \"sha256:773efb8e21d6f22f68ae0963bdba47df28a431a4523990877b5b4f05ce8a8891\", \"record_id\": \"f4-age-record\", \"record_version\": 1, \"source\": {\"blob_id\": \"2fc880dae37eac76e5074533435740ce0684209d\", \"commit\": \"ec728da6dc301a664b331ac8986afd6e850a1273\", \"path\": \"engine/safe_executor.py\", \"repository\": \"cogno-us/cognous-execution-runtime\", \"sha256\": \"sha256:940e781934542a7acd7bbe2f6833f9d329325d94b49425afd9d2bedcf23c5b68\"}, \"supersedes\": null}",
+        "selection_text": "{\"contract_version\": \"r08-v2\", \"kind\": \"selection-envelope\", \"signatures\": [{\"alg\": \"ed25519\", \"key_id\": \"key-test-1\", \"signature\": \"RCCmV6LedJpbcRQI8BSQvWS6jkdI5qALh8admzRyYEkDMh3PQEYEeI9ZwyZs9ut6ECDcMsGjHEMUn8H6xI8nBQ==\"}], \"statement\": {\"consumer_id\": \"consumer-test\", \"disposition\": \"select\", \"effective\": {\"valid_from\": \"2026-10-01T00:00:00Z\", \"valid_until\": \"2026-10-06T00:00:00Z\"}, \"epoch\": 1, \"evaluator\": {\"binding\": \"registered-code-reference\", \"evaluator_id\": \"engine.safe_executor.LocalExecutionPolicy.check\", \"source_blob_id\": \"2fc880dae37eac76e5074533435740ce0684209d\", \"source_sha256\": \"sha256:940e781934542a7acd7bbe2f6833f9d329325d94b49425afd9d2bedcf23c5b68\"}, \"family\": \"f4-control-plane-age-bounds\", \"issued_at\": \"2026-10-01T00:00:00Z\", \"kind\": \"selection\", \"operation\": \"refund-issue-routine\", \"participation\": \"required\", \"record\": {\"record_digest\": \"sha256:773efb8e21d6f22f68ae0963bdba47df28a431a4523990877b5b4f05ce8a8891\", \"record_id\": \"f4-age-record\", \"record_version\": 1}, \"revocation_ref\": \"revocation-test-1\", \"scope\": {\"authority_domain\": \"customer-refunds\", \"institution\": \"urn:cognous:institution:synthetic-customer-service\", \"tenant\": \"tenant-alpha\"}, \"selection_id\": \"sel-test-1\", \"selector_ref\": \"selector-test-1\", \"supersedes\": null}, \"statement_digest\": \"sha256:d52de6e701d285497a0700b567126f11dd7deb184fc49a84a8bdd9ce4d81c57a\"}"
+      }
+    }
+  ],
+  "refusals": [
+    {
+      "refusal_id": "84fb398a-79c6-46f1-979f-8cc3e85b550f",
+      "decision_id": "88af096e-6939-48bb-be74-775c17bc775e",
+      "effect_id": "sha256:f42a2866e8359b1adca34c53c91f5f56b375203b6957fd7408f70d211629452a",
+      "recorded_at": "2026-10-05T19:00:00+00:00",
+      "time_source": "test_override",
+      "original_operation_horizon": {
+        "source": "runtime_proposal",
+        "proposal_commitment": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+        "not_before": null,
+        "expires_at": null
+      },
+      "operation_horizon": {
+        "source": "runtime_proposal",
+        "proposal_commitment": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+        "not_before": null,
+        "expires_at": null
+      },
+      "stage": "effect_time_revalidation",
+      "reasons": [
+        "grant_status_stale_or_future",
+        "input_observation_time_regressed"
+      ],
+      "changed_inputs": [],
+      "resolution_inputs": [
+        {
+          "input_type": "manifest",
+          "input_id": "refund-integration-pilot-v1",
+          "expected": {},
+          "observed": {},
+          "record_commitment": "sha256:4d1ad6c96bc242c63998231b4df3ad7c86dc2e5e59cdae63afe7bff86e60f6ac",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "authority_context",
+          "input_id": "urn:cognous:alvorada:public-stack-profile:0.1.0",
+          "expected": {},
+          "observed": {
+            "schema_version": "0.1.0",
+            "interface_status": "proposed_pending_governor_review"
+          },
+          "record_commitment": "sha256:d8b79e6cf33bcf309d4cbcab31b6c34f4770c951eeb2a59200241379a60354c0",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "role_mapping",
+          "input_id": "urn:cognous:institution:synthetic-customer-service",
+          "expected": {},
+          "observed": {
+            "version": "roles-v1",
+            "digest": "sha256:f8a8db156df7087ddf34be1ed77fc86fa20ba7668deb87a9b3a5bd0a6ace496d"
+          },
+          "record_commitment": "sha256:fc884333b0da586ae781c0c4289729465659c719c0e4602758ddbf7a2bdcb89e",
+          "missing": false,
+          "previous_observed_at": null
+        },
+        {
+          "input_type": "identity",
+          "input_id": "urn:cognous:identity:refund-agent-1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:5eee426c0827b2b01acc16f0acf3bd13fcfc315ad851c406822dc3242a0b18d3",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "mandate",
+          "input_id": "urn:cognous:issuance:1",
+          "expected": {},
+          "observed": {
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:d023eb722343620d7b2d4e622e0283008d72c903ef81c15d9b3dbaada7648091",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "grant",
+          "input_id": "urn:cognous:grant:routine-1",
+          "expected": {
+            "revision": "1",
+            "status": "active"
+          },
+          "observed": {
+            "revision": "1",
+            "status": "active",
+            "version": "status-v1",
+            "observed_at": "2026-10-05T18:51:40+00:00"
+          },
+          "record_commitment": "sha256:9fb6ec4231a34548e3f230a9bfec852303456846ba3f81f59b1ba3c3fdbed615",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "conflict",
+          "input_id": "urn:cognous:authority-requirement:refund-routine-v1",
+          "expected": {},
+          "observed": {
+            "state": "clear",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:b469c2e823a75ebd9ba5b0f315c1a092e9ef8d257e684f03a9c00765a065e2ec",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "policy",
+          "input_id": "urn:cognous:policy:refund-policy",
+          "expected": {
+            "version": "1.0",
+            "status": "active"
+          },
+          "observed": {
+            "status": "active",
+            "version": "1.0",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:11febbc447bc658a68c4104318eea0328924a3c2e37b44be0d172c6eb098b756",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "approval",
+          "input_id": "urn:cognous:approval:t1-1",
+          "expected": {
+            "grant_revision": "1",
+            "status": "active",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "observed": {
+            "status": "active",
+            "observed_at": "2026-10-05T19:00:00+00:00",
+            "grant_revision": "1",
+            "proposal": "sha256:becaea3f10b5edf56ea181e0cd62793ebe8262238f948fb72dc5c0389c7f8c53",
+            "policies": "sha256:1cb091c265589e9d079a3c814befac072b3ad7f11f6bfbd0968825f3b816dee2",
+            "grant_id": "urn:cognous:grant:routine-1"
+          },
+          "record_commitment": "sha256:1bac3378d0a52ab6d1b87235bb8da1d9ee2825861509ccc9f0f32a4e84965443",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:refund-entitlement",
+          "expected": {
+            "state": "current"
+          },
+          "observed": {
+            "state": "current",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:63d6aca326420f9a77819a5dd2e82db72d9c6754e5e1f3a8bc866b70aa358cbf",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        },
+        {
+          "input_type": "evidence",
+          "input_id": "urn:cognous:evidence:optional-context",
+          "expected": {},
+          "observed": {
+            "state": "unknown",
+            "observed_at": "2026-10-05T19:00:00+00:00"
+          },
+          "record_commitment": "sha256:9918ca9a4e1da9eee69322d6c0b107f215773957e569ee85e5ca1abb94c267cd",
+          "missing": false,
+          "previous_observed_at": "2026-10-05T19:00:00+00:00"
+        }
+      ]
+    }
+  ],
+  "attempts": [],
+  "observations": [],
+  "reconciliations": []
+}

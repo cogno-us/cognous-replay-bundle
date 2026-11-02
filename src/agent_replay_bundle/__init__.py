@@ -69,6 +69,7 @@ from .reconstruction import (
 from .redaction import redact_replay_bundle
 from .registry_evidence import (
     BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE,
+    REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE,
     REGISTRY_AUTHENTICATED_SELECTION_PROFILE,
     RegistryEvidenceTrust,
     RegistryEvidenceVerifier,
@@ -108,6 +109,6 @@ __all__ = [
     "CONTROL_PLANE_V2_REVISIONS", "MOLTBOT_V2_REVISION",
     "BOUNDED_V2_PROFILE", "BOUNDED_V2_PERSISTENCE_PROFILE",
     "MOLTBOT_V2_PROFILE", "PRODUCER_COMPATIBILITY",
-    "REGISTRY_AUTHENTICATED_SELECTION_PROFILE", "BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE", "RegistryEvidenceTrust", "RegistryEvidenceVerifier",
+    "REGISTRY_AUTHENTICATED_SELECTION_PROFILE", "REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE", "BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE", "RegistryEvidenceTrust", "RegistryEvidenceVerifier",
     "RegistryExpectedContext", "RegistryTrustSnapshotRef", "reverify_retained_registry_evidence",
 ]

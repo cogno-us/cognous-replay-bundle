@@ -34,6 +34,9 @@ from .reconstruction import canonical_bytes
 
 #: The one selector value that enables the profile (``type is str`` and exact equality; no prefix, wildcard, case folding or "latest").
 REGISTRY_AUTHENTICATED_SELECTION_PROFILE = "registry-authenticated-selection/0.1"
+#: Second, explicit selector (RW-01-F4-PoC F-1): the same authenticated admission over the structural shape of a real Control Plane ``GovernedAgeWorkflow`` record (no
+#: resolution journal, no runtime-authority profile members). Exact ``type is str`` match, current-generation revision only, never inferred from record content.
+REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE = "registry-authenticated-selection-f4-governed/0.1"
 #: Adapter profile id of the produced bundle. Deliberately NOT suffixed with the b19c47dd label (E-6): the record may come from changed Control Plane code and the
 #: operator declares the actual source revisions in the trust object; Replay attests neither.
 BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE = "control-plane-current-stack-registry-authenticated-selection-0.1@operator-declared-revision"
@@ -517,10 +520,10 @@ def admit(decisions: Any, tr: ValidatedTrust) -> list[dict]:
     return result
 
 
-def success_markers(tr: ValidatedTrust, admissions: list[dict]) -> dict:
+def success_markers(tr: ValidatedTrust, admissions: list[dict], profile: str = REGISTRY_AUTHENTICATED_SELECTION_PROFILE) -> dict:
     """Metadata of a successful authenticated-profile import (and only of that). ``registry_authenticated`` stays False and ``registry_origin`` stays unverified."""
     return {
-        "control_plane_profile": REGISTRY_AUTHENTICATED_SELECTION_PROFILE,
+        "control_plane_profile": profile,
         "effective_configuration_verification": "internal_consistency_only_registry_source_revision_unverified",
         "registry_authenticated": False,
         "registry_origin": "registry_origin_unverified",

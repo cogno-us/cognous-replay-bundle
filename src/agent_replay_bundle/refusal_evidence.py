@@ -178,7 +178,7 @@ def _freeze(value):
 MAX_MATCH_WORK = 4_000_000
 
 
-def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effective_configuration=False, expected_effective_configuration_digest=None):
+def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effective_configuration=False, expected_effective_configuration_digest=None, f4_governed=False):
     from .importers import ImportContractError, _aware_time
     def require(ok, reason, code=None):
         if not ok: raise ImportContractError('typed refusal profile: '+reason, code)
@@ -198,9 +198,9 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
         if isinstance(binding, dict):
             require(x.proposal_commitment==binding.get('proposal_commitment'), 'original horizon commitment differs from original binding')
         return x
-    InputModel = (P2Input if profiles else AuthorityInput) if runtime_authority else Input
-    RefusalModel = (P2Refusal if profiles else AuthorityRefusal) if runtime_authority else Refusal
-    CheckModel = (P2Check if profiles else AuthorityCheck) if runtime_authority else Check
+    InputModel = (P2Input if profiles else AuthorityInput) if (runtime_authority and not f4_governed) else Input
+    RefusalModel = (P2Refusal if profiles else AuthorityRefusal) if (runtime_authority and not f4_governed) else Refusal
+    CheckModel = (P2Check if profiles else AuthorityCheck) if (runtime_authority and not f4_governed) else Check
     EventModel = P2Event if profiles else JournalEvent
     unfinished=[]
     try:
@@ -249,7 +249,10 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
             # only decisions are such holds has no journal events (programme-2 generation only).
             lease_only=profiles and bool(cp['decisions']) and all(
                 d.get('result')=='hold' and d.get('reasons')==['check_lease_unavailable'] and d.get('binding') is None for d in cp['decisions'])
-            require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
+            if f4_governed:
+                require(cp.get('check_events', [])==[] and cp.get('vocabulary_changes', [])==[], 'f4 governed record carries runtime-authority journal members', 'undeclared_member')
+            else:
+                require((isinstance(cp.get('check_events'),list) and bool(cp['check_events'])) or lease_only, 'resolution journal missing')
             checks={};completions=[];open_at={};close_at={};terminal=set()
             resolution_index=None;resolution_reasons=[]
             work=[0]
@@ -352,9 +355,13 @@ def validate_run(cp, proposal, *, runtime_authority=False, profiles=False, effec
             unfinished.extend(k for k,v in checks.items() if not v[1])
             for d in cp['decisions']:
                 accepted_labels=('runtime-authority-reasons/0.1','runtime-authority-reasons/0.2') if profiles else ('runtime-authority-reasons/0.1',)
-                require(d.get('reason_vocabulary_version') in accepted_labels,'decision vocabulary missing')
+                if f4_governed: require('reason_vocabulary_version' not in d and 'rule_identity' not in d and 'reopen_conditions' not in d, 'f4 governed decision carries runtime-authority members', 'undeclared_member')
+                else: require(d.get('reason_vocabulary_version') in accepted_labels,'decision vocabulary missing')
                 binding=d.get('binding') or {}
-                if binding:
+                if binding and f4_governed:
+                    authority=binding.get('runtime_authority')
+                    require(isinstance(authority,dict) and set(authority)=={'effective_configuration'},'f4 governed runtime_authority must be exactly effective_configuration','undeclared_member')
+                elif binding:
                     authority=binding.get('runtime_authority')
                     require(isinstance(authority,dict) and authority.get('profile')=='runtime-authority/0.1','runtime authority binding missing')
                     base_fields={'profile','approval_commitment','required_inputs_digest','catalogue_digest',

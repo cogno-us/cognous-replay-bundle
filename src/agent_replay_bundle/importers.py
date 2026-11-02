@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from .effective_configuration import REGISTRY_GOVERNED_PROFILE
-from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence, exact_snapshot as _exact_registry_snapshot,
+from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence, exact_snapshot as _exact_registry_snapshot,
                                 success_markers as _registry_success_markers, validate_trust as _validate_registry_trust)
 from .instants import parse_instant
 from .programme2_profiles import freshness_on
@@ -730,13 +730,21 @@ def import_bounded_workflow(
     ``expected_effective_configuration_digest`` is ``registry_evidence_conflicting_modes``; the presence of ``selection_evidence`` never selects the profile. The mode never
     falls back to structural-only or to the caller-trusted match. Success establishes claim A only (the injected, unattested verifier admitted the selection signature at the
     operator time); ``registry_authenticated`` stays False and claim B (the decision itself) is not made. Replay holds no cryptography.
+
+    ``control_plane_profile=REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE`` (same rules: exact string, current-generation revision, ``registry_evidence_trust`` required, never
+    inferred) is the same authenticated admission over the structural shape of a real ``GovernedAgeWorkflow`` record: the resolution journal, the per-decision runtime-authority
+    vocabulary members and every ``runtime_authority`` member except ``effective_configuration`` must be ABSENT (else ``undeclared_member``); nothing is added to the record.
     """
     if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
     registry_governed = False
     authenticated = False
+    f4_shape = False
     if control_plane_profile is not None:
-        if type(control_plane_profile) is str and control_plane_profile == REGISTRY_AUTHENTICATED_SELECTION_PROFILE and control_plane_revision == CONTROL_PLANE_CUR_REVISION:
+        if type(control_plane_profile) is str and control_plane_profile == REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE and control_plane_revision == CONTROL_PLANE_CUR_REVISION:
+            authenticated = True  # F4 structural shape; same authenticated admission, explicit selector only, never inferred from the record
+            f4_shape = True
+        elif type(control_plane_profile) is str and control_plane_profile == REGISTRY_AUTHENTICATED_SELECTION_PROFILE and control_plane_revision == CONTROL_PLANE_CUR_REVISION:
             authenticated = True  # implies every Registry-governed structural check; never inferred, never a fallback
         elif type(control_plane_profile) is not str or control_plane_profile != REGISTRY_GOVERNED_PROFILE or control_plane_revision != CONTROL_PLANE_CUR_REVISION:
             raise ImportContractError("unsupported Control Plane profile selector")
@@ -827,7 +835,7 @@ def import_bounded_workflow(
             if programme2:
                 cp.setdefault("check_events", [])  # a run of check_lease_unavailable holds has no journal events (freshness/0.1)
         unfinished = validate_run(cp, proposal, runtime_authority=authority, profiles=programme2, effective_configuration=registry_governed,
-                              expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None)
+                              expected_effective_configuration_digest=expected_effective_configuration_digest if trusted_match else None, f4_governed=f4_shape)
         if authenticated:
             admissions = _admit_registry_evidence(cp["decisions"], validated_trust)  # after the structural checks, before any decision is accepted; the verifier is called here only
         if programme2:
@@ -1151,7 +1159,7 @@ def import_bounded_workflow(
                                   CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION,
                                   CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
             **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
-            **(_registry_success_markers(validated_trust, admissions) if authenticated else {}),
+            **(_registry_success_markers(validated_trust, admissions, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE if f4_shape else REGISTRY_AUTHENTICATED_SELECTION_PROFILE) if authenticated else {}),
             **({"control_plane_profile": REGISTRY_GOVERNED_PROFILE,
                 **({"effective_configuration_verification": "caller_trusted_configuration_match", "registry_authenticated": False,
                     "registry_origin": "registry_origin_unverified"} if trusted_match else
