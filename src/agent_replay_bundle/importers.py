@@ -12,6 +12,7 @@ from .effective_configuration import REGISTRY_GOVERNED_PROFILE
 from .registry_evidence import (BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE, REGISTRY_AUTHENTICATED_SELECTION_PROFILE, admit as _admit_registry_evidence, exact_snapshot as _exact_registry_snapshot,
                                 success_markers as _registry_success_markers, validate_trust as _validate_registry_trust)
 from .instants import parse_instant
+from .json_equality import NonJsonValue, json_contains, json_equal, json_key
 from .programme2_profiles import freshness_on
 from .reconstruction import (
     CANONICAL_JSON_PROFILE,
@@ -165,17 +166,37 @@ def _record(profile: str, kind: str, seq: int, path: str, data: dict[str, Any],
     )
 
 
+NON_JSON_CODE = "schema_violation"
+
+
+def _json_same(a: Any, b: Any, what: str, code: str | None = None) -> bool:
+    """JSON-semantic equality (``json_equality``): a boolean is not a number, a string is not a number, ``50 == 50.0``.
+
+    A non-JSON operand is a typed refusal (the caller's contract code, else ``schema_violation``), never a plain False."""
+    try:
+        return json_equal(a, b)
+    except NonJsonValue as exc:
+        raise ImportContractError(f"{what}: operand is not a JSON value ({exc})", code or NON_JSON_CODE) from None
+
+
+def _json_in(item: Any, collection: Any, what: str, code: str | None = None) -> bool:
+    try:
+        return json_contains(item, collection)
+    except NonJsonValue as exc:
+        raise ImportContractError(f"{what}: operand is not a JSON value ({exc})", code or NON_JSON_CODE) from None
+
+
 def _unique_or_same(seen: dict[str, dict[str, Any]], key: str, value: dict[str, Any],
                     label: str, code: str | None = None) -> None:
     old = seen.get(key)
     if old is None:
         seen[key] = value
-    elif old != value:
+    elif not _json_same(old, value, f"immutable {label} {key}", code):
         raise ImportContractError(f"conflicting content under immutable {label} {key}", code)
 
 
 def _require_equal(actual: Any, expected: Any, path: str, code: str | None = None) -> None:
-    if actual != expected:
+    if not _json_same(actual, expected, path, code):
         raise ImportContractError(f"{path} conflicts with committed operation", code)
 
 
@@ -999,8 +1020,8 @@ def import_bounded_workflow(
             raise ImportContractError(f"attempts[{i}] effect_id does not match its decision")
         invariant = {k: raw.get(k) for k in ("attempt_id", "effect_id", "decision_id", "started_at")}
         prior = attempt_invariants.get(aid)
-        started_changed = (prior is not None and prior != invariant
-                           and all(prior[k] == invariant[k] for k in prior if k != "started_at"))
+        started_changed = (prior is not None and not _json_same(prior, invariant, "attempt invariant")
+                           and all(_json_same(prior[k], invariant[k], "attempt invariant") for k in prior if k != "started_at"))
         _unique_or_same(attempt_invariants, aid, invariant, "attempt_id",
                         "attempt_started_at_changed" if started_changed else None)
         records.append(_record(
@@ -1355,7 +1376,7 @@ def _import_moltbot(
             raise ImportContractError(
                 f"Control Plane attempt evidence has no owning producer record: {aid}"
             )
-        if owner_record.data != raw:
+        if not _json_same(owner_record.data, raw, 'Control Plane attempt evidence'):
             raise ImportContractError(
                 f"Control Plane attempt evidence conflicts with owning producer record: {aid}"
             )
@@ -1713,7 +1734,7 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
         if rec.get('result') != expected:
             raise ImportContractError('reconciliation result contradicts accepted observation')
         accepted.append(observation)
-    if cp.get('observations') != accepted:
+    if not _json_same(cp.get('observations'), accepted, 'Control Plane observations'):
         raise ImportContractError('accepted Control Plane observations differ from retained reconciliations')
     terminal = {}
     lifecycle: dict[Any, list[dict[str, Any]]] = {}
@@ -1728,7 +1749,7 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
                 f"Control Plane attempt {attempt.get('attempt_id')} changed its effect_id or decision_id between lifecycle rows",
                 'attempt_identity_changed')
         if attempt.get('status') != 'attempted':
-            reopened = (previous is not None and previous[0].get('status') == 'attempted' and previous[-1] != attempt
+            reopened = (previous is not None and previous[0].get('status') == 'attempted' and not _json_same(previous[-1], attempt, 'attempt lifecycle row')
                         and attempt.get('status') not in CONTROL_PLANE_ATTEMPT_TRANSITIONS.get(previous[-1].get('status'), frozenset()))
             _unique_or_same(terminal, attempt.get('attempt_id'), attempt, 'terminal Control Plane attempt',
                             'attempt_transition' if reopened else None)
@@ -1757,33 +1778,27 @@ def _validate_repaired_run(cp: dict[str, Any], *, profiles: bool = False) -> Non
             raise ImportContractError(f'Control Plane attempt {attempt_id} lifecycle repeats a record', 'repeated_record')
         if rows[0].get('status') == 'attempted':
             for before, after in zip(rows, rows[1:]):
-                if before != after and after.get('status') not in CONTROL_PLANE_ATTEMPT_TRANSITIONS.get(before.get('status'), frozenset()):
+                if not _json_same(before, after, 'attempt lifecycle row') and after.get('status') not in CONTROL_PLANE_ATTEMPT_TRANSITIONS.get(before.get('status'), frozenset()):
                     raise ImportContractError(
                         f"Control Plane attempt {attempt_id} row status {after.get('status')!r} may not follow {before.get('status')!r}",
                         'attempt_transition')
 
 
-def _freeze(value: Any) -> Any:
-    """A hashable form with the same equality as ``==`` on JSON values (dict order ignored; 1, 1.0 and True agree)."""
-    if isinstance(value, dict):
-        return frozenset((key, _freeze(item)) for key, item in value.items())
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze(item) for item in value)
-    return value
-
-
 def _has_equal_rows(rows: list[Any]) -> bool:
-    """True when two rows are equal; one hash-set pass instead of comparing every pair."""
+    """True when two rows are JSON-semantically equal (a boolean is not a number; ``1`` and ``1.0`` agree);
+    one hash-set pass instead of comparing every pair. A non-JSON row is a typed refusal."""
     try:
         seen: set[Any] = set()
         for row in rows:
-            key = _freeze(row)
+            key = json_key(row)
             if key in seen:
                 return True
             seen.add(key)
         return False
-    except TypeError:  # an unhashable non-JSON scalar: fall back to the pairwise comparison
-        return any(rows[i] == rows[j] for i in range(len(rows)) for j in range(i))
+    except NonJsonValue as exc:
+        raise ImportContractError(f"lifecycle row is not a JSON value ({exc})", NON_JSON_CODE) from None
+    except RecursionError:  # pathologically deep rows: the iterative pairwise comparison has no recursion limit
+        return any(_json_same(rows[i], rows[j], "lifecycle rows") for i in range(len(rows)) for j in range(i))
 
 
 def _validate_executor_attempt_rows(source: dict[str, Any],
@@ -1857,13 +1872,13 @@ def _validate_export_layout(source: dict[str, Any], observation: Any, kind: str)
     structure check; a recovery report in ``observations`` also fails the equality below)."""
     listed = source.get("recovery_observations")
     recovery_expected = [observation] if kind == "recovery" else []
-    if listed is not None and listed != recovery_expected:
+    if listed is not None and not _json_same(listed, recovery_expected, 'recovery_observations', 'recovery_observations_mismatch'):
         raise ImportContractError("recovery_observations differ from the result report", "recovery_observations_mismatch")
     observations = source.get("observations")
     if observations is None:
         return
     validated_expected = [observation] if kind == "validated" else []
-    if observations != validated_expected:
+    if not _json_same(observations, validated_expected, 'observations', 'observations_mismatch'):
         raise ImportContractError("accepted executor observations differ from result", "observations_mismatch")
 
 
@@ -2003,7 +2018,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         if field not in source:
             raise ImportContractError('producer 2.0.0 missing ' + field)
     evidence = _obj(source['control_plane_evidence'], 'control_plane_evidence')
-    if result.get('control_plane_evidence', {}) != evidence:  # absent equals empty (optional member)
+    if not _json_same(result.get('control_plane_evidence', {}), evidence, 'result control_plane_evidence'):  # absent equals empty (optional member)
         raise ImportContractError('result Control Plane evidence differs from export')
     observation = result.get('observation')
     kind = _observation_kind(observation)
@@ -2097,33 +2112,33 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         did = source['execution_envelope']['decision_id']
         retained = [r.data for r in cp_records if r.record_type == 'effect_time_refusal' and r.data.get('decision_id') == did and r.data.get('effect_id') == effect]
         if refusal is not None:
-            if refusal not in retained or result.get('status') != 'denied' or result.get('attempted') or result.get('newly_executed') or result.get('acknowledged'):
+            if not _json_in(refusal, retained, 'executor refusal') or result.get('status') != 'denied' or result.get('attempted') or result.get('newly_executed') or result.get('acknowledged'):
                 raise ImportContractError('executor refusal lacks matching denied durable lineage')
         elif retained and result.get('status') == 'denied':
             raise ImportContractError('executor dropped retained typed refusal')
     rec = evidence.get('reconciliation')
     attempt = evidence.get('attempt')
     supplied_attempts = source.get('control_plane_attempts')  # optional member of the lifecycle contract
-    if supplied_attempts is not None and supplied_attempts != ([attempt] if attempt else []):
+    if supplied_attempts is not None and not _json_same(supplied_attempts, [attempt] if attempt else [], 'control_plane_attempts'):
         raise ImportContractError('Control Plane attempts differ from result owning evidence')
     if rec is not None:
         rec = _obj(rec, 'executor reconciliation')
         if rec.get('effect_id') != effect:
             raise ImportContractError('enclosing reconciliation effect identity mismatch')
         retained = [r.data for r in cp_records if r.record_type == 'reconciliation']
-        if rec not in retained:
+        if not _json_in(rec, retained, 'executor reconciliation'):
             raise ImportContractError('executor reconciliation has no matching retained Control Plane record')
         if rec.get('retry_eligible') is not False:
             raise ImportContractError('unsupported retry eligibility')
         rejected = [rec['observation']] if not rec['observation_accepted'] and rec.get('observation') is not None else []
-        if source['rejected_observations'] != rejected:
+        if not _json_same(source['rejected_observations'], rejected, 'rejected_observations'):
             raise ImportContractError('rejected observations differ from retained reconciliation')
-        if observation and (not rec['observation_accepted'] or rec.get('observation') != observation):
+        if observation and (not rec['observation_accepted'] or not _json_same(rec.get('observation'), observation, 'reconciliation observation')):
             raise ImportContractError('rejected/substituted evidence promoted to accepted observation')
         # A failed result carries a null observation by contract (observed_state unknown); the lifecycle contract does not
         # model reconciliation, so the accepted reconciliation observation stays Control Plane evidence beside it.
         if (result.get('attempted') and result.get('status') != 'failed' and rec['observation_accepted']
-                and observation != rec.get('observation')):
+                and not _json_same(observation, rec.get('observation'), 'reconciliation observation')):
             raise ImportContractError('accepted reconciliation observation missing from attempted result')
         if not rec['observation_accepted'] and result.get('observed_state') != 'unknown':
             raise ImportContractError('rejected observation cannot establish observed state')
@@ -2145,7 +2160,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
         if attempt.get('effect_id') != effect or attempt.get('decision_id') != did:
             raise ImportContractError('Control Plane attempt enclosing identity mismatch')
         owner = [r.data for r in cp_records if r.record_type == 'control_plane_attempt_transition']
-        if attempt not in owner:
+        if not _json_in(attempt, owner, 'Control Plane attempt'):
             raise ImportContractError('attempt has no matching owning Control Plane record')
         primary = source.get('attempt_identity') or {}
         ack = attempt.get('acknowledgement') or {}
