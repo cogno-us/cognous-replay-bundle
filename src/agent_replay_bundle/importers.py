@@ -1944,7 +1944,7 @@ def _validate_route_b_execution_evidence(evidence: dict[str, Any], result: dict[
                             ("decision_id", decision_id), ("claim_id", claim),
                             ("grant_id", op.get("grant_id")), ("grant_revision", op.get("grant_revision")),
                             ("profile", ROUTE_B_AUTHORITY_PROFILE)):
-        if expected is None or receipt.get(field) != expected:
+        if expected is None or not _json_same(receipt.get(field), expected, f"route B authority receipt {field}"):
             raise ImportContractError(f"route B authority receipt {field} contradicts the execution result")
     if receipt.get("grant_status") != "active":
         raise ImportContractError("route B authority receipt does not show an active grant")
@@ -2171,7 +2171,7 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
                 raise ImportContractError('acknowledged executor result lacks explicit attempt link')
         elif primary.get('namespace') == 'control_plane' and primary.get('attempt_id') != attempt.get('attempt_id'):
             raise ImportContractError('primary Control Plane attempt identity mismatch')
-        if result.get('acknowledged') != (attempt.get('status') in {'acknowledged', 'partial'}):
+        if not _json_same(result.get('acknowledged'), attempt.get('status') in {'acknowledged', 'partial'}, 'result acknowledged'):
             # A reconciled partial result has no acknowledgement in the executor's
             # public mapping, despite the retained CP partial lifecycle status.
             if not (primary.get('namespace') == 'control_plane' and attempt.get('status') == 'partial' and result.get('acknowledged') is False):

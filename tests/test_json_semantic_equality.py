@@ -230,6 +230,8 @@ class TestImportBoundedWorkflow:
         # canonical serialization is not altered by this change
         assert _sha256(T.proposal_source()).startswith("sha256:51d05130")
         assert _sha256(T.proposal_source()).endswith("2bb0")
+        binding = _sha256(_binding(T.bounded_source()))
+        assert binding.startswith("sha256:bd56c9af") and binding.endswith("e34")
 
 
 class TestW3C8Lineage:
@@ -306,3 +308,43 @@ class TestScopeLint:
             if isinstance(node, ast.Compare):
                 for sub in ast.walk(node):
                     assert not (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name) and sub.func.id == "str"), ast.dump(node)[:120]
+
+
+class TestRouteBReceiptBinding:
+    """The route B authority receipt is bound to the committed operation's grant_revision by JSON-semantic equality."""
+
+    @staticmethod
+    def _check(op_revision, receipt_revision):
+        profile = I.ROUTE_B_AUTHORITY_PROFILE
+        evidence = {"local_authority_effect_profile": profile, "claim_id": "claim-1", "linearized_at": "2026-01-01T00:00:00Z",
+                    "authority_receipt": {"attempt_id": "a1", "effect_id": "e1", "decision_id": "d1", "claim_id": "claim-1",
+                                          "grant_id": "g1", "grant_revision": receipt_revision, "profile": profile,
+                                          "grant_status": "active"}}
+        result = {"status": "executed", "attempted": True, "acknowledged": True, "newly_executed": True, "attempt_id": "a1"}
+        op = {"grant_id": "g1", "grant_revision": op_revision}
+        I._validate_route_b_execution_evidence(evidence, result, "e1", "d1", op)
+
+    @pytest.mark.parametrize("op_revision,receipt_revision", [(1, 1), (1, 1.0), ("1", "1")])
+    def test_positive_controls(self, op_revision, receipt_revision):
+        self._check(op_revision, receipt_revision)
+
+    @pytest.mark.parametrize("op_revision,receipt_revision", [(1, True), (True, 1), (0, False), (1, "1"), ("1", 1),
+                                                              (None, None), (1, None), (1, {1})])
+    def test_receipt_revision_type_confusion_is_refused(self, op_revision, receipt_revision):
+        with pytest.raises(ImportContractError):
+            self._check(op_revision, receipt_revision)
+
+
+def test_c8_policy_key_depth_is_a_typed_refusal():
+    def deep(n):
+        root = cur = []
+        for _ in range(n):
+            nxt = []
+            cur.append(nxt)
+            cur = nxt
+        return root
+    x = c8_data()
+    raw = json.loads(x["rows"]["execution_claims_v1"][0]["claim_json"])
+    x["rows"]["authority_policies_v1"][0]["version"] = deep(20_000)
+    with pytest.raises(C8LineageError):
+        import_c8_source(authority=x)

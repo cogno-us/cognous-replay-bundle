@@ -18,6 +18,8 @@ def _policy_key(x):
         return json_key([x.get("ref"),x.get("version")])
     except NonJsonValue as exc:
         raise C8LineageError("non-JSON value in lineage comparison: "+str(exc)) from None
+    except RecursionError:
+        raise C8LineageError("lineage value nests too deeply to compare") from None
 
 ORDER=("stop_requested","stop_acknowledged","dispatch_closed",
        "quiescence_observed","destination_reconciled")
