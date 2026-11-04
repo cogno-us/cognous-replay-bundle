@@ -146,6 +146,62 @@ def _sha256(value: object) -> str:
     return "sha256:" + hashlib.sha256(canonical_bytes(value)).hexdigest()
 
 
+# Tenant-binding generations of a Control Plane decision (cogno-us/cognous-control-plane bounded.py, TENANT_GENERATION_*). The generation a decision was
+# made under is persisted in its tenant-aware ``binding`` and is part of the effect identity of the STRICT generation only; the LEGACY 0.2 identity and every
+# tenantless (0.1-style) identity are unchanged.
+TENANT_GENERATION_LEGACY = "bounded-authorization-effect/0.2"
+TENANT_GENERATION_STRICT = "bounded-authorization-effect/0.3-strict-tenant"
+_TENANT_GENERATIONS = frozenset({TENANT_GENERATION_LEGACY, TENANT_GENERATION_STRICT})
+_GENERATION_ALIAS_MEMBERS = ("tenant_generation", "generation")  # a decision-level echo of the generation, if a producer ever carries one, must agree with the binding
+
+
+def _binding_generation(raw_decision: dict[str, Any], binding: dict[str, Any], path: str) -> str | None:
+    """The tenant-binding generation persisted in ``binding``; None for a tenantless binding. Wrong, missing or conflicting generation is refused, never coerced.
+    A binding-level or decision-level ``tenant_generation``/``generation`` echo, if present, must be an exact str equal to ``binding.generation``."""
+    def refuse(message: str) -> None:
+        raise ImportContractError(f"{path}.{message}", "binding_contract_mismatch")
+
+    has_tenant = "tenant_id" in binding
+    if "generation" not in binding:
+        if has_tenant:
+            refuse("binding.generation is required on a tenant-aware binding")
+        if "tenant_generation" in binding:
+            refuse("binding.tenant_generation conflicts with a binding that carries no generation")
+        for name in _GENERATION_ALIAS_MEMBERS:
+            if name in raw_decision:
+                refuse(f"{name} conflicts with a binding that carries no generation")
+        return None
+    generation = binding["generation"]
+    if type(generation) is not str or generation not in _TENANT_GENERATIONS:
+        refuse("binding.generation is not a supported tenant-binding generation")
+    if not has_tenant or type(binding["tenant_id"]) is not str or not binding["tenant_id"]:
+        refuse("binding.generation requires a non-empty tenant_id on the binding")
+    if "tenant_generation" in binding:
+        echoed = binding["tenant_generation"]
+        if not (type(echoed) is str and echoed == generation):
+            refuse("binding.tenant_generation conflicts with binding.generation")
+    for name in _GENERATION_ALIAS_MEMBERS:
+        if name in raw_decision:
+            echoed = raw_decision[name]
+            if not (type(echoed) is str and echoed == generation):
+                refuse(f"{name} conflicts with binding.generation")
+    return generation
+
+
+def _expected_effect_id(raw_decision: dict[str, Any], binding: dict[str, Any], path: str) -> str:
+    """The one place Replay recomputes a Control Plane effect identity (Control Plane ``_effect_id``): sha256 of {proposal, grant_id, grant_revision}, plus
+    ``tenant_generation`` for the STRICT generation only. The generation is read from the persisted binding; a strict marker is never dropped or added."""
+    generation = _binding_generation(raw_decision, binding, path)
+    identity = {
+        "proposal": binding.get("proposal_commitment"),
+        "grant_id": binding.get("grant_id"),
+        "grant_revision": binding.get("grant_revision"),
+    }
+    if generation == TENANT_GENERATION_STRICT:
+        identity["tenant_generation"] = TENANT_GENERATION_STRICT
+    return _sha256(identity)
+
+
 def _obj(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ImportContractError(f"{path} must be an object")
@@ -963,11 +1019,7 @@ def import_bounded_workflow(
             if proposal is not None:
                 _validate_proposal_binding(p, binding, f"decisions[{i}].binding")
             effect_id = raw.get("effect_id")
-            expected = _sha256({
-                "proposal": binding.get("proposal_commitment"),
-                "grant_id": binding.get("grant_id"),
-                "grant_revision": binding.get("grant_revision"),
-            })
+            expected = _expected_effect_id(raw, binding, f"decisions[{i}]")
             if isinstance(effect_id, str) and effect_id != expected:
                 raise ImportContractError(f"decision {did} has invalid effect identity")
             if isinstance(effect_id, str):
