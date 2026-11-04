@@ -156,23 +156,35 @@ _GENERATION_ALIAS_MEMBERS = ("tenant_generation", "generation")  # a decision-le
 
 
 def _binding_generation(raw_decision: dict[str, Any], binding: dict[str, Any], path: str) -> str | None:
-    """The tenant-binding generation persisted in ``binding``; None for a tenantless binding. Wrong, missing or conflicting generation is refused, never coerced."""
+    """The tenant-binding generation persisted in ``binding``; None for a tenantless binding. Wrong, missing or conflicting generation is refused, never coerced.
+    A binding-level or decision-level ``tenant_generation``/``generation`` echo, if present, must be an exact str equal to ``binding.generation``."""
+    def refuse(message: str) -> None:
+        raise ImportContractError(f"{path}.{message}", "binding_contract_mismatch")
+
     has_tenant = "tenant_id" in binding
     if "generation" not in binding:
         if has_tenant:
-            raise ImportContractError(f"{path}.binding.generation is required on a tenant-aware binding", "binding_contract_mismatch")
+            refuse("binding.generation is required on a tenant-aware binding")
+        if "tenant_generation" in binding:
+            refuse("binding.tenant_generation conflicts with a binding that carries no generation")
         for name in _GENERATION_ALIAS_MEMBERS:
             if name in raw_decision:
-                raise ImportContractError(f"{path}.{name} conflicts with a binding that carries no generation", "binding_contract_mismatch")
+                refuse(f"{name} conflicts with a binding that carries no generation")
         return None
     generation = binding["generation"]
     if type(generation) is not str or generation not in _TENANT_GENERATIONS:
-        raise ImportContractError(f"{path}.binding.generation is not a supported tenant-binding generation", "binding_contract_mismatch")
+        refuse("binding.generation is not a supported tenant-binding generation")
     if not has_tenant or type(binding["tenant_id"]) is not str or not binding["tenant_id"]:
-        raise ImportContractError(f"{path}.binding.generation requires a non-empty tenant_id on the binding", "binding_contract_mismatch")
+        refuse("binding.generation requires a non-empty tenant_id on the binding")
+    if "tenant_generation" in binding:
+        echoed = binding["tenant_generation"]
+        if not (type(echoed) is str and echoed == generation):
+            refuse("binding.tenant_generation conflicts with binding.generation")
     for name in _GENERATION_ALIAS_MEMBERS:
-        if name in raw_decision and raw_decision[name] != generation:
-            raise ImportContractError(f"{path}.{name} conflicts with binding.generation", "binding_contract_mismatch")
+        if name in raw_decision:
+            echoed = raw_decision[name]
+            if not (type(echoed) is str and echoed == generation):
+                refuse(f"{name} conflicts with binding.generation")
     return generation
 
 

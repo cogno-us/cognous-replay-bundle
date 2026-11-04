@@ -210,3 +210,59 @@ def test_12_registry_authenticated_selection_semantics_unchanged():
     assert md["registry_authenticated"] is False and md["registry_origin"] == "registry_origin_unverified"
     assert md["control_plane_decision_authenticated"] is False
     assert [k for k in md if k.startswith(("claim_b", "decision_authentic", "registry_origin_verified"))] == []
+
+
+# ---- binding-level tenant_generation validation (review nit) and exact-type echo (N2) ---------------------------------------------------
+@pytest.mark.parametrize("kind,gen", [("strict", STRICT), ("legacy", LEGACY)])
+def test_binding_level_tenant_generation_matching_is_accepted(kind, gen):
+    cp, pr = load(kind)
+    dec(cp)["binding"]["tenant_generation"] = gen
+    assert len(effect_checked(run(cp, pr))) == 1
+
+
+@pytest.mark.parametrize("bad", [LEGACY, "bounded-authorization-effect/0.3", None, 1, True, [STRICT], _S(STRICT)])
+def test_strict_wrong_binding_level_tenant_generation_is_refused(bad):
+    cp, pr = load("strict")
+    dec(cp)["binding"]["tenant_generation"] = bad
+    refused_identity(cp, pr, "binding.tenant_generation conflicts with binding.generation", "binding_contract_mismatch")
+
+
+def test_legacy_binding_level_tenant_generation_strict_is_refused():
+    cp, pr = load("legacy")
+    dec(cp)["binding"]["tenant_generation"] = STRICT
+    refused_identity(cp, pr, "binding.tenant_generation conflicts with binding.generation", "binding_contract_mismatch")
+
+
+def test_strict_missing_binding_generation_with_tenant_generation_is_refused():
+    cp, pr = load("strict")
+    del dec(cp)["binding"]["generation"]
+    dec(cp)["binding"]["tenant_generation"] = STRICT
+    refused_identity(cp, pr, "binding.generation is required", "binding_contract_mismatch")
+
+
+def test_tenantless_binding_carrying_strict_is_refused():
+    cp, pr = load("strict")
+    del dec(cp)["binding"]["tenant_id"]
+    refused_identity(cp, pr, "requires a non-empty tenant_id", "binding_contract_mismatch")
+    cp, pr = load("strict")
+    del dec(cp)["binding"]["tenant_id"]
+    del dec(cp)["binding"]["generation"]
+    dec(cp)["binding"]["tenant_generation"] = STRICT
+    refused_identity(cp, pr, "binding.tenant_generation conflicts with a binding that carries no generation", "binding_contract_mismatch")
+
+
+def test_generation_strict_with_tenant_generation_legacy_is_refused():
+    cp, pr = load("strict")
+    dec(cp)["binding"]["tenant_generation"] = LEGACY
+    refused_identity(cp, pr, "binding.tenant_generation conflicts", "binding_contract_mismatch")
+
+
+@pytest.mark.parametrize("member", ["tenant_generation", "generation"])
+@pytest.mark.parametrize("bad", [_S(STRICT), [STRICT], 1, None])
+def test_decision_level_echo_requires_exact_type(member, bad):
+    cp, pr = load("strict")
+    dec(cp)[member] = bad
+    refused_identity(cp, pr, f"{member} conflicts with binding.generation", "binding_contract_mismatch")
+    cp, pr = load("strict")
+    dec(cp)[member] = STRICT
+    assert len(effect_checked(run(cp, pr))) == 1
