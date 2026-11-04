@@ -1,9 +1,25 @@
 """C8 source-record reconstruction. Never authorizes effects."""
 from __future__ import annotations
+from .json_equality import NonJsonValue,json_equal,json_key
 from .reconstruction import ReconstructionBundle,ProducerProfile,SourceRecord,ImportReport,ImportFinding
 
 class C8LineageError(ValueError):
     pass
+
+def _same(a,b):
+    """JSON-semantic equality; a non-JSON operand is a typed refusal."""
+    try:
+        return json_equal(a,b)
+    except NonJsonValue as exc:
+        raise C8LineageError("non-JSON value in lineage comparison: "+str(exc)) from None
+
+def _policy_key(x):
+    try:
+        return json_key([x.get("ref"),x.get("version")])
+    except NonJsonValue as exc:
+        raise C8LineageError("non-JSON value in lineage comparison: "+str(exc)) from None
+    except RecursionError:
+        raise C8LineageError("lineage value nests too deeply to compare") from None
 
 ORDER=("stop_requested","stop_acknowledged","dispatch_closed",
        "quiescence_observed","destination_reconciled")
@@ -41,12 +57,13 @@ def import_c8_source(*, authority:dict,stop:dict|None=None) -> ReconstructionBun
             raise C8LineageError("retained claim JSON unavailable or corrupt")
         if raw.get("claim_id")!=authority["claim_id"] or raw.get("tenant_id")!=tenant:
             raise C8LineageError("retained claim JSON identity contradiction")
-        if raw.get("grant_id")!=grant or str(raw.get("grant_revision"))!=str(claims[0].get("grant_revision")):
+        # JSON-semantic comparison only: a string revision never equals a numeric revision (no str() bridge).
+        if raw.get("grant_id")!=grant or not _same(raw.get("grant_revision"),claims[0].get("grant_revision")):
             raise C8LineageError("grant revision contradiction")
         if not raw.get("operation_commitment"):
             raise C8LineageError("retained operation commitment absent")
         grant_rows=rows.get("authority_grants_v1",[])
-        if grant_rows and str(grant_rows[0].get("revision"))!=str(claims[0].get("grant_revision")):
+        if grant_rows and not _same(grant_rows[0].get("revision"),claims[0].get("grant_revision")):
             raise C8LineageError("authoritative grant revision mismatch")
         expected_approvals={x.get("approval_ref") for x in raw.get("approval_state",[])}
         available_approvals={x.get("approval_ref") for x in rows.get("authority_approvals_v1",[])}
@@ -57,8 +74,8 @@ def import_c8_source(*, authority:dict,stop:dict|None=None) -> ReconstructionBun
             raise C8LineageError("retained approval proposal commitment absent")
         if len(proposal_commitments)>1:
             raise C8LineageError("conflicting approval proposal commitments")
-        expected_policies={(x.get("ref"),str(x.get("version"))) for x in raw.get("policy_state",[])}
-        actual_policies={(x.get("ref"),str(x.get("version"))) for x in rows.get("authority_policies_v1",[])}
+        expected_policies={_policy_key(x) for x in raw.get("policy_state",[])}
+        actual_policies={_policy_key(x) for x in rows.get("authority_policies_v1",[])}
         if not expected_policies.issubset(actual_policies):
             raise C8LineageError("required policy revision unavailable")
     events=[]
