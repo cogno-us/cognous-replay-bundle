@@ -284,6 +284,22 @@ def _validate_proposal_binding(proposal: dict[str, Any], binding: dict[str, Any]
         _require_equal(actual, expected, path + "." + field)
 
 
+def _validate_binding_tenant(proposal: dict[str, Any], binding: dict[str, Any], path: str) -> None:
+    """A decision binding that carries a tenant, or answers a proposal that carries one, must carry exactly the proposal's ``tenant_id`` (Control Plane derives
+    ``binding.tenant_id`` from ``proposal.tenant_id``). Exact JSON string equality: no trimming, no case folding, no default. A binding tenant that is absent,
+    empty or not a string while either side carries a tenant is refused here, fail closed (called AFTER the generation/effect-identity checks, so their more specific
+    refusals, e.g. ``binding.generation requires a non-empty tenant_id``, keep priority; this is the backstop for what they do not cover, e.g. a legacy binding stripped
+    of both tenant and generation). Only when NEITHER side carries a
+    tenant (a tenantless 0.1-style record) is nothing compared, exactly as before. The effect identity does not hash ``tenant_id`` and is not changed."""
+    proposal_tenant = proposal.get("tenant_id")
+    if "tenant_id" not in binding and proposal_tenant is None:
+        return
+    tenant = binding.get("tenant_id")
+    if type(tenant) is not str or not tenant:
+        raise ImportContractError(f"{path}.tenant_id requires a non-empty tenant_id string equal to the proposal's tenant_id", "binding_contract_mismatch")
+    _require_equal(tenant, proposal_tenant, path + ".tenant_id")
+
+
 def _validate_envelope_chain(
     op: dict[str, Any], proposal: dict[str, Any], binding: dict[str, Any]
 ) -> None:
@@ -1034,6 +1050,8 @@ def import_bounded_workflow(
             expected = _expected_effect_id(raw, binding, f"decisions[{i}]")
             if isinstance(effect_id, str) and effect_id != expected:
                 raise ImportContractError(f"decision {did} has invalid effect identity")
+            if proposal is not None:
+                _validate_binding_tenant(p, binding, f"decisions[{i}].binding")
             if isinstance(effect_id, str):
                 commitments.append(CommitmentRecord(
                     label="effect_id", value=effect_id, algorithm="SHA-256",
@@ -1306,6 +1324,7 @@ def _import_moltbot(
     if proposal is None:
         raise ImportContractError("Moltbot envelope requires the corresponding RuntimeProposal for cross-record validation")
     _validate_proposal_binding(proposal, binding, "decision.binding")
+    _validate_binding_tenant(proposal, binding, "decision.binding")
     _validate_envelope_chain(op, proposal, binding)
     expected_operation_digest = _sha256(op)
 
