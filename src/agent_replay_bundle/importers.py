@@ -110,6 +110,14 @@ MOLTBOT_CUR_PROFILE = "moltbot-safe-executor-producer-2.0.0@f7a55e2a"
 # It admits ``binding.runtime_authority.effective_configuration`` on authorized decisions (validated in effective_configuration.py) and nothing else; it is never inferred
 # from the presence of the member, and the plain CUR profile, P2, P4 and every earlier generation still refuse the member. PROVISIONAL DEVELOPMENT PIN, UNQUALIFIED.
 BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE = "control-plane-current-stack-registry-governed-effective-configuration-0.1@b19c47dd"
+# STRICT-TENANT generation (OCS clean contract reset, Option 2), added BESIDE the generations above, none of which is repointed, renamed or removed: Control Plane
+# 484fdbd2 (484fdbd297235dd24148ddb0703f2055a31eabff), whose effect identity is bounded-authorization-effect/0.3-strict-tenant, paired with the SAME runtime f7a55e2a
+# and action manifest fa170815 as CUR (the runtime did not change). One exact pin (no prefix, range or wildcard). Scope: the plain bounded run only; the Registry-governed
+# and authenticated-selection profile selectors stay CUR-only and are refused for this label ("unsupported Control Plane profile selector"). The label is caller-declared
+# and is not measured against a Control Plane checkout. PROVISIONAL DEVELOPMENT PIN, UNQUALIFIED, non-authorizing. Kept in its own set so that every CUR/P2 set above is byte-unchanged.
+CONTROL_PLANE_STRICT_TENANT_REVISION = "484fdbd297235dd24148ddb0703f2055a31eabff"
+BOUNDED_STRICT_TENANT_PROFILE = "control-plane-strict-tenant-stack@484fdbd2"
+STRICT_TENANT_CP_REVISIONS = frozenset({CONTROL_PLANE_STRICT_TENANT_REVISION})
 PROGRAMME2_CP_REVISIONS = frozenset({CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
 SECURITY_RUNTIME_CP_REVISIONS = frozenset({CONTROL_PLANE_SECURITY_REVISION, CONTROL_PLANE_F5B_REVISION, CONTROL_PLANE_P4_REVISION, CONTROL_PLANE_P2_REVISION, CONTROL_PLANE_CUR_REVISION})
 SECURITY_RUNTIME_BOUNDED_PROFILES = frozenset({BOUNDED_SECURITY_PROFILE, BOUNDED_F5B_PROFILE, BOUNDED_P4_PROFILE, BOUNDED_P2_PROFILE, BOUNDED_CUR_PROFILE, BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE})
@@ -819,7 +827,7 @@ def import_bounded_workflow(
     older authenticated selector (no new marker keys); only ``metadata.control_plane_profile`` distinguishes the F4 shape. ``reverify_retained_registry_evidence`` does not
     support F4 bundles (it re-runs the older selector and fails closed).
     """
-    if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS}:
+    if control_plane_revision not in {CONTROL_PLANE_REVISION, *CONTROL_PLANE_SUPPORTED_V2_REVISIONS, *STRICT_TENANT_CP_REVISIONS}:
         raise ImportContractError("unsupported Control Plane revision")
     registry_governed = False
     authenticated = False
@@ -859,7 +867,7 @@ def import_bounded_workflow(
     _check_record_bounds(control_plane_record)
     _check_record_bounds(proposal)
     _check_record_bounds(moltbot_export)
-    repaired = control_plane_revision in CONTROL_PLANE_SUPPORTED_V2_REVISIONS
+    repaired = control_plane_revision in CONTROL_PLANE_SUPPORTED_V2_REVISIONS or control_plane_revision in STRICT_TENANT_CP_REVISIONS
     bounded_profile = {
         CONTROL_PLANE_V2_REVISION: BOUNDED_V2_PROFILE,
         CONTROL_PLANE_V2_PERSISTENCE_REVISION: BOUNDED_V2_PERSISTENCE_PROFILE,
@@ -871,6 +879,7 @@ def import_bounded_workflow(
         CONTROL_PLANE_P4_REVISION: BOUNDED_P4_PROFILE,
         CONTROL_PLANE_P2_REVISION: BOUNDED_P2_PROFILE,
         CONTROL_PLANE_CUR_REVISION: BOUNDED_CUR_PROFILE,
+        CONTROL_PLANE_STRICT_TENANT_REVISION: BOUNDED_STRICT_TENANT_PROFILE,
     }.get(control_plane_revision, BOUNDED_PROFILE)
     if registry_governed:
         bounded_profile = BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE if authenticated else BOUNDED_CUR_REGISTRY_GOVERNED_PROFILE
@@ -880,13 +889,16 @@ def import_bounded_workflow(
             "compatible_control_plane_revisions",
             (contract.get("control_plane_revision", CONTROL_PLANE_REVISION),),
         )
+        if control_plane_revision in STRICT_TENANT_CP_REVISIONS and contract.get("repository_revision") == MOLTBOT_CUR_REVISION:
+            expected_cps = (CONTROL_PLANE_STRICT_TENANT_REVISION,)  # the unchanged CUR runtime is the one executor paired with the strict-tenant Control Plane
+            contract["compatible_control_plane_revisions"] = [CONTROL_PLANE_STRICT_TENANT_REVISION]
         if control_plane_revision not in expected_cps:
             raise ImportContractError("unsupported executor/Control Plane revision combination")
         contract["control_plane_revision"] = control_plane_revision
     cp = _obj(control_plane_record, "control_plane_record")
     if authenticated:
         cp = _exact_registry_snapshot(cp)  # M-1: one exact-type copy feeds BOTH admission and persistence
-    programme2 = control_plane_revision in PROGRAMME2_CP_REVISIONS
+    programme2 = control_plane_revision in PROGRAMME2_CP_REVISIONS or control_plane_revision in STRICT_TENANT_CP_REVISIONS
     if repaired:
         _validate_repaired_run(cp, profiles=programme2)
     required = {"run_id", "decisions", "attempts", "observations", "reconciliations"}
@@ -908,8 +920,8 @@ def import_bounded_workflow(
             "reconciliations": "records[reconciliation]",
         },
     )
-    authority = control_plane_revision in {CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS}
-    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS}
+    authority = control_plane_revision in {CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS, *STRICT_TENANT_CP_REVISIONS}
+    extended = control_plane_revision in {CONTROL_PLANE_REFUSAL_REVISION, CONTROL_PLANE_RUNTIME_AUTHORITY_REVISION, *SECURITY_RUNTIME_CP_REVISIONS, *STRICT_TENANT_CP_REVISIONS}
     if extended:
         from .refusal_evidence import EXTENDED, AUTHORITY_EXTENDED, validate_run
         EXTENDED = {**EXTENDED, **AUTHORITY_EXTENDED} if authority else EXTENDED
@@ -1238,8 +1250,9 @@ def import_bounded_workflow(
                                   CONTROL_PLANE_F5B_REVISION: MANIFEST_F5B_REVISION,
                                   CONTROL_PLANE_P4_REVISION: MANIFEST_P4_REVISION,
                                   CONTROL_PLANE_P2_REVISION: MANIFEST_P2_REVISION,
-                                  CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
-            **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS else {}),
+                                  CONTROL_PLANE_CUR_REVISION: MANIFEST_CUR_REVISION,
+                                  CONTROL_PLANE_STRICT_TENANT_REVISION: MANIFEST_CUR_REVISION}.get(control_plane_revision, MANIFEST_REVISION),
+            **({"executor_failure_reference_verification": "source_asserted_not_independently_verified"} if control_plane_revision in SECURITY_RUNTIME_CP_REVISIONS | STRICT_TENANT_CP_REVISIONS else {}),
             **(_registry_success_markers(validated_trust, admissions, REGISTRY_AUTHENTICATED_SELECTION_F4_PROFILE if f4_shape else REGISTRY_AUTHENTICATED_SELECTION_PROFILE) if authenticated else {}),
             **({"control_plane_profile": REGISTRY_GOVERNED_PROFILE,
                 **({"effective_configuration_verification": "caller_trusted_configuration_match", "registry_authenticated": False,
@@ -2116,9 +2129,9 @@ def _validate_v2_export(source: dict[str, Any], cp_records: list[SourceRecord],
     for item in cp_observations:
         _validate_observation_content(item, effect, op, 'control_plane.observations')
     route_b_members: set[str] = set()
-    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records):
+    if any(r.producer_profile_id in {BOUNDED_REFUSAL_PROFILE, BOUNDED_RUNTIME_AUTHORITY_PROFILE, *SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_STRICT_TENANT_PROFILE, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records):
         allowed = {'attempt', 'reconciliation', 'refusal'}
-        security = any(r.producer_profile_id in {*SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records)
+        security = any(r.producer_profile_id in {*SECURITY_RUNTIME_BOUNDED_PROFILES, BOUNDED_STRICT_TENANT_PROFILE, BOUNDED_CUR_REGISTRY_AUTHENTICATED_PROFILE} for r in cp_records)
         if security:
             allowed.add('failure_record_id')
         recovery_report = bool(observation) and _is_recovery_observation(observation)
