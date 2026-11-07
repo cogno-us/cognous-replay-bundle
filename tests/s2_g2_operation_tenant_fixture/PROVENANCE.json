@@ -1,0 +1,11 @@
+{
+  "source": "S2-REFUND-RT-01 capture (orchestrator PR #151 harness tests/manual_contract/s2_runtime/s2_capture.py, head 5e43aaf3baf8bf6382cdd66b58e6bef27d440160): Control Plane 484fdbd2 strict-tenant (tenant-alpha) run authorized, executed ONCE through the Runtime f7a55e2a Route A PinnedControlPlaneExecutor into an isolated local SQLite, export_execution_artifacts output persisted unmodified. Synthetic data, throwaway stores, nothing hand-edited. DEVELOPMENT ONLY, UNQUALIFIED, non-authorizing.",
+  "producer": {"control_plane": "484fdbd297235dd24148ddb0703f2055a31eabff", "runtime": "f7a55e2a8494801e49193f9f46935f0a971c248d", "manifest": "fa170815ef96a54c233d0dd9da821b60debabf8b"},
+  "note": "This is the SUPPLEMENTARY capture stored in PR #151's evidence directory, not the temporary capture on which the original S2 N2/N2b runs executed (random ids differ). The Runtime repository_revision recorded in the export is caller-asserted by the capture script.",
+  "sha256": {
+    "capture_summary.json": "07f6aac83e95d7778e4b1d57634ed528f193fa43924856ba1eb7cf5a7a792253",
+    "control_plane_run.json": "c7ef11c22873a6e962ac0342b6995cb82789bd11d3c33f9ed2f99bf41df259a7",
+    "proposal.json": "d43ac343139f8c9393ddca4746961d1fc7a4e05bafa5a6c5f446157a53e5178d",
+    "runtime_export.json": "4e0fdc14ac0ff1e28990c5c73989c0f254c9f2dee6e9a3d3ec9d052a269377a4"
+  }
+}
