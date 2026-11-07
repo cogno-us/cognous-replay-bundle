@@ -300,6 +300,21 @@ def _validate_binding_tenant(proposal: dict[str, Any], binding: dict[str, Any], 
     _require_equal(tenant, proposal_tenant, path + ".tenant_id")
 
 
+def _validate_operation_tenant(op: dict[str, Any], proposal: dict[str, Any]) -> None:
+    """The executor operation must carry exactly the authorized proposal's tenant. If the proposal carries a tenant, or the operation carries a ``tenant_id`` member, the
+    operation's ``tenant_id`` must be a non-empty ``str`` exactly equal to the proposal's: no trimming, case folding, aliasing, defaulting or inference from another field
+    (a missing, null, empty or mistyped operation tenant never bypasses a tenant-bearing proposal, and a tenant-bearing operation never answers a tenantless proposal).
+    Only when NEITHER side carries a tenant (a historical tenantless record) is nothing compared, exactly as before. The effect identity, operation digest and commitments are
+    not changed; this adds the one missing operation-to-proposal consistency check (the proposal-to-binding check is ``_validate_binding_tenant``)."""
+    if proposal.get("tenant_id") is None and "tenant_id" not in op:
+        return
+    tenant = op.get("tenant_id")
+    if type(tenant) is not str or not tenant:
+        raise ImportContractError(
+            "execution_envelope.operation.tenant_id requires a non-empty tenant_id string equal to the proposal's tenant_id", "binding_contract_mismatch")
+    _require_equal(tenant, proposal.get("tenant_id"), "execution_envelope.operation.tenant_id", "binding_contract_mismatch")
+
+
 def _validate_envelope_chain(
     op: dict[str, Any], proposal: dict[str, Any], binding: dict[str, Any]
 ) -> None:
@@ -314,6 +329,7 @@ def _validate_envelope_chain(
         if field == "requested_permissions" and isinstance(actual, (list, tuple)) and isinstance(expected, (list, tuple)):
             actual, expected = list(actual), list(expected)
         _require_equal(actual, expected, "execution_envelope.operation." + field)
+    _validate_operation_tenant(op, proposal)
     _require_equal(
         op.get("authority_context_id"), proposal.get("authority_context_ref"),
         "execution_envelope.operation.authority_context_id(profile_ref)",
